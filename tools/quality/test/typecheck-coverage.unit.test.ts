@@ -23,6 +23,7 @@ test("coverage reports package TypeScript omitted by tsconfig", async () => {
   const packageJson = join(packageRoot, "package.json");
   const source = join(packageRoot, "src", "index.ts");
   const missedTest = join(packageRoot, "test", "missed.unit.test.ts");
+  const missedModule = join(packageRoot, "test", "missed.mts");
   await write(
     packageJson,
     JSON.stringify({ scripts: { typecheck: "tsc -p tsconfig.json" } }),
@@ -33,11 +34,12 @@ test("coverage reports package TypeScript omitted by tsconfig", async () => {
   );
   await write(source, "export const value = 1;\n");
   await write(missedTest, "export const missed = true;\n");
+  await write(missedModule, "export const moduleMissed = true;\n");
 
-  const files = [packageJson, source, missedTest];
+  const files = [packageJson, source, missedTest, missedModule];
   const findings = await checkTypecheckCoverage(root, files);
-  assert.equal(findings.length, 1);
-  assert.match(findings[0]?.message ?? "", /outside typecheck/u);
+  assert.equal(findings.length, 2);
+  assert.ok(findings.every((finding) => /outside typecheck/u.test(finding.message)));
 
   await write(
     join(packageRoot, "tsconfig.json"),

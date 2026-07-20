@@ -45,6 +45,8 @@ test("discovery covers the whole workspace and rejects case variants", async () 
     "node_modules/dependency/hidden.unit.test.ts",
     "dist/generated.e2e.test.ts",
     "tmp/probe.integration.test.ts",
+    "fixtures.test.data/plain.json",
+    "fixtures.spec.data/readme.md",
   ];
   await Promise.all(
     [...included, ...skipped].map((path) => writeCandidate(root, path)),

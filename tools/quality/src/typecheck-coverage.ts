@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, extname, relative, resolve } from "node:path";
 import ts from "typescript";
 
 export interface TypecheckCoverageFinding {
@@ -24,7 +24,10 @@ function isWorkspacePackageJson(workspaceRoot: string, filePath: string): boolea
 }
 
 function isTypeScriptSource(filePath: string): boolean {
-  return /\.(?:ts|tsx)$/u.test(filePath) && !filePath.endsWith(".d.ts");
+  return (
+    [".ts", ".tsx", ".mts", ".cts"].includes(extname(filePath)) &&
+    !filePath.endsWith(".d.ts")
+  );
 }
 
 export async function checkTypecheckCoverage(

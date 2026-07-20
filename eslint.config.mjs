@@ -12,7 +12,6 @@ export default tseslint.config(
       "**/test-results/**",
       "**/artifacts/**",
       "**/tmp/**",
-      "**/src/generated/**",
     ],
   },
   {
@@ -24,10 +23,10 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
-    files: ["**/*.ts", "**/*.tsx"],
+    files: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
   })),
   {
-    files: ["**/*.ts", "**/*.tsx"],
+    files: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
     languageOptions: {
       parserOptions: {
         projectService: true,

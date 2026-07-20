@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { extname, resolve } from "node:path";
 
 export type QualitySeverity = "error" | "warning";
 
@@ -30,8 +31,46 @@ export function countLines(text: string): number {
   return normalized.endsWith("\n") ? count - 1 : count;
 }
 
-export function isGeneratedTypeScript(filePath: string): boolean {
-  return filePath.replaceAll("\\", "/").includes("/src/generated/");
+export const TYPESCRIPT_EXTENSIONS = Object.freeze([
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+] as const);
+
+export const CODE_EXTENSIONS = Object.freeze([
+  ...TYPESCRIPT_EXTENSIONS,
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+] as const);
+
+export function hasExactExtension(
+  filePath: string,
+  extensions: readonly string[],
+): boolean {
+  return extensions.includes(extname(filePath));
+}
+
+export function hasNoncanonicalCodeExtension(filePath: string): boolean {
+  const extension = extname(filePath);
+  return (
+    extension !== extension.toLowerCase() &&
+    CODE_EXTENSIONS.includes(
+      extension.toLowerCase() as (typeof CODE_EXTENSIONS)[number],
+    )
+  );
+}
+
+export function isRegisteredGeneratedTypeScript(
+  filePath: string,
+  generatedFiles: readonly string[],
+): boolean {
+  const candidate = resolve(filePath).toLowerCase();
+  return generatedFiles.some(
+    (generatedFile) => resolve(generatedFile).toLowerCase() === candidate,
+  );
 }
 
 export function isTestTypeScript(filePath: string): boolean {
@@ -48,8 +87,9 @@ export function isTestTypeScript(filePath: string): boolean {
 export function checkFileSize(
   filePath: string,
   text: string,
+  generatedFiles: readonly string[] = [],
 ): readonly QualityFinding[] {
-  if (isGeneratedTypeScript(filePath)) {
+  if (isRegisteredGeneratedTypeScript(filePath, generatedFiles)) {
     return Object.freeze([]);
   }
   const lines = countLines(text);
@@ -101,7 +141,7 @@ export function checkForbiddenSyntax(
 
   const scriptKind = filePath.endsWith(".tsx")
     ? ts.ScriptKind.TSX
-    : filePath.endsWith(".js") || filePath.endsWith(".mjs")
+    : [".js", ".jsx", ".mjs", ".cjs"].some((extension) => filePath.endsWith(extension))
       ? ts.ScriptKind.JS
       : ts.ScriptKind.TS;
   const source = ts.createSourceFile(

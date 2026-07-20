@@ -19,6 +19,32 @@ function looksSensitiveIdentifier(value: string): boolean {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function validateModelIdentifierInput(
+  input: unknown,
+): readonly ProjectContractIssue[] {
+  if (!isRecord(input) || input["contract_kind"] !== "semantic_audit_event") {
+    return Object.freeze([]);
+  }
+  const context = input["subject_model_context"];
+  if (!isRecord(context)) {
+    return Object.freeze([]);
+  }
+  const issues: ProjectContractIssue[] = [];
+  for (const field of ["provider", "model"] as const) {
+    const value = context[field];
+    if (typeof value === "string" && looksSensitiveIdentifier(value)) {
+      issues.push(
+        issue("PROJECT_MODEL_IDENTIFIER_INVALID", `/subject_model_context/${field}`),
+      );
+    }
+  }
+  return Object.freeze(issues);
+}
+
 export function validateAudit(
   event: SemanticAuditEvent,
 ): readonly ProjectContractIssue[] {

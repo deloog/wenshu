@@ -9,7 +9,11 @@ import type {
   ProjectContract,
   ProjectManifest,
 } from "./generated/project-contract.ts";
-import { isCanonicalTimestamp, validateAudit } from "./audit-semantics.ts";
+import {
+  isCanonicalTimestamp,
+  validateAudit,
+  validateModelIdentifierInput,
+} from "./audit-semantics.ts";
 
 export const PROJECT_CONTRACT_VERSION = "0.1.0" as const;
 export const PROJECT_UPSTREAM_VERSIONS = Object.freeze({
@@ -175,13 +179,22 @@ export function validateProjectContract(
       ]),
     });
   }
+  const identifierIssues = validateModelIdentifierInput(input);
+  if (identifierIssues.length > 0) {
+    return Object.freeze({ ok: false, issues: identifierIssues });
+  }
   if (!validateShape(input)) {
     return Object.freeze({
       ok: false,
       issues: Object.freeze(
-        (validateShape.errors ?? []).map((entry) =>
-          issue("PROJECT_SCHEMA", entry.instancePath || "/"),
-        ),
+        (validateShape.errors ?? []).map((entry) => {
+          const missingProperty = entry.params["missingProperty"];
+          const path =
+            entry.keyword === "required" && typeof missingProperty === "string"
+              ? `${entry.instancePath}/${missingProperty.replaceAll("~", "~0").replaceAll("/", "~1")}`
+              : entry.instancePath || "/";
+          return issue("PROJECT_SCHEMA", path);
+        }),
       ),
     });
   }

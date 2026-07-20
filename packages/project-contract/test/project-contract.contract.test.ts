@@ -43,10 +43,12 @@ test("knowledge bundle closes project, audit, material, and hash references", as
 });
 
 test("invalid fixtures fail with stable issue codes and paths", async () => {
-  for (const name of ["future-project", "missing-project-field"]) {
-    const input = asRecord(
-      await readJson(new URL(`../fixtures/invalid/${name}.json`, import.meta.url)),
-    );
+  const directory = new URL("../fixtures/invalid/", import.meta.url);
+  const names = (await readdir(directory))
+    .filter((name) => name.endsWith(".json"))
+    .sort();
+  for (const name of names) {
+    const input = asRecord(await readJson(new URL(name, directory)));
     const expectedIssue = input["expectedIssue"];
     const expectedPath = input["expectedPath"];
     if (typeof expectedIssue !== "string" || typeof expectedPath !== "string") {

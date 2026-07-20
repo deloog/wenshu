@@ -1,6 +1,6 @@
 {
   "expectedIssue": "PROJECT_SCHEMA",
-  "expectedPath": "/",
+  "expectedPath": "/revision",
   "contract_kind": "project",
   "schema_version": "0.1.0",
   "project_id": "prj_00000000000000000000000000000001"

@@ -89,9 +89,12 @@ function isUnsafePathValue(value: string): boolean {
   let decoded = value;
   let stabilized = false;
   for (let pass = 0; pass < 16; pass += 1) {
+    if (/%(?=[A-Za-z0-9])(?![A-Fa-f0-9]{2})/u.test(decoded)) {
+      return true;
+    }
     let next: string;
     try {
-      next = decodeURIComponent(decoded);
+      next = decodeURIComponent(decoded.replace(/%(?![A-Fa-f0-9]{2})/gu, "%25"));
     } catch {
       return true;
     }
@@ -108,11 +111,12 @@ function isUnsafePathValue(value: string): boolean {
     const codePoint = character.codePointAt(0);
     return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
   });
-  const isHttpsUrl = /^https:\/\//iu.test(decoded);
+  const isHttpUrl = /^https?:\/\//iu.test(decoded);
   return (
     containsControlCharacter ||
     /file:/iu.test(decoded) ||
-    (!isHttpsUrl && /[A-Za-z]:(?:[\\/]|[A-Za-z0-9._-])/u.test(decoded)) ||
+    (!isHttpUrl && /[A-Za-z]:[\\/]/u.test(decoded)) ||
+    /(?:^|[^A-Za-z0-9])[A-Za-z]:[A-Za-z0-9._-]/u.test(decoded) ||
     /\\\\[^\\]/u.test(decoded) ||
     /(?:^|[\s=:'"(])\/(?!\/)/u.test(decoded) ||
     /(?:^|[^A-Za-z0-9])\.\.(?:[\\/]|$)/u.test(decoded)

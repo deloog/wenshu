@@ -82,7 +82,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：值级路径、预算和会话状态机反例通过；Claude 复审通过，NF-01/02/04 已登记到 G1-08/09 |
 | G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md) |
 | G1-08 | ✅ 已完成 | [测试骨架与并行隔离基线](test-infrastructure.md)：Claude 复审 `CONDITIONAL PASS`，首审 3 MAJOR、5 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 [G1-11 硬门禁](audits/G1-08-followups.md) |
-| G1-09 | 🟡 已实现，待独立审计 | [工程质量与本地验证标准](engineering-standards.md)：统一 format/lint/type/any/体量/生成漂移护栏；Host NF-02 与项目契约 m-05/NF-04 已实施整改，尚待 Claude 独立审计 |
+| G1-09 | 🟠 首审失败，已整改待复审 | [工程质量与本地验证标准](engineering-standards.md)：Claude 首审 2 MAJOR 已整改，6 MINOR 已处理或明确归属；复审放行前不得作为 G1-11 前置 |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务
@@ -106,7 +106,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-13 | 获取并登记固定中文字体及许可证。R-PDF/R-LICENSE | G1-02/10 → PA-03 | Adobe 官方字体、LICENSE、哈希、最小字重；不从镜像下载 | 干净字体清单、字符覆盖和篡改检测通过 | 授权/哈希不明即停并删除未采纳副本。可与 G1-12 并行；0 元 |
 | G1-14 | 建立参考机器、性能采样与资源预算说明。R-PERF | G1-02/03/10 → PA-13/A-14 | 环境清单、采样协议；不宣布未测阈值通过 | OS/CPU/RAM/DPI/磁盘/版本/fixture 哈希自动记录 | 噪声不可控则增加重复而不改阈值。可与 G1-12/13 并行 |
 | G1-14W | 落实 PoC-A 预注册的 Windows 11 64位参考环境。R-COMPAT/R-PA-METRIC | G1-14 → PA-05/13 | 现有合法设备或隔离VM的环境证据；不擅自升级当前Windows 10、不购买设备 | 100%缩放、96DPI、字体/Chromium/硬件信息可复现；与当前Win10基线差异记录 | 无可用Win11环境时必须请业主决定延期或批准实验环境变更；该变更需更新决策与重审。可与G1-12/13并行 |
-| G1-15 | 完成供应链初审与 SBOM/许可证基线。R-LICENSE/R-SEC | G1-02/03 → G1 审计 | 直接/传递依赖清单、用途、许可、漏洞；不批准例外；显式核查当前树中的 MPL-2.0 传递依赖及 Python 工具许可证 | GPL/AGPL/未知许可阻断 fixture；SBOM 可重建；MPL 文件级义务和 Python 工具分发边界有书面结论 | 不明许可即移除候选。可与 G1-11 并行；例外须业主批准 |
+| G1-15 | 完成供应链初审与 SBOM/许可证基线。R-LICENSE/R-SEC | G1-02/03 → G1 审计 | 直接/传递依赖清单、用途、许可、漏洞；不批准例外；显式核查当前树中的 MPL-2.0、Python-2.0 与 BlueOak-1.0.0 传递依赖 | GPL/AGPL/未知许可阻断 fixture；SBOM 可重建；MPL 文件级义务、Python 工具分发边界和 BlueOak 宽松许可是否可接受均有书面结论 | 不明或未获业主批准的许可即移除候选。可与 G1-11 并行；例外须业主批准 |
 | G1-16 | 审计并签署 G1 工程底座。全部 G1 | G1-01/01R/02/03/03C/04/05/06/07/08/09/10/11/12/13/14/14W/15 → G2-01/02 | G1 报告、未完成项和命令索引；不做功能实现 | 从私有远程干净克隆后一键安装/verify；契约、真实测试设施、CI、工具链证据齐全 | 任一阻断未闭环不得进入功能实现；文档任务串行 |
 
 ## 5. PoC-A：排版生死闸原子任务

@@ -1,5 +1,5 @@
 import { readdir } from "node:fs/promises";
-import { join, relative, resolve } from "node:path";
+import { basename, join, relative, resolve } from "node:path";
 
 import { classifyTestFile, type TestLayer } from "./layers.ts";
 
@@ -60,7 +60,7 @@ export async function discoverTestFiles(
   const files = await discoverWorkspaceFiles(workspaceRoot);
   return Object.freeze(
     files.filter((file) => {
-      const lowercaseName = file.toLowerCase();
+      const lowercaseName = basename(file).toLowerCase();
       return lowercaseName.includes(".test.") || lowercaseName.includes(".spec.");
     }),
   );

@@ -31,7 +31,7 @@
 
 `actor` 表示真正作出动作的责任主体，只允许 `user` 或有限的 `system` 行为；模型不是 actor，也不能接受修改或批准正式版本。`subject_model_context` 表示“被人类裁决或随后修改的 AI 产物来自哪个 provider/model/invocation”，因此人类裁决可以同时保留模型出处。`ai_change_decided` 和 `formal_version_approved` 强制 actor 为用户。
 
-action、decision、受影响节点和前后哈希具有可执行组合规则：接受 AI 修改必须有节点且前后哈希不同；拒绝必须有节点且前后哈希相同；AI 后人工修改与来源关联必须产生哈希变化；正式版本批准必须保持被批准文档哈希一致。Schema 不提供正文、prompt、密钥、原始模型响应、编辑器按键或 CRDT update 字段，未知字段一律拒绝。locator 使用节点 ID 或受控 anchor，provider/model 使用保守标识符字符集。
+action、decision、受影响节点和前后哈希具有可执行组合规则：接受 AI 修改必须有节点且前后哈希不同；拒绝必须有节点且前后哈希相同；AI 后人工修改与来源关联必须产生哈希变化；正式版本批准必须保持被批准文档哈希一致。Schema 不提供正文、prompt、密钥、原始模型响应、编辑器按键或 CRDT update 字段，未知字段一律拒绝。locator 使用节点 ID 或受控 anchor，provider/model 保留 G1-07 冻结的字符集和敏感形状负向约束；运行时在 Ajv 前用同一保守启发式返回专用模型标识问题码，使诊断细化不扩大 Schema 接受集合。结构化 provider/model 注册标识仍由 PB-05A 裁定。
 
 编辑器事务、合并记录、语义审计事件保持三层分离；后续实现不得用本契约承载高频 undo/redo 或同步日志。
 

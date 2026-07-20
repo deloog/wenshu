@@ -6,6 +6,11 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "wenshu": {
+    "generatedFiles": [
+      "src/generated/host.ts"
+    ]
+  },
   "scripts": {
     "generate": "node scripts/generate-types.ts",
     "generate:check": "node scripts/check-generated.ts",

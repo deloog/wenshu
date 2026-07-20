@@ -253,11 +253,11 @@
       "properties": {
         "provider": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9.-]{0,39}$"
+          "pattern": "^(?!sk[-_])(?!.{0,20}(?:key|secret|token))[a-z][a-z0-9.-]{0,39}$"
         },
         "model": {
           "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$"
+          "pattern": "^(?!sk[-_])(?!.{0,20}(?:key|secret|token))[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$"
         },
         "invocation_id": { "type": "string", "pattern": "^inv_[a-f0-9]{32}$" }
       }

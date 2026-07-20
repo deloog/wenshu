@@ -224,6 +224,7 @@ test("prefixed paths and control characters cannot bypass value checks", async (
     "output=file:///etc/passwd",
     "output=../secret.txt",
     "output=%252Fetc%252Fpasswd",
+    "output=%zz",
     "report.pdf\u0000hidden",
   ];
   for (const unsafeValue of unsafeValues) {
@@ -243,11 +244,21 @@ test("prefixed paths and control characters cannot bypass value checks", async (
   }
 });
 
-test("ordinary relative identifiers and web URLs are not mistaken for system paths", async () => {
+test("ordinary identifiers, percentages, and web values are not mistaken for paths", async () => {
   const fixture = await readJson(
     new URL("../fixtures/valid/success.json", import.meta.url),
   );
-  for (const safeValue of ["report.pdf", "https://example.com/resource"]) {
+  for (const safeValue of [
+    "report.pdf",
+    "assets/image.png",
+    "50% complete",
+    "anchor:section-1",
+    "mode:fast",
+    "mailto:a@b.com",
+    "data:text/plain;hello",
+    "http://example.com/resource",
+    "https://example.com/resource",
+  ]) {
     const candidate = structuredClone(fixture);
     if (!isRecord(candidate) || !isRecord(candidate["output"])) {
       throw new Error("Success fixture must contain an output object.");
