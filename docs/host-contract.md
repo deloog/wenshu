@@ -63,4 +63,4 @@ registry → request → progress (0..n) → success | failure | cancelled
 - `pnpm contracts:check`：运行文档、模板和 Host 契约。
 - `pnpm verify`：运行全部 G1 契约、严格类型检查和生产构建。
 
-G1-06 修复后的 28/28 项 Host 契约测试已获 Claude `CONDITIONAL PASS`。G1-08 又增加“终态后 cancel”反测，当前 Host 契约实施者自检为 29/29；文档导出名与该状态机修复是否关闭 NF-01/NF-04，仍等待 G1-08 的 Claude 独立审计。
+G1-06 修复后的 28/28 项 Host 契约测试已获 Claude `CONDITIONAL PASS`。G1-08 又增加“终态后 cancel”反测，Host 契约当前为 29/29；Claude 在 G1-08 首审中以原始反例和新增变体确认文档导出名 NF-01、终态后 cancel NF-04 均已关闭且正常取消链路无回归。

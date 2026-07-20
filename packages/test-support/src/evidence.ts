@@ -1,7 +1,7 @@
 import { lstat, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { TestIsolation } from "./isolation.ts";
+import type { PreparedTestIsolation } from "./isolation.ts";
 import { assertSafeTestIdentifier } from "./identifiers.ts";
 import type { TestLayer } from "./layers.ts";
 
@@ -20,7 +20,7 @@ export interface FailureEvidencePaths {
 }
 
 export async function writeFailureEvidence(
-  isolation: TestIsolation,
+  isolation: PreparedTestIsolation,
   evidence: FailureEvidence,
 ): Promise<FailureEvidencePaths> {
   assertSafeTestIdentifier("caseId", evidence.caseId, 96);

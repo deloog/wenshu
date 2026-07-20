@@ -1,6 +1,6 @@
 # Claude 独立审计任务书：G1-08
 
-> 状态：待执行　审计者：Claude　实施者：Codex　日期：2026-07-20
+> 状态：已完成（`FAIL`）　审计者：Claude　实施者：Codex　日期：2026-07-20
 
 请独立审计 G1-08“测试骨架与并行隔离设施”。不要采信实施说明、测试绿色输出或路线图自述；先阅读 `AGENTS.md`、`DEFINITION-OF-READY.md`、`docs/testing-strategy.md`、`docs/test-infrastructure.md` 与 G1-08 路线图行，再检查实现并自行构造反例。
 

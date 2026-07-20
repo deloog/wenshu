@@ -1,6 +1,6 @@
 # G1-08 测试骨架与并行隔离基线
 
-> 状态：已实现，待 Claude 独立审计　日期：2026-07-20
+> 状态：首审 `FAIL`，整改已实现待 Claude 独立复审　日期：2026-07-20
 
 ## 1. 任务边界
 
@@ -20,7 +20,7 @@
 | 集成 | `.integration.test.ts` | 被集成的真实浏览器、字体、数据库、文件系统或 Host |
 | E2E | `.e2e.test.ts` | 从真实用户入口穿过可部署构建与核心依赖的完整流程 |
 
-`pnpm test:layers` 扫描 `apps/`、`packages/` 与 `tools/` 中的 `.test.*`/`.spec.*` 候选，遇到无层级、错误扩展名、符号链接或伪装层级名称即失败。现有契约测试已统一使用 `.contract.test.ts`。
+`pnpm test:layers` 从仓库根递归扫描全部 `.test.*`/`.spec.*` 候选，只跳过版本库、依赖、构建产物、缓存、测试产物和临时目录的显式清单。候选识别按小写比较以捕获 Windows 大小写变体，但层级分类只接受规范小写后缀；因此 `Foo.Unit.Test.ts`、无层级、错误扩展名、符号链接或伪装层级名称都会失败。现有契约测试已统一使用 `.contract.test.ts`。
 
 ## 3. 并行隔离契约
 
@@ -33,13 +33,15 @@ test-results/<run-id>/<layer>/<worker-id>/
   evidence/   失败 manifest、日志、截图与 trace 的独占位置
 ```
 
-每个 worker 同时得到独立项目 ID 和不重叠端口段。run ID 只接受短的不透明安全标识，worker ID 由非负 `workerIndex` 唯一派生；路径穿越、Windows 保留名、负数索引、特权端口和超出 65535 的端口段均快速失败。准备目录时逐层拒绝符号链接/目录联接，避免预置链接把写入引出可信的 `controlledRoot`。调用方必须为并行 worker 分配不同 `workerIndex`，并保证 run ID 对一次运行唯一；无法隔离的共享资源必须由对应测试任务显式改为串行。
+每个 worker 同时得到独立项目 ID 和不重叠端口段。run ID 只接受短的不透明安全标识，worker ID 由非负 `workerIndex` 唯一派生；`layer` 在公共构造器入口再次做运行时白名单校验。路径穿越、Windows 保留名、重复 worker index、负数索引、特权端口和超出 65535 的端口段均快速失败。
+
+准备目录时逐层拒绝符号链接/目录联接，并用排他 `mkdir` 占用 worker 叶目录；同一 run/layer/index 的并发准备只有一个能得到带随机 claim 的 `PreparedTestIsolation`，其余稳定以 `EEXIST` 失败。成功运行可调用 `cleanupSuccessfulTestIsolation`：它重新验证全路径无链接且磁盘 claim 与调用者相符后，只递归删除自己的 worker 叶目录，不删除兄弟 worker 或受控根。失败时不得调用清理，以保留证据。调用方仍须保证 run ID 对一次运行唯一；无法隔离的共享资源必须显式串行。
 
 `database/` 只是隔离位置，不代表已经运行数据库测试。原始 fixture 保持只读，运行期只能写隔离副本。
 
 ## 4. 失败证据
 
-`writeFailureEvidence` 在 worker 的 `evidence/<case-id>/` 下保存：
+`writeFailureEvidence` 只接受成功取得排他 claim 的 `PreparedTestIsolation`，并在其 `evidence/<case-id>/` 下保存：
 
 - `failure.json`：层级、固定 seed、用例 ID 和错误摘要；
 - `diagnostic.log`：错误名、消息和可选 stack。
@@ -50,12 +52,12 @@ test-results/<run-id>/<layer>/<worker-id>/
 
 - `pnpm test:layers`：审计全部测试文件的层级命名。
 - `pnpm test:unit`：运行已登记单元测试。
-- `pnpm test:contract`：运行生成漂移检查和全部契约测试。
-- `pnpm test:render`、`pnpm test:integration`、`pnpm test:e2e`：运行对应已登记文件；当前没有真实用例时输出结构化 `not-registered`，不输出 PASS，也不计入完成证据。
+- `pnpm test:contract`：按全仓登记表运行全部契约测试；生成漂移仍由 `pnpm contracts:check` 执行。
+- `pnpm test:render`、`pnpm test:integration`、`pnpm test:e2e`：运行对应已登记文件；当前没有真实用例时输出结构化 `not-registered` 并以退出码 3 失败。仅做明确允许空层的探索时可直接向 runner 传 `--allow-empty`，该模式仍不输出 PASS，也不计入完成证据。
 - `pnpm test:foundation`：运行层级审计与测试设施单元反测。
 - `pnpm verify`：已纳入 `test:foundation`，随后继续运行配置、契约、严格类型检查和生产构建。
 
-当前反测覆盖两个 worker 并行创建和写入、目录/项目/端口互斥、路径逃逸、Windows 保留名、预置文件/目录链接、端口溢出、失败 seed/日志保留与禁止覆盖。
+当前反测覆盖仓库根/`tests`/`e2e`/`src` 等任意位置发现、Windows 大小写变体拒绝、跳过名链接拒绝、八路重复 worker claim 仅一项成功、安全成功清理不影响兄弟 worker、claim 被篡改时拒绝清理、目录/项目/端口互斥、路径逃逸、Windows 保留名、预置文件/目录链接、端口溢出、失败 seed/日志保留与禁止覆盖。
 
 ## 6. Host 条件项
 

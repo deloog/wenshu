@@ -13,7 +13,7 @@ import test from "node:test";
 
 import {
   buildTestIsolation,
-  classifyTestFile,
+  cleanupSuccessfulTestIsolation,
   prepareTestIsolation,
   writeFailureEvidence,
 } from "../src/index.ts";
@@ -24,23 +24,6 @@ async function temporaryRoot(): Promise<string> {
   await mkdir(controlledRoot, { recursive: true });
   return mkdtemp(join(controlledRoot, "run-"));
 }
-
-test("test file names declare their actual layer", () => {
-  assert.equal(classifyTestFile("test/parser.unit.test.ts"), "unit");
-  assert.equal(
-    classifyTestFile("test/project.contract.test.ts"),
-    "contract",
-  );
-  assert.equal(classifyTestFile("test/page.render.test.ts"), "render");
-  assert.equal(
-    classifyTestFile("test/sqlite.integration.test.ts"),
-    "integration",
-  );
-  assert.equal(classifyTestFile("test/export.e2e.test.ts"), "e2e");
-  assert.equal(classifyTestFile("test/ambiguous.test.ts"), undefined);
-  assert.equal(classifyTestFile("test/hidden.spec.ts"), undefined);
-  assert.equal(classifyTestFile("test/wrong.unit.test.js"), undefined);
-});
 
 test("two workers receive distinct directories, projects, and ports", async () => {
   const root = await temporaryRoot();
@@ -57,7 +40,7 @@ test("two workers receive distinct directories, projects, and ports", async () =
     layer: "integration",
   });
 
-  await Promise.all([
+  const [preparedFirst, preparedSecond] = await Promise.all([
     prepareTestIsolation(first),
     prepareTestIsolation(second),
   ]);
@@ -81,6 +64,44 @@ test("two workers receive distinct directories, projects, and ports", async () =
     await readFile(join(second.filesDirectory, "worker.log"), "utf8"),
     "test-parallel-proof-worker-1",
   );
+  await cleanupSuccessfulTestIsolation(preparedFirst);
+  assert.equal(
+    await readFile(join(second.filesDirectory, "worker.log"), "utf8"),
+    "test-parallel-proof-worker-1",
+  );
+  await cleanupSuccessfulTestIsolation(preparedSecond);
+  await rm(root, { recursive: true });
+});
+
+test("the same worker index can be claimed only once", async () => {
+  const root = await temporaryRoot();
+  const isolation = buildTestIsolation({
+    controlledRoot: root,
+    runId: "duplicate-proof",
+    workerIndex: 0,
+    layer: "integration",
+  });
+  const attempts = await Promise.allSettled(
+    Array.from({ length: 8 }, () => prepareTestIsolation(isolation)),
+  );
+  const prepared = attempts.filter(
+    (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof prepareTestIsolation>>> =>
+      result.status === "fulfilled",
+  );
+  const rejected = attempts.filter(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+
+  assert.equal(prepared.length, 1);
+  assert.equal(rejected.length, 7);
+  rejected.forEach((result) => {
+    assert.match(String(result.reason), /EEXIST/u);
+  });
+  const owner = prepared[0];
+  assert.notEqual(owner, undefined);
+  if (owner !== undefined) {
+    await cleanupSuccessfulTestIsolation(owner.value);
+  }
   await rm(root, { recursive: true });
 });
 
@@ -98,6 +119,14 @@ test("unsafe identities and overflowing port ranges fail closed", () => {
   assert.throws(
     () => buildTestIsolation({ ...baseline, runId: "CON" }),
     /safe opaque identifier/u,
+  );
+  assert.throws(
+    () =>
+      buildTestIsolation({
+        ...baseline,
+        layer: "a/b" as "integration",
+      }),
+    /registered test layer/u,
   );
   assert.throws(
     () =>
@@ -153,6 +182,28 @@ test("pre-existing directory links cannot escape the controlled root", async () 
   ]);
 });
 
+test("cleanup refuses a tampered worker claim", async () => {
+  const root = await temporaryRoot();
+  const prepared = await prepareTestIsolation(
+    buildTestIsolation({
+      controlledRoot: root,
+      runId: "cleanup-claim-proof",
+      workerIndex: 0,
+      layer: "unit",
+    }),
+  );
+  await writeFile(
+    join(prepared.rootDirectory, "worker.claim"),
+    "different-owner",
+    "utf8",
+  );
+  await assert.rejects(
+    cleanupSuccessfulTestIsolation(prepared),
+    /claim does not match/u,
+  );
+  await rm(root, { recursive: true });
+});
+
 test("failure evidence retains the layer, seed, and diagnostic log", async () => {
   const root = await temporaryRoot();
   const isolation = buildTestIsolation({
@@ -161,8 +212,8 @@ test("failure evidence retains the layer, seed, and diagnostic log", async () =>
     workerIndex: 0,
     layer: "e2e",
   });
-  await prepareTestIsolation(isolation);
-  const paths = await writeFailureEvidence(isolation, {
+  const prepared = await prepareTestIsolation(isolation);
+  const paths = await writeFailureEvidence(prepared, {
     caseId: "export-recovery",
     layer: "e2e",
     seed: "seed-20260720-01",
@@ -185,7 +236,7 @@ test("failure evidence retains the layer, seed, and diagnostic log", async () =>
     "AssertionError\nreimported hash differs\nat export-recovery\n",
   );
   await assert.rejects(
-    writeFailureEvidence(isolation, {
+    writeFailureEvidence(prepared, {
       caseId: "export-recovery",
       layer: "e2e",
       seed: "replacement",
@@ -194,5 +245,6 @@ test("failure evidence retains the layer, seed, and diagnostic log", async () =>
     }),
     /EEXIST/u,
   );
+  await cleanupSuccessfulTestIsolation(prepared);
   await rm(root, { recursive: true });
 });

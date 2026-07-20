@@ -3,14 +3,24 @@ import { join, relative, resolve } from "node:path";
 
 import { classifyTestFile, type TestLayer } from "./layers.ts";
 
-const SEARCH_ROOTS = Object.freeze(["apps", "packages", "tools"]);
 const SKIPPED_DIRECTORIES = new Set([
+  ".git",
+  ".cache",
+  ".turbo",
+  ".vite",
+  ".deveco",
+  ".hvigor",
+  ".idea",
+  ".vscode",
   "node_modules",
+  "oh_modules",
   "dist",
   "build",
+  "out",
   "coverage",
   "test-results",
   "artifacts",
+  "tmp",
 ]);
 
 async function walk(directory: string, files: string[]): Promise<void> {
@@ -18,19 +28,20 @@ async function walk(directory: string, files: string[]): Promise<void> {
   await Promise.all(
     entries.map(async (entry) => {
       const path = join(directory, entry.name);
-      if (SKIPPED_DIRECTORIES.has(entry.name)) {
-        return;
-      }
       if (entry.isSymbolicLink()) {
         throw new Error(`symbolic links are not allowed in test discovery: ${path}`);
+      }
+      if (SKIPPED_DIRECTORIES.has(entry.name.toLowerCase())) {
+        return;
       }
       if (entry.isDirectory()) {
         await walk(path, files);
         return;
       }
+      const lowercaseName = entry.name.toLowerCase();
       if (
         entry.isFile() &&
-        (entry.name.includes(".test.") || entry.name.includes(".spec."))
+        (lowercaseName.includes(".test.") || lowercaseName.includes(".spec."))
       ) {
         files.push(path);
       }
@@ -43,9 +54,7 @@ export async function discoverTestFiles(
 ): Promise<readonly string[]> {
   const absoluteRoot = resolve(workspaceRoot);
   const files: string[] = [];
-  for (const rootName of SEARCH_ROOTS) {
-    await walk(join(absoluteRoot, rootName), files);
-  }
+  await walk(absoluteRoot, files);
   return Object.freeze(files.sort((left, right) => left.localeCompare(right)));
 }
 

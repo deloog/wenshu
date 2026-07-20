@@ -58,7 +58,7 @@ docs/adr/                           重大技术决策
 - BLOCKER/MAJOR 由实施者修复，原审计角色复审；实施者不得自行关闭发现。
 - Claude 的短入口是 [CLAUDE.md](CLAUDE.md)，审计任务与报告统一放在 `docs/audits/`。
 - `G1-03～G1-06` 与 `G1-07` 均已获 Claude 独立复审 `CONDITIONAL PASS`；首审 BLOCKER/MAJOR 已全部关闭，新增 MINOR 已登记到 `PB-05A`/`G1-09`。各消费者仍须满足自身依赖与 DoR。
-- `G1-08` 测试骨架、并行隔离与 Host NF-01/NF-04 整改已实现，等待 Claude 独立审计；实施者自检不得视为完成。
+- `G1-08` Claude 首审为 `FAIL`；3 项 MAJOR 与 5 项 MINOR 的整改已实现，等待原审计角色独立复审，消费者继续暂停。
 
 ## 文件与代码规则（进入 G1 后生效）
 
@@ -98,7 +98,7 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm contracts:check`：检查文档/模板/Host schema 与生成类型漂移，并运行共享输入安全运行时及合法、非法、安全和生命周期 fixture 契约测试。
 - `pnpm test:layers`：审计所有测试文件是否显式标注 unit/contract/render/integration/e2e 层级。
 - `pnpm test:unit` / `test:contract`：运行已登记的单元/契约测试。
-- `pnpm test:render` / `test:integration` / `test:e2e`：运行对应已登记测试；没有真实用例时只报告 `not-registered`，不代表通过。
+- `pnpm test:render` / `test:integration` / `test:e2e`：运行对应已登记测试；没有真实用例时报告 `not-registered` 并以非零退出，不代表通过。
 - `pnpm test:foundation`：运行测试层级审计与并行隔离设施单元反测。
 - `pnpm typecheck`：严格类型检查。
 - `pnpm build`：生产构建。

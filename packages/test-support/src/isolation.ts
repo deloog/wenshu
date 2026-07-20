@@ -1,8 +1,12 @@
-import { lstat, mkdir } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { lstat, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { assertSafeTestIdentifier } from "./identifiers.ts";
-import type { TestLayer } from "./layers.ts";
+import { isTestLayer, type TestLayer } from "./layers.ts";
+
+const PREPARED_ISOLATION = Symbol("prepared-test-isolation");
+const CLAIM_FILE = "worker.claim";
 
 export interface TestIsolationOptions {
   readonly controlledRoot: string;
@@ -22,6 +26,11 @@ export interface TestIsolation {
   readonly projectId: string;
   readonly portStart: number;
   readonly portEnd: number;
+}
+
+export interface PreparedTestIsolation extends TestIsolation {
+  readonly [PREPARED_ISOLATION]: true;
+  readonly claimToken: string;
 }
 
 function requireNonNegativeInteger(label: string, value: number): void {
@@ -66,11 +75,24 @@ async function createDirectoryWithoutFollowingLinks(
   await requireRealDirectory(directory);
 }
 
+async function requireRealIsolationPath(isolation: TestIsolation): Promise<void> {
+  let current = isolation.controlledRoot;
+  await requireRealDirectory(current);
+  const segments = relative(current, isolation.rootDirectory).split(sep);
+  for (const segment of segments) {
+    current = join(current, segment);
+    await requireRealDirectory(current);
+  }
+}
+
 export function buildTestIsolation(
   options: TestIsolationOptions,
 ): TestIsolation {
   assertSafeTestIdentifier("runId", options.runId);
   requireNonNegativeInteger("workerIndex", options.workerIndex);
+  if (!isTestLayer(options.layer)) {
+    throw new Error("layer must be a registered test layer");
+  }
   const workerId = `worker-${options.workerIndex}`;
 
   const basePort = options.basePort ?? 24_000;
@@ -107,7 +129,7 @@ export function buildTestIsolation(
 
 export async function prepareTestIsolation(
   isolation: TestIsolation,
-): Promise<void> {
+): Promise<PreparedTestIsolation> {
   requireContained(isolation.controlledRoot, isolation.rootDirectory);
   await mkdir(isolation.controlledRoot, { recursive: true });
   await requireRealDirectory(isolation.controlledRoot);
@@ -117,13 +139,42 @@ export async function prepareTestIsolation(
     isolation.controlledRoot,
     isolation.rootDirectory,
   ).split(sep);
-  for (const segment of segments) {
+  for (const segment of segments.slice(0, -1)) {
     current = join(current, segment);
     await createDirectoryWithoutFollowingLinks(current);
   }
+  await mkdir(isolation.rootDirectory);
+  await requireRealDirectory(isolation.rootDirectory);
+
+  const claimToken = randomUUID();
+  await writeFile(join(isolation.rootDirectory, CLAIM_FILE), claimToken, {
+    encoding: "utf8",
+    flag: "wx",
+  });
   await Promise.all([
     createDirectoryWithoutFollowingLinks(isolation.databaseDirectory),
     createDirectoryWithoutFollowingLinks(isolation.filesDirectory),
     createDirectoryWithoutFollowingLinks(isolation.evidenceDirectory),
   ]);
+  return Object.freeze({
+    ...isolation,
+    [PREPARED_ISOLATION]: true as const,
+    claimToken,
+  });
+}
+
+export async function cleanupSuccessfulTestIsolation(
+  isolation: PreparedTestIsolation,
+): Promise<void> {
+  if (isolation[PREPARED_ISOLATION] !== true) {
+    throw new Error("only a prepared isolation can be cleaned up");
+  }
+  requireContained(isolation.controlledRoot, isolation.rootDirectory);
+  await requireRealIsolationPath(isolation);
+  const claimPath = join(isolation.rootDirectory, CLAIM_FILE);
+  const storedClaim = await readFile(claimPath, "utf8");
+  if (storedClaim !== isolation.claimToken) {
+    throw new Error("worker isolation claim does not match");
+  }
+  await rm(isolation.rootDirectory, { recursive: true });
 }

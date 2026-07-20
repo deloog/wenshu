@@ -8,8 +8,11 @@ import {
 } from "../src/index.ts";
 
 const requestedLayer = process.argv[2];
+const allowEmpty = process.argv.includes("--allow-empty");
 if (requestedLayer === undefined || !isTestLayer(requestedLayer)) {
-  console.error("Usage: run-test-layer.ts <unit|contract|render|integration|e2e>");
+  console.error(
+    "Usage: run-test-layer.ts <unit|contract|render|integration|e2e> [--allow-empty]",
+  );
   process.exitCode = 2;
 } else {
   const workspaceRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -20,8 +23,12 @@ if (requestedLayer === undefined || !isTestLayer(requestedLayer)) {
         layer: requestedLayer,
         status: "not-registered",
         test_count: 0,
+        allow_empty: allowEmpty,
       }),
     );
+    if (!allowEmpty) {
+      process.exitCode = 3;
+    }
   } else {
     console.log(
       `${requestedLayer}: ${files.length} registered test file(s)\n${files

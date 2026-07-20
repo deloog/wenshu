@@ -15,7 +15,7 @@
     "contracts:check": "pnpm --filter @wenshu/document-model generate:check && pnpm --filter @wenshu/template-model generate:check && pnpm --filter @wenshu/host-contract generate:check && pnpm --filter @wenshu/project-contract generate:check && pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/host-contract test && pnpm --filter @wenshu/project-contract test",
     "test:layers": "pnpm --filter @wenshu/test-support layers:check",
     "test:unit": "node packages/test-support/scripts/run-test-layer.ts unit",
-    "test:contract": "pnpm contracts:check",
+    "test:contract": "node packages/test-support/scripts/run-test-layer.ts contract",
     "test:render": "node packages/test-support/scripts/run-test-layer.ts render",
     "test:integration": "node packages/test-support/scripts/run-test-layer.ts integration",
     "test:e2e": "node packages/test-support/scripts/run-test-layer.ts e2e",
