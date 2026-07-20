@@ -20,6 +20,7 @@
     "contracts:test": "pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/host-contract test && pnpm --filter @wenshu/project-contract test",
     "contracts:check": "pnpm generated:check && pnpm contracts:test",
     "fixtures:check": "pnpm --filter @wenshu/fixtures check",
+    "fonts:check": "pnpm --filter @wenshu/fonts check",
     "test:layers": "pnpm --filter @wenshu/test-support layers:check",
     "test:unit": "node packages/test-support/scripts/run-test-layer.ts unit",
     "test:contract": "node packages/test-support/scripts/run-test-layer.ts contract",
@@ -32,7 +33,7 @@
     "ci:job": "node tools/ci/scripts/run-job.ts",
     "ci:verify": "node tools/ci/scripts/run-parallel.ts",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "verify": "pnpm format:check && pnpm lint && pnpm quality:check && pnpm test:foundation && pnpm config:check && pnpm contracts:check && pnpm fixtures:check && pnpm typecheck && pnpm build"
+    "verify": "pnpm format:check && pnpm lint && pnpm quality:check && pnpm test:foundation && pnpm config:check && pnpm contracts:check && pnpm fixtures:check && pnpm fonts:check && pnpm typecheck && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

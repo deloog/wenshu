@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.1.0",
+  "font_set_id": "wenshu.poc-a.source-han-sans-cn",
+  "family": "Source Han Sans CN",
+  "version": "2.005R",
+  "format": "OTF",
+  "source": {
+    "repository_url": "https://github.com/adobe-fonts/source-han-sans",
+    "release_url": "https://github.com/adobe-fonts/source-han-sans/releases/tag/2.005R",
+    "tag": "2.005R",
+    "selected_path": "SubsetOTF/CN",
+    "release_asset_name": "19_SourceHanSansCN.zip",
+    "release_asset_bytes": 50700226,
+    "release_asset_sha256": "3a769d1b082ebd813cdb4c06ea57d29b340bce548edcc8e61976b78ca28e6236"
+  },
+  "license": {
+    "path": "LICENSE.txt",
+    "spdx": "OFL-1.1",
+    "bytes": 4463,
+    "sha256": "fcac737e761ec63dbfbdce11030a1780161920d80315edba9c8beff1c2bac5a2",
+    "git_blob_sha1": "3ff0ccaba06857bf292ade9a50f16a0f02b3b8d4"
+  },
+  "coverage": {
+    "inspected_with": "fontTools 4.60.1",
+    "sources": [
+      "docs/poc-a/fixtures/chart-overview.svg",
+      "docs/poc-a/fixtures/chart-process.svg",
+      "docs/poc-a/fixtures/golden-report.md"
+    ],
+    "required_codepoint_count": 884,
+    "required_codepoints_sha256": "2dc1bf30ea2d8e61fdc58ef36d1c5cf0d35e1e381655a22cca130bc80c50973a",
+    "missing_codepoint_count": 0
+  },
+  "files": [
+    {
+      "path": "SourceHanSansCN-Bold.otf",
+      "style": "Bold",
+      "weight": 700,
+      "bytes": 8569308,
+      "sha256": "62383707c086a32f3afd5e293f34c7eff64c7fea31f579fdc6cbe34d920519a6",
+      "git_blob_sha1": "49a623f360e4dfca8e96df4e0681150d76dcaf89",
+      "postscript_name": "SourceHanSansCN-Bold",
+      "version_string": "Version 2.005;addfeatures 5.0.0b21",
+      "glyph_count": 31072,
+      "cmap_codepoint_count": 30926
+    },
+    {
+      "path": "SourceHanSansCN-Medium.otf",
+      "style": "Medium",
+      "weight": 500,
+      "bytes": 8406556,
+      "sha256": "a94e558a2fe972bee4f46bce0843abff37063fd68c33f1e7d9058f6f09432b01",
+      "git_blob_sha1": "d870b3549d2cbd61ab24ec4f496cacb2cf1963fc",
+      "postscript_name": "SourceHanSansCN-Medium",
+      "version_string": "Version 2.005;addfeatures 5.0.0b21",
+      "glyph_count": 31072,
+      "cmap_codepoint_count": 30926
+    },
+    {
+      "path": "SourceHanSansCN-Regular.otf",
+      "style": "Regular",
+      "weight": 400,
+      "bytes": 8429224,
+      "sha256": "e2bc8a2e7f37474b774fff8db758681ece40bb6947a90d571bce9dd60671a8e4",
+      "git_blob_sha1": "5e6605995d5cbc432c4273f566a5f2b8c376c682",
+      "postscript_name": "SourceHanSansCN-Regular",
+      "version_string": "Version 2.005;addfeatures 5.0.0b21",
+      "glyph_count": 31072,
+      "cmap_codepoint_count": 30926
+    }
+  ]
+}

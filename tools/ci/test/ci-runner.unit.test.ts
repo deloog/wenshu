@@ -17,11 +17,29 @@ test("CI jobs cover independent gates and isolated build outputs", () => {
   assert.equal(new Set(outputDirectories).size, 3);
   assert.deepEqual(
     CI_JOBS.security.map(({ label }) => label),
-    ["secrets", "licenses"],
+    ["secrets", "licenses", "fonts"],
   );
   assert.deepEqual(
     CI_JOBS.contracts.map(({ label }) => label),
     ["contracts", "fixtures"],
+  );
+});
+
+test("the root verification entry includes the frozen font gate", async () => {
+  const packagePath = fileURLToPath(new URL("../../../package.json", import.meta.url));
+  const parsed = JSON.parse(await readFile(packagePath, "utf8")) as unknown;
+  assert.ok(typeof parsed === "object" && parsed !== null && "scripts" in parsed);
+  const scripts = parsed.scripts;
+  assert.ok(typeof scripts === "object" && scripts !== null);
+  assert.equal(
+    "fonts:check" in scripts && scripts["fonts:check"],
+    "pnpm --filter @wenshu/fonts check",
+  );
+  assert.match(
+    "verify" in scripts && typeof scripts["verify"] === "string"
+      ? scripts["verify"]
+      : "",
+    /(?:^|&&\s*)pnpm fonts:check(?:\s*&&|$)/u,
   );
 });
 

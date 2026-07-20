@@ -62,6 +62,7 @@ docs/adr/                           重大技术决策
 - `G1-09` 已获 Claude 最终复核 `CONDITIONAL PASS`：`RA-01～RA-04` 与 `CF-01` 全部关闭，现可作为 G1-11 前置。新增 `CR-01`（质量工具包未声明直接使用的 ESLint）已登记到 G1-15，最迟 G1-16 前由独立审计签署。
 - `G1-11` 已完成：Claude 已关闭 RA-01/RA-02、IA-01 与 CI-01～CI-05；本地完整验证及首次、最终私有远程矩阵均 8/8 成功。`cancel-in-progress` 因两次运行未重叠而保留为证据限制。
 - `G1-10` 已完成：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；7 个 PoC-A 原件、manifest 锚点、隔离复制与证据门禁可作为后续前置。新增 `FX-06` 已登记到 PA-00，最迟 PA-01 消费冻结 fixture 前由独立审计签署。
+- `G1-13` 固定中文字体基线已实现、待 Claude 独立审计：仅登记 Adobe 官方 Source Han Sans CN 2.005R 的 400/500/700 三字重、OFL-1.1、字节哈希与 fixture 覆盖；审计签署前不得视为完成或启动 PA-03。
 
 ## 文件与代码规则（进入 G1 后生效）
 
@@ -100,6 +101,7 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm config:check`：运行 dev/test/staging/production 配置契约、快速失败和脱敏测试。
 - `pnpm contracts:check`：检查文档/模板/Host schema 与生成类型漂移，并运行共享输入安全运行时及合法、非法、安全和生命周期 fixture 契约测试。
 - `pnpm fixtures:check`：校验 PoC-A 冻结清单、7 个原件字节及隔离复制/证据契约；原件不一致立即失败。
+- `pnpm fonts:check`：校验 PoC-A 固定中文字体的官方清单锚点、OFL 许可证、三个 OTF 字节身份，并运行真实文件系统篡改/链接反测。
 - `pnpm test:layers`：审计所有测试文件是否显式标注 unit/contract/render/integration/e2e 层级。
 - `pnpm test:unit` / `test:contract`：运行已登记的单元/契约测试。
 - `pnpm test:render` / `test:integration` / `test:e2e`：运行对应已登记测试；没有真实用例时报告 `not-registered` 并以非零退出，不代表通过。
