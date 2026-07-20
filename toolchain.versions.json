@@ -40,5 +40,26 @@
     "integrity": "sha512-I5c5vfuVvaXpWx3IZdwvXgxQW44+e7OP1wXGVQkogLeSFSkUZ6sLCcWV05AdEcs65AO5tAIJJwbp7ixw+LdarA==",
     "embeddedNode": "24.18.0",
     "chromium": "150.0.7871.114"
+  },
+  "devecoStudio": {
+    "version": "6.1.1.290",
+    "buildNumber": "243.24978.46.36.611290",
+    "channel": "Release",
+    "releaseDate": "2026-06-30",
+    "source": "https://developer.huawei.com/consumer/cn/download/",
+    "windowsX64Zip": {
+      "file": "devecostudio-windows-6.1.1.290.zip",
+      "sha256": "db382525225a6ba5d96e29b018eac63bdb46dee574142c4fa85d269a5e91e967"
+    },
+    "harmonyOsSdk": {
+      "platform": "6.1.1",
+      "apiVersion": "24",
+      "packageVersion": "6.1.1.125"
+    },
+    "emulator": "6.1.1.300",
+    "ohpm": "6.1.2.285",
+    "hvigor": "6.24.3",
+    "bundledNode": "18.20.1",
+    "bundledJbr": "21.0.8+1-b1038.71"
   }
 }
