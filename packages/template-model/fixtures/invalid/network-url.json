@@ -1,0 +1,6 @@
+{
+  "expectedIssue": "TEMPLATE_NETWORK_ACCESS_FORBIDDEN",
+  "theme": {
+    "url": "https://invalid.example/template.css"
+  }
+}

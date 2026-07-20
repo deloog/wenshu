@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/template/0.1.0/template.schema.json",
+  "title": "WenshuTemplate",
+  "description": "Version 0 declarative template contract for controlled report layout.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "dsl_version",
+    "template_id",
+    "version",
+    "supported_document_schema",
+    "required_sections",
+    "page",
+    "fonts",
+    "layout_tokens",
+    "pagination_rules",
+    "validators",
+    "export_profile",
+    "migration_rules"
+  ],
+  "properties": {
+    "dsl_version": { "const": "0.1.0" },
+    "template_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 100
+    },
+    "version": { "$ref": "#/$defs/SemanticVersion" },
+    "supported_document_schema": { "const": "wenshu.report/0.1.0" },
+    "required_sections": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/RequiredSection" }
+    },
+    "page": { "$ref": "#/$defs/Page" },
+    "fonts": { "$ref": "#/$defs/Fonts" },
+    "layout_tokens": { "$ref": "#/$defs/LayoutTokens" },
+    "pagination_rules": { "$ref": "#/$defs/PaginationRules" },
+    "validators": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/ValidatorName" }
+    },
+    "export_profile": { "$ref": "#/$defs/ExportProfile" },
+    "migration_rules": {
+      "description": "Reserved for a future version; executable migration instructions are forbidden in v0.",
+      "type": "array",
+      "maxItems": 0
+    }
+  },
+  "$defs": {
+    "SemanticVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "RequiredSection": {
+      "type": "string",
+      "enum": [
+        "cover",
+        "executive_summary",
+        "table_of_contents",
+        "body",
+        "sources"
+      ]
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["size", "orientation", "margin_mm"],
+      "properties": {
+        "size": { "const": "A4" },
+        "orientation": { "type": "string", "enum": ["portrait", "landscape"] },
+        "margin_mm": { "$ref": "#/$defs/Margins" }
+      }
+    },
+    "Margins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top", "right", "bottom", "left"],
+      "properties": {
+        "top": { "$ref": "#/$defs/MarginMm" },
+        "right": { "$ref": "#/$defs/MarginMm" },
+        "bottom": { "$ref": "#/$defs/MarginMm" },
+        "left": { "$ref": "#/$defs/MarginMm" }
+      }
+    },
+    "MarginMm": {
+      "type": "number",
+      "minimum": 5,
+      "maximum": 50
+    },
+    "Fonts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "version", "weights", "fallback_policy"],
+      "properties": {
+        "primary": {
+          "description": "Logical name resolved only through the approved font registry; never a path or URL.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9 .-]*$",
+          "maxLength": 100
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "maxLength": 40
+        },
+        "weights": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": { "type": "integer", "enum": [300, 400, 500, 600, 700] }
+        },
+        "fallback_policy": { "const": "fail_before_export" }
+      }
+    },
+    "LayoutTokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "body_font_pt",
+        "body_line_height",
+        "paragraph_spacing_pt",
+        "h1_font_pt",
+        "h2_font_pt",
+        "h3_font_pt",
+        "caption_font_pt",
+        "table_font_pt",
+        "primary_color",
+        "accent_color",
+        "text_color",
+        "muted_color"
+      ],
+      "properties": {
+        "body_font_pt": { "type": "number", "minimum": 9, "maximum": 16 },
+        "body_line_height": { "type": "number", "minimum": 1.2, "maximum": 2 },
+        "paragraph_spacing_pt": { "type": "number", "minimum": 0, "maximum": 24 },
+        "h1_font_pt": { "type": "number", "minimum": 16, "maximum": 36 },
+        "h2_font_pt": { "type": "number", "minimum": 13, "maximum": 28 },
+        "h3_font_pt": { "type": "number", "minimum": 11, "maximum": 22 },
+        "caption_font_pt": { "type": "number", "minimum": 8, "maximum": 14 },
+        "table_font_pt": { "type": "number", "minimum": 8, "maximum": 14 },
+        "primary_color": { "$ref": "#/$defs/Color" },
+        "accent_color": { "$ref": "#/$defs/Color" },
+        "text_color": { "$ref": "#/$defs/Color" },
+        "muted_color": { "$ref": "#/$defs/Color" }
+      }
+    },
+    "Color": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "PaginationRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cover_own_page",
+        "toc_start_new_page",
+        "h1_start_new_page",
+        "heading_keep_with_next_lines",
+        "widows",
+        "orphans",
+        "table_repeat_header",
+        "table_row_break_inside",
+        "figure_keep_with_caption",
+        "max_consecutive_sparse_pages"
+      ],
+      "properties": {
+        "cover_own_page": { "type": "boolean" },
+        "toc_start_new_page": { "type": "boolean" },
+        "h1_start_new_page": { "type": "boolean" },
+        "heading_keep_with_next_lines": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "widows": { "type": "integer", "minimum": 2, "maximum": 5 },
+        "orphans": { "type": "integer", "minimum": 2, "maximum": 5 },
+        "table_repeat_header": { "type": "boolean" },
+        "table_row_break_inside": { "const": "avoid" },
+        "figure_keep_with_caption": { "type": "boolean" },
+        "max_consecutive_sparse_pages": { "type": "integer", "minimum": 0, "maximum": 3 }
+      }
+    },
+    "ValidatorName": {
+      "type": "string",
+      "enum": [
+        "pdf_parseable",
+        "page_size_a4",
+        "content_complete",
+        "no_duplicate_content",
+        "no_overflow",
+        "no_overlap",
+        "toc_page_numbers_match",
+        "font_available",
+        "heading_not_last_item",
+        "heading_keep_with_next",
+        "widow_orphan_minimum",
+        "table_header_repeated",
+        "table_row_not_split",
+        "figure_with_caption",
+        "caption_with_source",
+        "sparse_page_limit"
+      ]
+    },
+    "ExportProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "print_background",
+        "browser_header_footer",
+        "prefer_css_page_size",
+        "embed_fonts_when_supported"
+      ],
+      "properties": {
+        "format": { "const": "pdf" },
+        "print_background": { "type": "boolean" },
+        "browser_header_footer": { "const": false },
+        "prefer_css_page_size": { "const": true },
+        "embed_fonts_when_supported": { "const": true }
+      }
+    }
+  }
+}

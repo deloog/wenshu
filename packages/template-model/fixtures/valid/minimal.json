@@ -1,0 +1,53 @@
+{
+  "dsl_version": "0.1.0",
+  "template_id": "wenshu.minimal",
+  "version": "1.0.0",
+  "supported_document_schema": "wenshu.report/0.1.0",
+  "required_sections": ["body"],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin_mm": { "top": 20, "right": 18, "bottom": 20, "left": 18 }
+  },
+  "fonts": {
+    "primary": "Source Han Sans CN",
+    "version": "2.005R",
+    "weights": [400],
+    "fallback_policy": "fail_before_export"
+  },
+  "layout_tokens": {
+    "body_font_pt": 11,
+    "body_line_height": 1.55,
+    "paragraph_spacing_pt": 6,
+    "h1_font_pt": 22,
+    "h2_font_pt": 16,
+    "h3_font_pt": 13,
+    "caption_font_pt": 9,
+    "table_font_pt": 9.5,
+    "primary_color": "#17324D",
+    "accent_color": "#2E6F95",
+    "text_color": "#1F2933",
+    "muted_color": "#66737F"
+  },
+  "pagination_rules": {
+    "cover_own_page": true,
+    "toc_start_new_page": true,
+    "h1_start_new_page": true,
+    "heading_keep_with_next_lines": 2,
+    "widows": 2,
+    "orphans": 2,
+    "table_repeat_header": true,
+    "table_row_break_inside": "avoid",
+    "figure_keep_with_caption": true,
+    "max_consecutive_sparse_pages": 1
+  },
+  "validators": ["pdf_parseable"],
+  "export_profile": {
+    "format": "pdf",
+    "print_background": true,
+    "browser_header_footer": false,
+    "prefer_css_page_size": true,
+    "embed_fonts_when_supported": true
+  },
+  "migration_rules": []
+}

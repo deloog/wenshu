@@ -1,4 +1,5 @@
 {
+  "dsl_version": "0.1.0",
   "template_id": "wenshu.poc-a.formal-business",
   "version": "1.0.0",
   "supported_document_schema": "wenshu.report/0.1.0",
@@ -82,4 +83,3 @@
   },
   "migration_rules": []
 }
-

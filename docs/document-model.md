@@ -56,7 +56,7 @@
 
 - `pnpm --filter @wenshu/document-model generate`：从 schema 生成 TypeScript 声明。
 - `pnpm --filter @wenshu/document-model generate:check`：检查声明是否与 schema 漂移。
-- `pnpm contracts:check`：运行漂移检查与全部文档契约 fixture。
+- `pnpm contracts:check`：运行文档与模板漂移检查及全部契约 fixture。
 - `pnpm verify`：配置契约、文档契约、严格类型检查和生产构建的统一入口。
 
 冻结时证据：2 个合法 fixture 与 5 个非法 fixture 全部符合预期，共 12/12 测试通过；故意修改生成文件后漂移检查按预期失败，重新生成后恢复通过；全项目严格类型检查和生产构建通过。使用 Ajv `8.20.0` 做 JSON Schema 2020-12 运行时校验，使用 json-schema-to-typescript `15.0.4` 生成声明，两者均为 MIT 许可；精确版本与完整性由 lockfile 固定，完整供应链结论仍由 `G1-15` 签署。

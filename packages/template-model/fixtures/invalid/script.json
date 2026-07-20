@@ -1,0 +1,6 @@
+{
+  "expectedIssue": "TEMPLATE_DYNAMIC_CODE_FORBIDDEN",
+  "pagination_rules": {
+    "script": "return true"
+  }
+}

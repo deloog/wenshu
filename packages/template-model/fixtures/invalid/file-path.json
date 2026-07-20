@@ -1,0 +1,6 @@
+{
+  "expectedIssue": "TEMPLATE_FILE_ACCESS_FORBIDDEN",
+  "font": {
+    "path": "../../private/font.ttf"
+  }
+}

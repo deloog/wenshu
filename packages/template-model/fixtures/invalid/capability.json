@@ -1,0 +1,4 @@
+{
+  "expectedIssue": "TEMPLATE_CAPABILITY_FORBIDDEN",
+  "capabilities": ["network"]
+}
