@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "asOf": "2026-07-20",
+  "node": {
+    "version": "24.17.0",
+    "channel": "LTS (Krypton)",
+    "license": "MIT",
+    "source": "https://nodejs.org/dist/v24.17.0/",
+    "windowsX64Msi": {
+      "file": "node-v24.17.0-x64.msi",
+      "sha256": "ae5d9e9f6c85b8d35717f499ba907259ec80672c289858bae19074355906a240"
+    }
+  },
+  "pnpm": {
+    "version": "11.15.1",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/pnpm/-/pnpm-11.15.1.tgz",
+    "integrity": "sha512-gTULB+U8lTigLx8jA7QpD6LXvgTlbiqXDEzEtBfcdh3hlu2r1J1Vx9yVgNuBAHxEFD5OPX5GKzAA0jwlUSLQZQ=="
+  },
+  "typescript": {
+    "version": "6.0.3",
+    "license": "Apache-2.0",
+    "source": "https://registry.npmjs.org/typescript/-/typescript-6.0.3.tgz",
+    "integrity": "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="
+  },
+  "vite": {
+    "version": "8.1.5",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/vite/-/vite-8.1.5.tgz",
+    "integrity": "sha512-7ULLwsCdYx/nRyrpiEwvqb5TFHrMVZyBt+rg/OAXT7rgj/z+DtTDyKFeLAdDkubDVDKD8jOsndmy7m55XcfUsw=="
+  },
+  "electron": {
+    "version": "43.1.1",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/electron/-/electron-43.1.1.tgz",
+    "integrity": "sha512-I5c5vfuVvaXpWx3IZdwvXgxQW44+e7OP1wXGVQkogLeSFSkUZ6sLCcWV05AdEcs65AO5tAIJJwbp7ixw+LdarA==",
+    "embeddedNode": "24.18.0",
+    "chromium": "150.0.7871.114"
+  }
+}
