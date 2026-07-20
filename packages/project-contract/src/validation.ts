@@ -1,5 +1,7 @@
 import Ajv2020 from "ajv/dist/2020.js";
 import { cloneAndFreeze, inspectData } from "@wenshu/contract-runtime";
+import { DOCUMENT_SCHEMA_VERSION } from "@wenshu/document-model";
+import { TEMPLATE_DSL_VERSION } from "@wenshu/template-model";
 
 import contractSchema from "../schema/project-contract.schema.json" with {
   type: "json",
@@ -8,10 +10,14 @@ import type {
   KnowledgePackageManifest,
   ProjectContract,
   ProjectManifest,
-  SemanticAuditEvent,
 } from "./generated/project-contract.ts";
+import { isCanonicalTimestamp, validateAudit } from "./audit-semantics.ts";
 
 export const PROJECT_CONTRACT_VERSION = "0.1.0" as const;
+export const PROJECT_UPSTREAM_VERSIONS = Object.freeze({
+  document: DOCUMENT_SCHEMA_VERSION,
+  template: TEMPLATE_DSL_VERSION,
+});
 
 export type ProjectContractIssueCode =
   | "PROJECT_BUDGET_EXCEEDED"
@@ -70,6 +76,11 @@ function validateProject(project: ProjectManifest): readonly ProjectContractIssu
     ]),
   ]);
   project.formal_versions.forEach((entry, index) => {
+    if (!isCanonicalTimestamp(entry.created_at)) {
+      issues.push(
+        issue("PROJECT_INTEGRITY", `/formal_versions/${index}/created_at`),
+      );
+    }
     if (!auditIds.has(entry.approval_event_id)) {
       issues.push(
         issue(
@@ -96,6 +107,9 @@ function validatePackage(
   if (duplicates(manifest.entries.map((entry) => entry.path))) {
     issues.push(issue("PROJECT_DUPLICATE_ID", "/entries"));
   }
+  if (!isCanonicalTimestamp(manifest.created_at)) {
+    issues.push(issue("PROJECT_INTEGRITY", "/created_at"));
+  }
   const requiredSingletons = ["truth.project", "truth.audit"] as const;
   requiredSingletons.forEach((role) => {
     if (manifest.entries.filter((entry) => entry.role === role).length !== 1) {
@@ -110,6 +124,7 @@ function validatePackage(
   }
   manifest.entries.forEach((entry, index) => {
     const truthRole = entry.role.startsWith("truth.");
+    const expectedPrefix = truthRole ? "truth/" : "derived/";
     if (
       (truthRole &&
         (entry.classification !== "truth" ||
@@ -124,29 +139,25 @@ function validatePackage(
         issue("PROJECT_TRUTH_DERIVED_MIXED", `/entries/${index}`),
       );
     }
+    if (!entry.path.startsWith(expectedPrefix)) {
+      issues.push(issue("PROJECT_INTEGRITY", `/entries/${index}/path`));
+    }
   });
   return Object.freeze(issues);
 }
 
-function validateAudit(event: SemanticAuditEvent): readonly ProjectContractIssue[] {
-  const issues: ProjectContractIssue[] = [];
-  if ((event.actor === "ai") !== (event.model_context !== null)) {
-    issues.push(issue("PROJECT_INTEGRITY", "/model_context"));
+function validateCompatibility(
+  value: Extract<ProjectContract, { contract_kind: "compatibility" }>,
+): readonly ProjectContractIssue[] {
+  if (
+    value.readers.document !== PROJECT_UPSTREAM_VERSIONS.document ||
+    value.readers.template !== PROJECT_UPSTREAM_VERSIONS.template
+  ) {
+    return Object.freeze([
+      issue("PROJECT_INTEGRITY", "/readers"),
+    ]);
   }
-  if (event.action === "source_linked" && event.source_refs.length === 0) {
-    issues.push(issue("PROJECT_REFERENCE_MISSING", "/source_refs"));
-  }
-  const expectedDecision = {
-    ai_change_decided: ["accepted", "rejected"],
-    user_changed_after_ai: ["applied"],
-    source_linked: ["applied"],
-    template_applied: ["applied"],
-    formal_version_approved: ["approved"],
-  }[event.action];
-  if (!expectedDecision.includes(event.decision)) {
-    issues.push(issue("PROJECT_INTEGRITY", "/decision"));
-  }
-  return Object.freeze(issues);
+  return Object.freeze([]);
 }
 
 function semanticIssues(value: ProjectContract): readonly ProjectContractIssue[] {
@@ -158,7 +169,7 @@ function semanticIssues(value: ProjectContract): readonly ProjectContractIssue[]
     case "semantic_audit_event":
       return validateAudit(value);
     case "compatibility":
-      return Object.freeze([]);
+      return validateCompatibility(value);
   }
 }
 

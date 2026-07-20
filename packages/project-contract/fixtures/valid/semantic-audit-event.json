@@ -5,7 +5,7 @@
   "project_id": "prj_00000000000000000000000000000001",
   "sequence": 0,
   "occurred_at": "2026-07-20T12:00:00.000Z",
-  "actor": "ai",
+  "actor": "user",
   "action": "ai_change_decided",
   "decision": "accepted",
   "affected_node_ids": [
@@ -17,10 +17,10 @@
     {
       "material_id": "mat_00000000000000000000000000000001",
       "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-      "locator": "section-1"
+      "locator": "anchor:section-1"
     }
   ],
-  "model_context": {
+  "subject_model_context": {
     "provider": "fixture-provider",
     "model": "fixture-model",
     "invocation_id": "inv_00000000000000000000000000000001"

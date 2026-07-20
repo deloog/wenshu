@@ -1,27 +1,25 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
+import {
+  DOCUMENT_SCHEMA_VERSION,
+  validateDocument,
+} from "@wenshu/document-model";
+import {
+  TEMPLATE_DSL_VERSION,
+  validateTemplate,
+} from "@wenshu/template-model";
 
 import {
   PROJECT_CONTRACT_VERSION,
+  PROJECT_UPSTREAM_VERSIONS,
   validateKnowledgeBundle,
   validateProjectContract,
 } from "../src/index.ts";
-
-async function readJson(path: URL): Promise<unknown> {
-  return JSON.parse(await readFile(path, "utf8")) as unknown;
-}
-
-async function validFixture(name: string): Promise<unknown> {
-  return readJson(new URL(`../fixtures/valid/${name}.json`, import.meta.url));
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("Fixture must be an object.");
-  }
-  return value as Record<string, unknown>;
-}
+import contractSchema from "../schema/project-contract.schema.json" with {
+  type: "json",
+};
+import { asRecord, readJson, validFixture } from "./fixture-helpers.ts";
 
 test("v0 project contract version is frozen", () => {
   assert.equal(PROJECT_CONTRACT_VERSION, "0.1.0");
@@ -98,37 +96,61 @@ test("truth and derived package entries cannot exchange guarantees", async () =>
   }
 });
 
-test("semantic audit records metadata, not prompts or document content", async () => {
-  const fixture = asRecord(await validFixture("semantic-audit-event"));
-  fixture["prompt"] = "must not enter the audit truth";
-  const result = validateProjectContract(fixture);
+test("package paths agree with their truth or derived roles", async () => {
+  const manifest = asRecord(await validFixture("knowledge-package"));
+  const entries = manifest["entries"];
+  if (!Array.isArray(entries)) {
+    throw new Error("Knowledge package fixture must have entries.");
+  }
+  asRecord(entries[0])["path"] = "derived/project.json";
+  const result = validateProjectContract(manifest);
   assert.equal(result.ok, false);
   if (!result.ok) {
-    assert.ok(result.issues.every((entry) => entry.code === "PROJECT_SCHEMA"));
+    assert.ok(result.issues.some((entry) => entry.path.endsWith("/path")));
   }
 });
 
-test("AI actor and source-link actions require their narrow context", async () => {
-  const aiFixture = asRecord(await validFixture("semantic-audit-event"));
-  aiFixture["model_context"] = null;
-  const aiResult = validateProjectContract(aiFixture);
-  assert.equal(aiResult.ok, false);
+test("upstream versions and ID rules are executable cross-package contracts", async () => {
+  assert.deepEqual(PROJECT_UPSTREAM_VERSIONS, {
+    document: DOCUMENT_SCHEMA_VERSION,
+    template: TEMPLATE_DSL_VERSION,
+  });
+  const compatibility = asRecord(await validFixture("compatibility"));
+  const readers = asRecord(compatibility["readers"]);
+  assert.equal(readers["document"], DOCUMENT_SCHEMA_VERSION);
+  assert.equal(readers["template"], TEMPLATE_DSL_VERSION);
 
-  const sourceFixture = asRecord(await validFixture("semantic-audit-event"));
-  sourceFixture["actor"] = "user";
-  sourceFixture["model_context"] = null;
-  sourceFixture["action"] = "source_linked";
-  sourceFixture["decision"] = "applied";
-  sourceFixture["source_refs"] = [];
-  const sourceResult = validateProjectContract(sourceFixture);
-  assert.equal(sourceResult.ok, false);
-
-  const decisionFixture = asRecord(
-    await validFixture("semantic-audit-event"),
+  const definitions = asRecord(contractSchema["$defs"]);
+  const documentReference = asRecord(definitions["DocumentReference"]);
+  const documentProperties = asRecord(documentReference["properties"]);
+  assert.equal(
+    asRecord(documentProperties["schema_version"])["const"],
+    DOCUMENT_SCHEMA_VERSION,
   );
-  decisionFixture["decision"] = "approved";
-  const decisionResult = validateProjectContract(decisionFixture);
-  assert.equal(decisionResult.ok, false);
+  const templateReference = asRecord(definitions["TemplateReference"]);
+  const templateProperties = asRecord(templateReference["properties"]);
+  assert.equal(
+    asRecord(templateProperties["dsl_version"])["const"],
+    TEMPLATE_DSL_VERSION,
+  );
+
+  const document = await readJson(
+    new URL("../../document-model/fixtures/valid/minimal.json", import.meta.url),
+  );
+  const template = await readJson(
+    new URL("../../template-model/fixtures/valid/minimal.json", import.meta.url),
+  );
+  assert.equal(validateDocument(document).ok, true);
+  assert.equal(validateTemplate(template).ok, true);
+  const project = asRecord(await validFixture("project"));
+  assert.equal(
+    asRecord(project["document"])["document_id"],
+    asRecord(document)["documentId"],
+  );
+  assert.equal(
+    asRecord(project["template"])["template_id"],
+    asRecord(template)["template_id"],
+  );
 });
 
 test("bundle rejects missing audit events and mismatched project identity", async () => {

@@ -1,6 +1,6 @@
 # G1-07 v0 项目、知识包、语义审计与兼容契约
 
-> 状态：已实现，待 Claude 独立审计　契约版本：`0.1.0`　日期：2026-07-20
+> 状态：首审 `FAIL`，整改已实现待 Claude 独立复审　契约版本：`0.1.0`　日期：2026-07-20
 
 ## 1. 目的与边界
 
@@ -27,15 +27,17 @@
 
 ## 4. 语义审计与三层记录
 
-`semantic_audit_event` 只记录具有责任意义的事件：AI 修改裁决、AI 后人工修改、来源关联、模板应用、正式版本批准。事件包含稳定 ID、项目 ID、连续 sequence、时间、actor/action/decision、受影响节点、前后哈希、材料引用和最小模型元数据。
+`semantic_audit_event` 只记录具有责任意义的事件：AI 修改裁决、AI 后人工修改、来源关联、模板应用、正式版本批准。事件包含稳定 ID、项目 ID、连续 sequence、有效 UTC 时间、actor/action/decision、受影响节点、前后哈希、材料引用和最小模型元数据。
 
-Schema 不提供正文、prompt、密钥、原始模型响应、编辑器按键或 CRDT update 字段，未知字段一律拒绝。AI actor 必须带 provider/model/invocation ID；非 AI actor 不得伪带模型上下文。`source_linked` 必须有材料引用，action 与 decision 使用固定组合。
+`actor` 表示真正作出动作的责任主体，只允许 `user` 或有限的 `system` 行为；模型不是 actor，也不能接受修改或批准正式版本。`subject_model_context` 表示“被人类裁决或随后修改的 AI 产物来自哪个 provider/model/invocation”，因此人类裁决可以同时保留模型出处。`ai_change_decided` 和 `formal_version_approved` 强制 actor 为用户。
+
+action、decision、受影响节点和前后哈希具有可执行组合规则：接受 AI 修改必须有节点且前后哈希不同；拒绝必须有节点且前后哈希相同；AI 后人工修改与来源关联必须产生哈希变化；正式版本批准必须保持被批准文档哈希一致。Schema 不提供正文、prompt、密钥、原始模型响应、编辑器按键或 CRDT update 字段，未知字段一律拒绝。locator 使用节点 ID 或受控 anchor，provider/model 使用保守标识符字符集。
 
 编辑器事务、合并记录、语义审计事件保持三层分离；后续实现不得用本契约承载高频 undo/redo 或同步日志。
 
 ## 5. 版本与迁移原则
 
-`compatibility` 对象固定五类 reader 的当前版本，并把以下原则做成可执行常量：
+`compatibility` 对象固定五类 reader 的当前版本，并把以下原则做成可执行常量。项目包直接依赖 document/template 两个上游契约，运行时与测试同时断言 reader、项目引用 Schema 常量和上游导出版本一致；联合 fixture 还对账文档 ID 与模板 ID，避免兼容清单成为无人检查的副本。
 
 - 未知版本明确拒绝，不静默丢字段；
 - 同一主版本的行为变化也需要显式 adapter；
@@ -58,4 +60,4 @@ pnpm --filter @wenshu/project-contract typecheck
 pnpm verify
 ```
 
-实施者自检为 15/15，通过四类合法 fixture JSON round-trip、完整 bundle 对账、缺字段/未来版本、真源派生混用、审计内容泄漏、actor/action/decision、重复审计/孤儿真源、跨项目引用、预算/访问器和生成类型零 `any`。这些结果只代表实施者自检，最终状态等待 Claude 独立审计。
+整改后实施者自检为 21/21，新增覆盖“用户裁决并保留模型出处”、AI/system 不得裁决、接受/拒绝的节点与哈希语义、正式版本只能由用户批准、非法日历时间、结构化 locator、密钥形状标识、path/role 一致性，以及 document/template 跨包版本与 ID 联合契约。全部结果只代表实施者自检，发现是否关闭仍等待 Claude 独立复审。

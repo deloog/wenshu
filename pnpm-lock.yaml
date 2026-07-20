@@ -111,6 +111,12 @@ importers:
       '@wenshu/contract-runtime':
         specifier: workspace:*
         version: link:../contract-runtime
+      '@wenshu/document-model':
+        specifier: workspace:*
+        version: link:../document-model
+      '@wenshu/template-model':
+        specifier: workspace:*
+        version: link:../template-model
       ajv:
         specifier: 'catalog:'
         version: 8.20.0

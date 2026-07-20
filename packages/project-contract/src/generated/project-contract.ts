@@ -104,7 +104,7 @@ export interface SemanticAuditEvent {
   project_id: ProjectId;
   sequence: number;
   occurred_at: Timestamp;
-  actor: "user" | "ai" | "system";
+  actor: "user" | "system";
   action:
     | "ai_change_decided"
     | "user_changed_after_ai"
@@ -116,7 +116,7 @@ export interface SemanticAuditEvent {
   before_sha256: Sha256 | null;
   after_sha256: Sha256 | null;
   source_refs: SourceReference[];
-  model_context: ModelContext | null;
+  subject_model_context: ModelContext | null;
 }
 export interface SourceReference {
   material_id: MaterialId;

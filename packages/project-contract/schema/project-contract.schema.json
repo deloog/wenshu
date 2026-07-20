@@ -183,7 +183,12 @@
       "properties": {
         "material_id": { "$ref": "#/$defs/MaterialId" },
         "sha256": { "$ref": "#/$defs/Sha256" },
-        "locator": { "type": ["string", "null"], "maxLength": 200 }
+        "locator": {
+          "oneOf": [
+            { "type": "string", "pattern": "^(?:node_[a-f0-9]{32}|anchor:[a-z0-9][a-z0-9._-]{0,99})$" },
+            { "type": "null" }
+          ]
+        }
       }
     },
     "ModelContext": {
@@ -191,15 +196,21 @@
       "additionalProperties": false,
       "required": ["provider", "model", "invocation_id"],
       "properties": {
-        "provider": { "type": "string", "minLength": 1, "maxLength": 80 },
-        "model": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "provider": {
+          "type": "string",
+          "pattern": "^(?!sk[-_])(?!.{0,20}(?:key|secret|token))[a-z][a-z0-9.-]{0,39}$"
+        },
+        "model": {
+          "type": "string",
+          "pattern": "^(?!sk[-_])(?!.{0,20}(?:key|secret|token))[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$"
+        },
         "invocation_id": { "type": "string", "pattern": "^inv_[a-f0-9]{32}$" }
       }
     },
     "SemanticAuditEvent": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["contract_kind", "schema_version", "event_id", "project_id", "sequence", "occurred_at", "actor", "action", "decision", "affected_node_ids", "before_sha256", "after_sha256", "source_refs", "model_context"],
+      "required": ["contract_kind", "schema_version", "event_id", "project_id", "sequence", "occurred_at", "actor", "action", "decision", "affected_node_ids", "before_sha256", "after_sha256", "source_refs", "subject_model_context"],
       "properties": {
         "contract_kind": { "const": "semantic_audit_event" },
         "schema_version": { "const": "0.1.0" },
@@ -207,7 +218,7 @@
         "project_id": { "$ref": "#/$defs/ProjectId" },
         "sequence": { "type": "integer", "minimum": 0 },
         "occurred_at": { "$ref": "#/$defs/Timestamp" },
-        "actor": { "enum": ["user", "ai", "system"] },
+        "actor": { "enum": ["user", "system"] },
         "action": { "enum": ["ai_change_decided", "user_changed_after_ai", "source_linked", "template_applied", "formal_version_approved"] },
         "decision": { "enum": ["accepted", "rejected", "applied", "approved"] },
         "affected_node_ids": {
@@ -221,7 +232,7 @@
           "type": "array",
           "items": { "$ref": "#/$defs/SourceReference" }
         },
-        "model_context": { "oneOf": [{ "$ref": "#/$defs/ModelContext" }, { "type": "null" }] }
+        "subject_model_context": { "oneOf": [{ "$ref": "#/$defs/ModelContext" }, { "type": "null" }] }
       }
     },
     "CompatibilityManifest": {

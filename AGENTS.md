@@ -57,7 +57,7 @@ docs/adr/                           重大技术决策
 - 审计者只能修改指定审计报告，不得修改被审代码、测试、Schema、配置、lockfile、路线图或验收标准。
 - BLOCKER/MAJOR 由实施者修复，原审计角色复审；实施者不得自行关闭发现。
 - Claude 的短入口是 [CLAUDE.md](CLAUDE.md)，审计任务与报告统一放在 `docs/audits/`。
-- `G1-03～G1-06` 已获 Claude 独立复审 `CONDITIONAL PASS`；`G1-07` 当前已实现待独立审计，其消费者在审计闭环前暂停。
+- `G1-03～G1-06` 已获 Claude 独立复审 `CONDITIONAL PASS`；`G1-07` 首审为 `FAIL`，整改已实现待独立复审，其消费者继续暂停。
 
 ## 文件与代码规则（进入 G1 后生效）
 

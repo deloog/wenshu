@@ -80,7 +80,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-04 | ✅ 已完成 | [v0 文档对象契约](document-model.md)：路径、预算与测试 typecheck 反例通过；Claude 复审通过，NF-03 已登记到 PA-00 |
 | G1-05 | ✅ 已完成 | [v0 模板 DSL 契约](template-dsl.md)：继承访问器与有效基线注入反例通过；Claude 复审通过 |
 | G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：值级路径、预算和会话状态机反例通过；Claude 复审通过，NF-01/02/04 已登记到 G1-08/09 |
-| G1-07 | 🟠 已实现待独立审计 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：15/15 实施者自检通过；不含数据库或文件 IO，消费者等待 [Claude 审计](audits/G1-07-claude-audit-task.md) |
+| G1-07 | 🟠 首审失败，整改已实现待复审 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 首审 `FAIL`；责任语义与跨包漂移修复后 21/21 自检通过，消费者等待 [Claude 复审](audits/G1-07-claude-reaudit-task.md) |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务
@@ -144,7 +144,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | PB-08 | 选择 SQLite/OPFS 与桌面同格式存储并写 ADR。R-DATA/R-TEST | G1-07/08,PB-07 → PB-09/10 | 真实候选数据库、Worker/多标签探针；不做云同步 | 真实引擎、真实迁移、并发/锁/大文档探针；非 Map/JSON 替代 | 三端同格式不可行则记录适配边界，不伪称同库。独占存储 ADR |
 | PB-09 | 建立版本化迁移、隔离真库集成与恢复。R-DATA/R-TEST | PB-08 → PB-10/11 | schema v0→v1、seed、备份/恢复；不手改数据库 | 每 worker 独立真实库；迁移、重复运行、中断、损坏、磁盘/权限失败 | 数据丢失即阻断；恢复副本优先，迁移历史不可改。可分片并行但库/目录隔离 |
 | PB-10 | 实现原子保存、崩溃恢复与 host 文件边界。R-HOST/R-DATA | G1-06,PB-09 → PB-11/A-02 | 浏览器受控host与Electron文件host；不覆盖导入原件 | 强杀/重开≤10s；上次成功成品不损坏；拒绝权限有降级 | 路径逃逸/半写文件即阻断。平台实现文件隔离后并行 |
-| PB-11 | 实现知识包导出与干净环境重导入。R-OUTPUT/R-DATA | G1-07,PB-06/09/10 → PB-12/A-11 | 内容、模板、审计、附件、manifest；不含派生索引真源化 | 干净环境 round-trip 对账 ID/版本/引用/审计/附件；篡改拒绝 | 仅“文件存在”不算通过；回滚导入事务。与 ArkWeb 壳探针可并行 |
+| PB-11 | 实现知识包导出与干净环境重导入。R-OUTPUT/R-DATA | G1-07,PB-06/09/10 → PB-12/A-11 | 内容、模板、审计、附件、manifest；不含派生索引真源化；闭合 G1-07 m-01 | 干净环境 round-trip 对账 ID/版本/引用/审计/附件；从真实序列化字节计算并核验 `truth.project` 与 `truth.audit` entry 哈希；所有真源篡改拒绝 | 仅“文件存在”或只信 manifest 自报哈希不算通过；回滚导入事务。与 ArkWeb 壳探针可并行 |
 | PB-12 | 完成真实 E2E 与 PoC-B 闸门报告。R-TX/R-DATA/R-TEST | PB-05/06/07/08/09/10/11 → Alpha | AI计划可用契约fake；核心事务/真库/文件/恢复必须真实 | 修改→diff→裁决→undo→保存→强杀→恢复→知识包重导入全链通过 | 任一真源/恢复/撤销阻断未闭环不得进入 Alpha；指标变更需业主批准 |
 
 ## 7. 封闭 Alpha 首战闭环原子任务
