@@ -83,7 +83,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md) |
 | G1-08 | ✅ 已完成 | [测试骨架与并行隔离基线](test-infrastructure.md)：Claude 复审 `CONDITIONAL PASS`，首审 3 MAJOR、5 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 [G1-11 硬门禁](audits/G1-08-followups.md) |
 | G1-09 | ✅ 已完成 | [工程质量与本地验证标准](engineering-standards.md)：Claude 最终复核 `CONDITIONAL PASS`；`RA-01～RA-04` 与 `CF-01` 全部关闭，118 项验证通过；新增 CR-01 已登记到 [G1-15](audits/G1-09-followups.md) |
-| G1-10 | 🟡 已实现，待独立审计 | [fixture 完整性基线](fixture-integrity.md)：7 个冻结原件、manifest 自身锚点、真实文件系统隔离复制与证据门禁已实现；不得提前作为消费者前置 |
+| G1-10 | ✅ 已完成 | [fixture 完整性基线](fixture-integrity.md)：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；150/150 验证通过，7 个原件与 manifest 锚点零漂移；FX-06 已登记到 [PA-00](audits/G1-10-followups.md) |
 | G1-11 | ✅ 已完成 | [并行 CI 基线](ci.md)本地验证通过；Claude 已关闭 CI-01～CI-05；[首次与最终 GitHub 运行](audits/G1-11-first-remote-run.md)均 8/8 成功，最终运行覆盖提交 `baff4ef` |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
@@ -115,7 +115,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 
 | ID | 单一目标与来源 | 依赖 → 消费者 | 范围内 / 范围外与文件 | 完成证据与真实验证 | 风险、停止/回滚、并行与审批 |
 |---|---|---|---|---|---|
-| PA-00 | 裁定导入资源文件名策略并关闭复审 NF-03。R-PDF/R-ID/R-COMPAT | G1-04/10 → PA-01/A-02D | 仅比较并决定“导入时安全规范化重命名”或“升级 Schema 支持受控 Unicode/扩展名大小写”；不实现解析器 | 中文、空格、大写扩展名、目录含点、webp 的固定决策矩阵；结论写入 `document-model.md`；若改 Schema，按 `0.x` 次版本升级并重跑消费者契约、独立审计 | 未决不得开始 PA-01；不得原地放宽 `0.1.0`。文档/Schema 决策串行 |
+| PA-00 | 裁定导入资源文件名策略并关闭复审 NF-03 与 G1-10 FX-06。R-PDF/R-ID/R-COMPAT | G1-04/10 → PA-01/A-02D | 仅比较并决定“导入时安全规范化重命名”或“升级 Schema 支持受控 Unicode/扩展名大小写”；补齐或如实收窄 fixture 的 Windows/POSIX 可移植字符规则；不实现解析器 | 中文、空格、大写扩展名、目录含点、webp、Windows 保留字符（小于号、大于号、双引号、竖线、问号、星号）的固定决策矩阵；结论写入 `document-model.md` 与 `fixture-integrity.md`；若改 Schema，按 `0.x` 次版本升级并重跑消费者契约、独立审计；FX-06 须由独立审计签署 | 未决不得开始 PA-01；不得原地放宽 `0.1.0`，不得由实施者自行关闭 FX-06。文档/Schema 决策串行 |
 | PA-01 | 将固定 Markdown 解析为 v0 类型化文档且内容对账。R-PDF/R-ID | G1-04/08/10/16、G2-01/02、PA-00 → PA-02/03 | 只支持 fixture 用到的标题、段落、列表、引用、普通表格、图片、标记 | 单元+契约；节点稳定 ID；字符/表格/图片引用无丢失重复 | 无法无损表达即停修 schema；回滚解析器。与 PA-04 设计不可并行改 schema |
 | PA-02 | 将正式商务 fixture 映射为受控模板模型。R-TEMPLATE | G1-05/10/16, PA-01契约 → PA-04 | 只实现模板 v1 所需 token/规则；无任意 JS | 契约测试覆盖未知字段、版本不兼容、越权能力拒绝 | 需要逐页内容特例即失败并回到模板规则。可与 PA-03 并行 |
 | PA-03 | 构建语义 HTML 渲染与字体加载检查。R-PDF/R-A11Y | PA-01,G1-13 → PA-04/05 | 章节、表格、figure/figcaption、来源；不分页 | 浏览器真实加载字体；DOM语义/文本对账；缺字体明确失败 | fallback 未被发现即阻断。与 PA-02 并行，文件隔离 |
