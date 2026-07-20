@@ -77,6 +77,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-02 | ✅ 已完成 | `toolchain.versions.json`、ADR-0002；官方版本/许可证/来源/完整性证据已冻结，未安装业务依赖 |
 | G1-03 | ✅ 已完成 | D 盘 Node/pnpm、冻结 lockfile、TypeScript strict + Vite 最小工作区；干净安装、typecheck、build、dev HTTP 冒烟均通过 |
 | G1-03C | ✅ 已完成 | [环境配置基线](configuration.md)：四环境显式 profile、schema、`.env.example`、Vite 启动前校验；7/7 契约测试、未知字段脱敏失败探针和四环境构建/启动通过 |
+| G1-04 | ✅ 已完成 | [v0 文档对象契约](document-model.md)：schema `0.1.0`、稳定不透明 ID、生成类型与兼容规则；2 个合法/5 个非法 fixture 共 12/12 测试通过，生成漂移反向探针与统一 `verify` 通过 |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务

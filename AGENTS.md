@@ -84,12 +84,15 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store`：冻结安装。
 - `pnpm dev`：启动最小 Web 开发入口。
 - `pnpm config:check`：运行 dev/test/staging/production 配置契约、快速失败和脱敏测试。
+- `pnpm contracts:check`：检查文档 schema/生成类型漂移并运行合法、非法 fixture 契约测试。
 - `pnpm typecheck`：严格类型检查。
 - `pnpm build`：生产构建。
 - `pnpm --filter @wenshu/web build:test`：test 配置构建。
 - `pnpm --filter @wenshu/web build:staging`：staging 配置构建。
-- `pnpm verify`：当前 G1 统一验证入口（config contract + typecheck + production build）。
+- `pnpm verify`：当前 G1 统一验证入口（配置契约 + 文档契约/漂移 + strict typecheck + production build）。
 
 配置规则见 [环境配置基线](docs/configuration.md)。真实 `.env`/`.env.*` 不得提交；任何新 `WENSHU_*` 字段必须先更新 schema、解析器与契约测试，错误日志只能记录字段名，不得记录原始值。
+
+文档对象规则见 [v0 文档对象契约](docs/document-model.md)。`packages/document-model/schema/document.schema.json` 是类型真源；修改 schema 后必须重新生成并运行漂移检查，禁止直接编辑 `src/generated`。
 
 测试、渲染、证据和打包命令将在对应原子任务建立后追加；不得从聊天记录猜命令或用临时命令冒充权威入口。

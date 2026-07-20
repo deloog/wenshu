@@ -1,0 +1,25 @@
+{
+  "expectedIssue": "DOCUMENT_SCHEMA",
+  "schemaVersion": "0.1.0",
+  "documentId": "doc_60000000000000000000000000000001",
+  "revision": 0,
+  "title": "不安全附件路径",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_60000000000000000000000000000001",
+      "type": "figure",
+      "assetId": "asset_60000000000000000000000000000001",
+      "altText": "越界路径"
+    }
+  ],
+  "assets": [
+    {
+      "id": "asset_60000000000000000000000000000001",
+      "kind": "image",
+      "path": "../outside.png",
+      "mediaType": "image/png",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ]
+}

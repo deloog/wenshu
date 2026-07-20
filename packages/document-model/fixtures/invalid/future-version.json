@@ -1,0 +1,16 @@
+{
+  "expectedIssue": "DOCUMENT_SCHEMA",
+  "schemaVersion": "1.0.0",
+  "documentId": "doc_20000000000000000000000000000001",
+  "revision": 0,
+  "title": "未来版本",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_20000000000000000000000000000001",
+      "type": "paragraph",
+      "text": "当前读取器必须拒绝未来主版本。"
+    }
+  ],
+  "assets": []
+}

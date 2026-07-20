@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "0.1.0",
+  "documentId": "doc_10000000000000000000000000000001",
+  "revision": 3,
+  "title": "完整内容模块示例",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_10000000000000000000000000000001",
+      "type": "section",
+      "level": 1,
+      "title": "执行摘要",
+      "children": [
+        {
+          "id": "node_10000000000000000000000000000002",
+          "type": "paragraph",
+          "text": "本示例覆盖冻结首战所需的全部内容对象。"
+        },
+        {
+          "id": "node_10000000000000000000000000000003",
+          "type": "list",
+          "ordered": true,
+          "items": [
+            {
+              "id": "item_10000000000000000000000000000001",
+              "text": "文字章节"
+            },
+            {
+              "id": "item_10000000000000000000000000000002",
+              "text": "普通表格"
+            }
+          ]
+        },
+        {
+          "id": "node_10000000000000000000000000000004",
+          "type": "quote",
+          "text": "模型是规划者，不是最终裁决者。",
+          "attribution": "文枢项目宪法"
+        }
+      ]
+    },
+    {
+      "id": "node_10000000000000000000000000000005",
+      "type": "table",
+      "caption": "表 1　内容模块",
+      "columns": [
+        {
+          "id": "col_10000000000000000000000000000001",
+          "header": "模块",
+          "align": "start"
+        },
+        {
+          "id": "col_10000000000000000000000000000002",
+          "header": "状态",
+          "align": "center"
+        }
+      ],
+      "rows": [
+        {
+          "id": "row_10000000000000000000000000000001",
+          "cells": [
+            {
+              "id": "cell_10000000000000000000000000000001",
+              "columnId": "col_10000000000000000000000000000001",
+              "text": "普通表格"
+            },
+            {
+              "id": "cell_10000000000000000000000000000002",
+              "columnId": "col_10000000000000000000000000000002",
+              "text": "支持"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "node_10000000000000000000000000000006",
+      "type": "figure",
+      "assetId": "asset_10000000000000000000000000000001",
+      "altText": "排版约束闭环示意图",
+      "caption": "图 1　约束闭环"
+    },
+    {
+      "id": "node_10000000000000000000000000000007",
+      "type": "pageBreak",
+      "reason": "section"
+    }
+  ],
+  "assets": [
+    {
+      "id": "asset_10000000000000000000000000000001",
+      "kind": "chart",
+      "path": "assets/chart-process.svg",
+      "mediaType": "image/svg+xml",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}

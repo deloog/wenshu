@@ -1,0 +1,34 @@
+{
+  "expectedIssue": "DOCUMENT_TABLE_COLUMN_MISMATCH",
+  "schemaVersion": "0.1.0",
+  "documentId": "doc_50000000000000000000000000000001",
+  "revision": 0,
+  "title": "表格列引用错误",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_50000000000000000000000000000001",
+      "type": "table",
+      "columns": [
+        {
+          "id": "col_50000000000000000000000000000001",
+          "header": "合法列",
+          "align": "start"
+        }
+      ],
+      "rows": [
+        {
+          "id": "row_50000000000000000000000000000001",
+          "cells": [
+            {
+              "id": "cell_50000000000000000000000000000001",
+              "columnId": "col_50000000000000000000000000000002",
+              "text": "引用了不存在的列"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assets": []
+}

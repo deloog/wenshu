@@ -1,0 +1,21 @@
+{
+  "expectedIssue": "DOCUMENT_DUPLICATE_ID",
+  "schemaVersion": "0.1.0",
+  "documentId": "doc_30000000000000000000000000000001",
+  "revision": 0,
+  "title": "重复 ID",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_30000000000000000000000000000001",
+      "type": "paragraph",
+      "text": "第一段。"
+    },
+    {
+      "id": "node_30000000000000000000000000000001",
+      "type": "paragraph",
+      "text": "第二段不得复用第一段 ID。"
+    }
+  ],
+  "assets": []
+}

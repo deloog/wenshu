@@ -1,0 +1,17 @@
+{
+  "expectedIssue": "DOCUMENT_REFERENCE_MISSING",
+  "schemaVersion": "0.1.0",
+  "documentId": "doc_40000000000000000000000000000001",
+  "revision": 0,
+  "title": "缺失图片引用",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_40000000000000000000000000000001",
+      "type": "figure",
+      "assetId": "asset_40000000000000000000000000000001",
+      "altText": "不存在的图片"
+    }
+  ],
+  "assets": []
+}

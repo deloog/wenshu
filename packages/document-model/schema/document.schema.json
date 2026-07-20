@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/document/0.1.0/document.schema.json",
+  "title": "WenshuDocument",
+  "description": "Version 0 document truth model for the professional report proof of concept.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "documentId",
+    "revision",
+    "title",
+    "language",
+    "blocks",
+    "assets"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "0.1.0" },
+    "documentId": { "$ref": "#/$defs/DocumentId" },
+    "revision": { "type": "integer", "minimum": 0 },
+    "title": { "$ref": "#/$defs/ShortText" },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2}|-[0-9]{3})?$"
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Block" }
+    },
+    "assets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Asset" }
+    }
+  },
+  "$defs": {
+    "DocumentId": {
+      "type": "string",
+      "pattern": "^doc_[0-9a-f]{32}$"
+    },
+    "NodeId": {
+      "type": "string",
+      "pattern": "^node_[0-9a-f]{32}$"
+    },
+    "ItemId": {
+      "type": "string",
+      "pattern": "^item_[0-9a-f]{32}$"
+    },
+    "ColumnId": {
+      "type": "string",
+      "pattern": "^col_[0-9a-f]{32}$"
+    },
+    "RowId": {
+      "type": "string",
+      "pattern": "^row_[0-9a-f]{32}$"
+    },
+    "CellId": {
+      "type": "string",
+      "pattern": "^cell_[0-9a-f]{32}$"
+    },
+    "AssetId": {
+      "type": "string",
+      "pattern": "^asset_[0-9a-f]{32}$"
+    },
+    "ShortText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "BodyText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100000
+    },
+    "Block": {
+      "oneOf": [
+        { "$ref": "#/$defs/Section" },
+        { "$ref": "#/$defs/Paragraph" },
+        { "$ref": "#/$defs/List" },
+        { "$ref": "#/$defs/Quote" },
+        { "$ref": "#/$defs/Table" },
+        { "$ref": "#/$defs/Figure" },
+        { "$ref": "#/$defs/PageBreak" }
+      ]
+    },
+    "Section": {
+      "title": "Section",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "level", "title", "children"],
+      "properties": {
+        "id": { "$ref": "#/$defs/NodeId" },
+        "type": { "const": "section" },
+        "level": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "title": { "$ref": "#/$defs/ShortText" },
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Block" }
+        }
+      }
+    },
+    "Paragraph": {
+      "title": "Paragraph",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "text"],
+      "properties": {
+        "id": { "$ref": "#/$defs/NodeId" },
+        "type": { "const": "paragraph" },
+        "text": { "$ref": "#/$defs/BodyText" }
+      }
+    },
+    "List": {
+      "title": "List",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "ordered", "items"],
+      "properties": {
+        "id": { "$ref": "#/$defs/NodeId" },
+        "type": { "const": "list" },
+        "ordered": { "type": "boolean" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ListItem" }
+        }
+      }
+    },
+    "ListItem": {
+      "title": "ListItem",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ItemId" },
+        "text": { "$ref": "#/$defs/BodyText" }
+      }
+    },
+    "Quote": {
+      "title": "Quote",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "text"],
+      "properties": {
+        "id": { "$ref": "#/$defs/NodeId" },
+        "type": { "const": "quote" },
+        "text": { "$ref": "#/$defs/BodyText" },
+        "attribution": { "$ref": "#/$defs/ShortText" }
+      }
+    },
+    "Table": {
+      "title": "Table",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "columns", "rows"],
+      "properties": {
+        "id": { "$ref": "#/$defs/NodeId" },
+        "type": { "const": "table" },
+        "caption": { "$ref": "#/$defs/ShortText" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/TableColumn" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/TableRow" }
+        }
+      }
+    },
+    "TableColumn": {
+      "title": "TableColumn",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "header", "align"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ColumnId" },
+        "header": { "$ref": "#/$defs/ShortText" },
+        "align": { "enum": ["start", "center", "end"] }
+      }
+    },
+    "TableRow": {
+      "title": "TableRow",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "cells"],
+      "properties": {
+        "id": { "$ref": "#/$defs/RowId" },
+        "cells": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/TableCell" }
+        }
+      }
+    },
+    "TableCell": {
+      "title": "TableCell",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "columnId", "text"],
+      "properties": {
+        "id": { "$ref": "#/$defs/CellId" },
+        "columnId": { "$ref": "#/$defs/ColumnId" },
+        "text": { "type": "string", "maxLength": 100000 }
+      }
+    },
+    "Figure": {
+      "title": "Figure",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "assetId", "altText"],
+      "properties": {
+        "id": { "$ref": "#/$defs/NodeId" },
+        "type": { "const": "figure" },
+        "assetId": { "$ref": "#/$defs/AssetId" },
+        "altText": { "$ref": "#/$defs/ShortText" },
+        "caption": { "$ref": "#/$defs/ShortText" }
+      }
+    },
+    "PageBreak": {
+      "title": "PageBreak",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "reason"],
+      "properties": {
+        "id": { "$ref": "#/$defs/NodeId" },
+        "type": { "const": "pageBreak" },
+        "reason": { "enum": ["source", "section"] }
+      }
+    },
+    "Asset": {
+      "title": "Asset",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "path", "mediaType", "sha256"],
+      "properties": {
+        "id": { "$ref": "#/$defs/AssetId" },
+        "kind": { "enum": ["image", "chart"] },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000]+$"
+        },
+        "mediaType": {
+          "enum": ["image/png", "image/jpeg", "image/svg+xml"]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

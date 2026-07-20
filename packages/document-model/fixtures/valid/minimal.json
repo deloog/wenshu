@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "0.1.0",
+  "documentId": "doc_00000000000000000000000000000001",
+  "revision": 0,
+  "title": "最小专业分析报告",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_00000000000000000000000000000001",
+      "type": "paragraph",
+      "text": "这是最小合法文档。"
+    }
+  ],
+  "assets": []
+}
