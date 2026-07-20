@@ -1,0 +1,20 @@
+{
+  "name": "wenshu",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.15.1",
+  "engines": {
+    "node": "24.17.0",
+    "pnpm": "11.15.1"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @wenshu/web dev",
+    "build": "pnpm -r --if-present run build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "verify": "pnpm typecheck && pnpm build"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

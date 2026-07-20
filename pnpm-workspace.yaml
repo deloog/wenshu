@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+  - tools/*
+
+catalog:
+  typescript: 6.0.3
+  vite: 8.1.5

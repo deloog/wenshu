@@ -75,6 +75,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-01 | ✅ 已完成 | 本地 `main` 根提交 `dcbddc9`；工作树、ignore 与秘密模式探针通过 |
 | G1-01R | ⬜ 未开始 | 创建私有远程属于外部行为，尚待业主对该项单独批准；不阻塞可隔离的本地 G1 任务 |
 | G1-02 | ✅ 已完成 | `toolchain.versions.json`、ADR-0002；官方版本/许可证/来源/完整性证据已冻结，未安装业务依赖 |
+| G1-03 | ✅ 已完成 | D 盘 Node/pnpm、冻结 lockfile、TypeScript strict + Vite 最小工作区；干净安装、typecheck、build、dev HTTP 冒烟均通过 |
 | G1-12 | 🟡 进行中 | 等待完成华为官方版本核验、D 盘安装与诊断 |
 
 ## 4. G1：工程底座原子任务

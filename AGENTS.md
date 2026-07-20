@@ -77,4 +77,12 @@ docs/adr/                           重大技术决策
 
 ## 命令
 
-G0/GR 阶段尚无工程命令。G1 建立脚手架后，必须在此补充唯一权威的安装、开发、测试、构建、渲染、验证和打包命令；不得让 AI 从聊天记录猜命令。
+Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D 盘 Node/pnpm 与缓存路径置入环境；不得直接使用本机旧全局 pnpm。当前唯一权威命令为：
+
+- `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store`：冻结安装。
+- `pnpm dev`：启动最小 Web 开发入口。
+- `pnpm typecheck`：严格类型检查。
+- `pnpm build`：生产构建。
+- `pnpm verify`：当前 G1 统一验证入口（typecheck + build）。
+
+测试、渲染、证据和打包命令将在对应原子任务建立后追加；不得从聊天记录猜命令或用临时命令冒充权威入口。
