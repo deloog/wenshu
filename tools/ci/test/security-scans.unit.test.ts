@@ -36,6 +36,10 @@ test("license discovery finds scoped and unscoped packages in the pnpm store", a
 test("license scanning rejects copyleft blockers and deduplicates package paths", () => {
   assert.match(forbiddenLicenseReason("AGPL-3.0-only") ?? "", /not approved/u);
   assert.match(forbiddenLicenseReason("GPL-2.0-or-later") ?? "", /not approved/u);
+  assert.match(
+    forbiddenLicenseReason("SEE LICENSE IN LICENSE.txt") ?? "",
+    /unrecognized/u,
+  );
   assert.equal(forbiddenLicenseReason("MIT"), undefined);
   const locations = collectDependencyLocations([
     {

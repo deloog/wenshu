@@ -27,7 +27,7 @@
 
 `pnpm secrets:check` 扫描 `git ls-files` 返回的全部文本文件，阻断私钥、高置信度服务 token、禁止提交的 `.env` 和凭证文件后缀。提交前应先暂存文件再运行；发现真实泄露必须撤销凭证并清理传播面，不能只删除当前内容。
 
-`pnpm licenses:check` 直接枚举 `node_modules/.pnpm` 的实际安装包，未知/缺失许可与 GPL/AGPL 立即失败，并输出许可分布。它是 G1-11 快速阻断门禁，不代替 G1-15 的 SBOM、用途、漏洞、工作区幽灵依赖和 MPL/Python/BlueOak 书面裁定。
+`pnpm licenses:check` 直接枚举 `node_modules/.pnpm` 的实际安装包，缺失许可、GPL/AGPL 和冻结识别清单外的表达式立即失败，并输出许可分布。识别不等于业主批准：MPL、Python、BlueOak 仅为当前树中已知且登记为 G1-15 待裁定的传递许可。该快速门禁不代替 G1-15 的 SBOM、用途、漏洞、工作区幽灵依赖和书面裁定。
 
 ## 4. 测试证据保护
 

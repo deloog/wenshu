@@ -7,6 +7,18 @@ export interface DependencyLocation {
   readonly version: string;
 }
 
+const RECOGNIZED_LICENSE_EXPRESSIONS = new Set([
+  "Apache-2.0",
+  "BlueOak-1.0.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+  "MPL-2.0",
+  "OFL-1.1",
+  "Python-2.0",
+]);
+
 async function packageDirectories(nodeModulesPath: string): Promise<readonly string[]> {
   const entries = await readdir(nodeModulesPath, { withFileTypes: true });
   const directories: string[] = [];
@@ -92,9 +104,13 @@ export function collectDependencyLocations(
 }
 
 export function forbiddenLicenseReason(license: string): string | undefined {
-  const normalized = license.toUpperCase();
+  const trimmed = license.trim();
+  const normalized = trimmed.toUpperCase();
   if (/\bA?GPL(?:-|\b)/u.test(normalized)) {
     return "GPL/AGPL license is not approved";
+  }
+  if (!RECOGNIZED_LICENSE_EXPRESSIONS.has(trimmed)) {
+    return "unrecognized license expression requires review";
   }
   return undefined;
 }
