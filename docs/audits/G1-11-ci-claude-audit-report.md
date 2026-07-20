@@ -225,3 +225,156 @@ baseline                                PASSES
 **关闭路径**：修复 `CI-01` 后，由 Claude 只复核该项与其回归测试即可；`CI-02`～`CI-05` 可与远程首跑后的收尾提交一并处理。**在 `CI-01` 关闭之前不得推送 workflow、不得触发远程运行。** 即使其后转为 `PASS`，也只放行首次远程验证——依任务书，`G1-11` 在远程成功前不得标记最终完成。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具，只签署事实、不提供也不应用补丁。`CI-01`～`CI-05` 不得由实施者自行标记关闭。
+
+---
+---
+
+# CI-01 定点复核（2026-07-20）：`47e1a9d..7ab7417`
+
+> 复核者：Claude（发现 `CI-01` 的原审计角色）　实施者：Codex　任务书：[G1-11-ci01-claude-recheck-task.md](G1-11-ci01-claude-recheck-task.md)　整改提交：`7ab7417`
+>
+> **本章节的结论取代上文首审的 `FAIL`。** 首审记录原样保留，未删除或改写任何一行。
+>
+> 本轮只复核 `CI-01` 及本次修复是否引入同级回归；`CI-02`～`CI-05` 不在修复范围，维持首审 `MINOR` 与既定归属。
+
+## 1. 修复内容与方法
+
+整改面 4 文件 +37/-5，实质代码改动是 [`tools/ci/src/secrets.ts`](../../tools/ci/src/secrets.ts) 删去 3 行：
+
+```diff
+     const content = await readFile(resolvedPath);
+-    if (content.includes(0)) {
+-      continue;
+-    }
+     for (const reason of scanTextForSecrets(content.toString("utf8"))) {
+```
+
+即**取消静默跳过分支本身**，而不是"保留跳过再加一行报告"。同时新增单元测试 `secret scanning inspects NUL-bearing tracked files`，并把 [`docs/ci.md:28`](../ci.md#L28) 的口径由「全部**文本**文件」改写为「全部**普通文件**，包括含 NUL 字节的文件；字节以 UTF-8 容错解码后继续匹配 ASCII 高置信度模式，不允许用单个二进制字节绕过」。
+
+按任务书 §2，我不采用"显式报告 skipped 即可降级"的旧标准，而是按本次实现的实际声明核对：**NUL-bearing 普通文件的内容确实被扫描、不存在静默跳过、成功计数只在全部跟踪项均已检查或已 fail-closed 时出现**。
+
+不采信 [整改记录](G1-11-ci01-remediation.md) 与全绿自述；所有结论来自仓库外临时 Git 仓库中对**真实 `secrets:check` 入口**的重跑。探针位于 `D:\tmp\g111r1`、`g111r2`，结束时已删除并核实无残留。未修改代码、测试、workflow、lockfile、路线图、配置或其他文档；未 push、未创建 PR、未触发 Actions、未改变远程。
+
+## 2. 原始反例重跑（任务书 §2）
+
+| # | 场景 | 结果 |
+|---|---|---|
+| 1 | 唯一跟踪文件 = 合法形态 AWS access key + 1 个 NUL 字节 | **exit 1**，命中 `AWS access key`；输出中**没有** `Secret scan passed` |
+| 2 | 同一内容去掉 NUL | **exit 1**，仍命中 `AWS access key`（修 NUL 未破坏普通文本检测） |
+| 3 | 3 个跟踪文件，其中 `b.bin` 为 NUL-bearing secret | **exit 1**，`Secret scan passed` **不出现**，`b.bin` 被点名 |
+| 4 | 诊断内容 | 仅 `secret b.bin: AWS access key`；实测 `AKIA…`、`ghp_…`、`sk-…`、`MIIE`、以及含密钥的整行 `AWS key:` **均未出现在输出中** |
+
+首审那条「`Secret scan passed: 1 tracked files.` exit 0」的静默放行**已不可复现**。
+
+## 3. 新变体与合法对照（任务书 §3）
+
+**NUL 位置与模式类型矩阵——9/9 全部命中**（同一仓库一次扫描，exit 1，无密钥原文泄漏）：
+
+```text
+nul-before.txt              NUL 在 key 之前            flagged
+nul-after.txt               NUL 在 key 之后            flagged
+nul-both-ends.txt           key 两端各一个 NUL         flagged
+nul-file-start-and-end.bin  文件首尾各一个 NUL         flagged
+many-nuls.bin               多个连续 NUL 包夹          flagged
+invalid-utf8-around.bin     ASCII key 周围为无效 UTF-8 flagged   (0xff 0xfe 0x80 … 0xc0 0x80)
+github-nul.bin              ghp_ token + NUL           flagged
+openai-nul.bin              NUL + sk- key              flagged
+privatekey-nul.bin          私钥头 + NUL               flagged
+```
+
+**合法对照——全部正常通过且计数精确**：
+
+```text
+nul-only.bin / binary-no-secret.bin / utf8.txt / empty.txt /
+doc-example.md ("sk-live-abc"、"gho_***") / .env.example
+    exit=0    Secret scan passed: 6 tracked files.
+    报告数 6 == 实际跟踪数 6            <-- 成功计数不再包含未扫描项
+```
+
+**其余边界未因删除 NUL 分支而回归**：
+
+| 边界 | 结果 |
+|---|---|
+| 禁止文件名 `.env`、`k.pem` | 均阻断（`tracked environment file` / `credential container`），`.env.example` 正确放行 |
+| 符号链接 | 仍报 `tracked symbolic link requires review`，**未跟随读取仓库外内容**；外部密钥值未出现在输出 |
+| 读取失败（跟踪项在磁盘上被删除） | exit 1，以 ENOENT fail-closed |
+| 纯 untracked 的 NUL-bearing secret | 不扫描（exit 0）——与文档所述「已跟踪/已暂存」边界一致 |
+| `git add` 后的新文件 | 扫描并阻断 |
+| 已跟踪文件被改为 NUL-bearing secret | 扫描并阻断 |
+
+按任务书 §3 的提示，我**没有**把"NUL 插入 token 字符序列内部"当作要求——那种情况下字符串已不再是原模式。本轮验证的是：文件中存在完整 ASCII 高置信度模式时，其他位置的任意二进制字节不能让整文件被跳过。**该性质成立。**
+
+## 4. 破坏性验证与测试承重（任务书 §4）
+
+在仓库外副本重新插回首审的缺陷分支：
+
+```text
+baseline (as shipped)              PASSES
+REINSERT the original NUL skip     FAILS
+      expected: [ { filePath: 'binary.dat', reason: 'AWS access key' } ],
+      actual:   [],
+neutralise scanTextForSecrets      FAILS
+      expected: [ 'private key' ],  actual: []
+```
+
+失败形态正是任务书要求的**"期待 AWS finding、收到空数组"**。第二行说明该测试文件里还有另一条独立承重的断言。
+
+**测试非空转**：`assert.deepEqual` 比对的是具体 finding 对象；用例真实写入 `Buffer.from([0])` 一个 NUL 字节；AWS key 由 `["AKIA", "A".repeat(16)].join("")` 拼接构造，因此**测试文件自身不会触发扫描器**（也就没有为了让门禁通过而放宽规则）。既没有删除测试，也没有把断言写成恒真。
+
+**运行位置无关**：`pnpm --filter @wenshu/ci test`（仓库根）与 `node --test test/*.unit.test.ts`（包目录）**均为 7/7 通过、exit 0**（较修复前 6 项 +1）。
+
+## 5. 共同检查与基线计数
+
+| 命令 | 结果 |
+|---|---|
+| `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store` | 通过；`node v24.17.0`、`pnpm 11.15.1` |
+| `pnpm --filter @wenshu/ci test` | **7/7 通过**，exit 0 |
+| `pnpm --filter @wenshu/ci typecheck` | exit 0 |
+| `node --test test/*.unit.test.ts`（包目录） | **7/7 通过**，exit 0 |
+| `pnpm secrets:check` | `Secret scan passed: 220 tracked files.` exit 0 |
+| `pnpm ci:verify` | **exit 0**，8/8 作业 PASS；`Secret scan passed: 220 tracked files`；`License scan passed: 115 dependency paths; Apache-2.0=14, BlueOak-1.0.0=1, BSD-2-Clause=6, BSD-3-Clause=3, ISC=6, MIT=82, MPL-2.0=2, Python-2.0=1` |
+| `pnpm verify` | **exit 0**：71 源码/配置、**220** 仓库文件、**18** 个测试文件、测试合计 **131**（unit 35、config 7、contract-runtime 4、document 15、template 15、host 31、project 24）、**10** 个包 typecheck、build 成功、无体量 `WARN` |
+
+| 检查 | 结果 |
+|---|---|
+| 修改面 | 仅 4 项：`tools/ci/src/secrets.ts`、`tools/ci/test/security-scans.unit.test.ts`、`docs/ci.md`、新增 `docs/audits/G1-11-ci01-remediation.md`。**与"只涉及 secrets 实现/测试/对应文档"完全一致** |
+| lockfile / `tsconfig.base.json` / `eslint.config.mjs` / `.prettierignore` / `.github` / Schema / 生成物 / 根 `package.json` | **零改动** |
+| 手写 `any`、`@ts-ignore`、`@ts-expect-error`、`@ts-nocheck`、`eslint-disable` | 全仓匹配数 **0** |
+| 体量 | `secrets.ts` 63 行、`security-scans.unit.test.ts` 71 行，远低于阈值 |
+| 文档口径 | [`docs/ci.md:28`](../ci.md#L28) 已改为与实现一致的"全部普通文件，包括含 NUL 字节的文件"，并明说符号链接 fail-closed、不跟随到仓库外 |
+| 是否自行关闭发现 | [整改记录第 17 行](G1-11-ci01-remediation.md)：「本轮只修 CI-01，**不自行关闭它**；关闭权属于 Claude 原审计角色」；第 19 行：「workflow 仍不得推送或触发」。全仓无任何文档把 `CI-01` 写成已关闭 |
+| 是否把本地冒充远程 | 未发现；`origin/main` 仍停在 `705cbce`，`.github/workflows/verify.yml` **确不存在于 `origin/main`** |
+| 工作树 | 复核前后 `git status --short` 均只有本报告一处修改；`D:\tmp\g111*` 探针已删除并核实无残留 |
+
+## 6. 未执行项与限制
+
+1. **远程侧仍全部未执行、不推定通过**：Ubuntu 24.04 runner 上的 `corepack enable`、`pnpm store path --silent`、`actions/cache` 命中与恢复、8 路真实并发、`cancel-in-progress` 实际取消、workflow YAML 是否被 GitHub 接受——本轮同样未验证（与首审 §4 限制相同）。
+2. **未复跑 `CI-02`～`CI-05`**（不在本次修复范围，按任务书保持首审结论与归属）。
+3. **未重新核对 Action SHA**：本次未改动 `.github/`，沿用首审已核对的结论。
+4. **非 UTF-8 编码的宽字符文件未纳入要求**：例如 UTF-16 文本中 token 字符之间本就夹有 NUL，其字节序列已不构成原 ASCII 模式。按任务书 §3 的明确提示，这不作为合理要求，仅记录为该门禁的已知形态边界（属"高置信度 ASCII 模式"这一已声明范围内）。
+5. **未做完整熵扫描评估**：仍只按"高置信度模式"这一已声明边界评估，未评判该边界本身是否足够。
+6. **范围外**：`G1-15` 的 SBOM、漏洞、用途与许可证书面裁定；真实数据库/渲染/E2E；Windows/macOS runner。
+
+## 7. 结论
+
+| 发现 | 状态 |
+|---|---|
+| `CI-01` 密钥扫描对含 NUL 文件静默跳过且计数虚高 | **已关闭 ✅** |
+| `CI-02`～`CI-05` | 维持首审 `MINOR`，归属 `G1-11` 远程首跑后的收尾提交，本轮未复核 |
+
+本轮新增：`BLOCKER` 0、`MAJOR` 0、`MINOR` 0。
+
+**结论：`CONDITIONAL PASS — 允许业主授权首次远程运行`**
+
+判定依据：
+
+- **首审的原始反例已彻底不可复现**：那条「唯一跟踪文件含真实形态 AWS key + 1 个 NUL 字节 → `Secret scan passed: 1 tracked files.` exit 0」现在稳定 exit 1 并命中 `AWS access key`；三文件混合场景下 `Secret scan passed` 一行完全不出现。
+- **修复方向正确**：删除的是静默跳过分支本身，而不是"保留跳过再补一行报告"。因此我在首审中写下的两条判据——**不存在静默跳过**、**成功计数只在全部跟踪项均已检查或已 fail-closed 时出现**——是被实现满足的，而不是被绕开。合法对照仓库的 `passed: 6 tracked files` 与实际跟踪数精确相等。
+- **不是只修了我举的那一个字符串**：9 种 NUL 位置/模式组合（key 前后、文件首尾、多 NUL、无效 UTF-8 包夹，覆盖 AWS/GitHub/OpenAI/私钥四类模式）全部命中，说明修复是结构性的。
+- **没有为通过而放宽其他边界**：禁止文件名、符号链接不跟随、读取失败 fail-closed、暂存/已跟踪/纯 untracked 的边界均与首审一致；`.env.example` 与文档示例仍不误报。
+- **回归测试真实承重**：把缺陷插回去，新增用例以 `expected: [{ filePath: 'binary.dat', reason: 'AWS access key' }] / actual: []` 失败；测试用 `deepEqual` 比对具体 finding、写入真实 NUL 字节、且用拼接构造密钥以免自触发；从仓库根与包目录均可运行。
+- 修改面严格限于 secrets 实现/测试/文档，lockfile、workflow、Schema、生成物、配置零漂移，零手写 `any`/抑制指令，文档未自行关闭发现、未把本地冒充远程。
+
+**放行边界**：本结论只签署"可以进入业主授权步骤"。**我没有也不会推送 workflow 或触发任何远程运行。** 首次远程运行须由业主另行授权；`CI-02`～`CI-05` 仍为未关闭 `MINOR`；依首审任务书，`G1-11` 在远程成功并完成收尾审计之前**不得标记最终完成**。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁。`CI-02`～`CI-05` 同样不得由实施者自行标记关闭。
