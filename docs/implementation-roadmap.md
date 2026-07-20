@@ -75,11 +75,11 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-01 | ✅ 已完成 | 本地 `main` 根提交 `dcbddc9`；工作树、ignore 与秘密模式探针通过 |
 | G1-01R | ⬜ 未开始 | 创建私有远程属于外部行为，尚待业主对该项单独批准；不阻塞可隔离的本地 G1 任务 |
 | G1-02 | ✅ 已完成 | `toolchain.versions.json`、ADR-0002；官方版本/许可证/来源/完整性证据已冻结，未安装业务依赖 |
-| G1-03 | ✅ 已完成 | D 盘 Node/pnpm、冻结 lockfile、TypeScript strict + Vite 最小工作区；干净安装、typecheck、build、dev HTTP 冒烟均通过 |
-| G1-03C | ✅ 已完成 | [环境配置基线](configuration.md)：四环境显式 profile、schema、`.env.example`、Vite 启动前校验；7/7 契约测试、未知字段脱敏失败探针和四环境构建/启动通过 |
-| G1-04 | ✅ 已完成 | [v0 文档对象契约](document-model.md)：schema `0.1.0`、稳定不透明 ID、生成类型与兼容规则；2 个合法/5 个非法 fixture 共 12/12 测试通过，生成漂移反向探针与统一 `verify` 通过 |
-| G1-05 | ✅ 已完成 | [v0 模板 DSL 契约](template-dsl.md)：声明式白名单、版本/空迁移占位及执行预算；函数/getter/脚本、文件、网络、能力和未来版本均拒绝，14/14 契约测试与生成漂移反向探针通过 |
-| G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：18 项能力、权限/预算、错误、取消、进度和降级；19/19 契约测试覆盖支持/拒绝/取消/超时/降级及平台泄漏拒绝 |
+| G1-03 | 🟠 已实现待独立审计 | D 盘 Node/pnpm、冻结 lockfile、TypeScript strict + Vite 最小工作区；自检通过，纳入 [Claude 审计任务](audits/G1-03-to-G1-06-claude-audit-task.md) |
+| G1-03C | 🟠 已实现待独立审计 | [环境配置基线](configuration.md)：7/7 契约测试等自检通过，纳入同一独立审计；不得以实现者自检替代签署 |
+| G1-04 | 🟠 已实现待独立审计 | [v0 文档对象契约](document-model.md)：12/12 测试和漂移探针自检通过；等待 Claude 检查 Schema、ID、版本和验证器反例 |
+| G1-05 | 🟠 已实现待独立审计 | [v0 模板 DSL 契约](template-dsl.md)：14/14 测试和安全探针自检通过；等待 Claude 检查执行面与绕过可能 |
+| G1-06 | 🟠 已实现待独立审计 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：19/19 测试自检通过；等待 Claude 检查 payload Schema、生命周期与平台隔离完整性 |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务
