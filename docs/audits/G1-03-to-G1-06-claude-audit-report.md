@@ -81,7 +81,7 @@
 #### M-01　文档模型 `Asset.path` 接受 Windows 绝对路径与远程 URL，与"只允许相对安全路径"不符
 
 - **严重级别**：`MAJOR`
-- **证据**：[`packages/document-model/schema/document.schema.json:241-246`](../../packages/document-model/schema/document.schema.json#L241-L246) 的 `pattern` 为 `^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[^\\ ]+$`，只排除了前导 `/`、`..` 段、反斜杠与 NUL；[`docs/document-model.md:22`](../document-model.md#L22) 声明"资源只允许**相对安全路径**"。
+- **证据**：[`packages/document-model/schema/document.schema.json:241-246`](../../packages/document-model/schema/document.schema.json#L241-L246) 的 `pattern` 为 `^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[^\u0000]+$`（其中 `\\u0000` 是复审时对原报告中一个实际 NUL 字节的可读转义；Schema 里该字符类的 JSON 源文本逐字为 `[^\\\\\\u0000]`，仅排除反斜杠与 NUL 两个字符）——只排除了前导 `/`、`..` 段、反斜杠与 NUL；[`docs/document-model.md:22`](../document-model.md#L22) 声明"资源只允许**相对安全路径**"。
 - **可复现方式**：以 `fixtures/invalid/unsafe-asset-path.json` 为模板替换 `assets[0].path` 后调用 `validateDocument`：
 
   | `path` | 结果 |
@@ -278,3 +278,240 @@
 **关闭路径**：由 Codex 修复 `B-01`、`B-02` 与 `M-01`～`M-05`（`MINOR` 可与之合并处理或转入后续任务），补齐各条建议的负向 fixture，复跑 `pnpm verify`，然后由 Claude 依本报告逐项复审并签署关闭。审计者不提供也不应用补丁。
 
 > 依 `AGENTS.md:55` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具；实施者不得自行关闭上述发现。
+
+---
+---
+
+# 复审（2026-07-20）：`ac6d4df..ce70ddc`
+
+> 复审者：Claude（独立只读）　实施者：Codex　任务书：[G1-03-to-G1-06-claude-reaudit-task.md](G1-03-to-G1-06-claude-reaudit-task.md)
+>
+> **本章节的结论取代上文首审的 `FAIL`。** 上文首审记录原样保留，不得改写；仅按复审任务书第 23 行授权，把首审 `M-01` 证据行中的 1 个实际 NUL 字节替换为可读文本 `\u0000`（已核验：替换前 1 个、替换后 0 个，正则语义未变）。
+
+## 1. 复审范围与方法
+
+范围 `ac6d4df..ce70ddc`（`ac6d4df` 仅归档首审报告，实质变更全部在 `ce70ddc` "fix: remediate Claude G1 contract audit"，43 文件 +1186/-370）。输入为首审报告的发现清单与 [整改记录](G1-03-to-G1-06-remediation.md)。
+
+方法与首审一致，且**不以整改记录的自述、也不以 69/69 测试全绿为结论**：
+
+1. 逐文件审读 `ce70ddc` 的全部改动，重点是新增的 `packages/contract-runtime`、`packages/host-contract/src/{contract,session}.ts` 与 Schema/文档改写。
+2. 在仓库外 scratchpad 重写探针，**逐条复跑首审的原始反例**，并按复审任务书第 9 节补充 6 类强制反测。
+3. 用 `tsc --listFiles` 直接枚举每个包实际进入严格检查的文件集合，而不采信 `pnpm typecheck` 的绿色输出。
+4. 复跑冻结安装与 `pnpm verify`。
+
+复审全程未修改代码、测试、Schema、配置、lockfile、整改记录、路线图或任何其他文档；唯一写入的文件是本报告。
+
+## 2. 复跑证据
+
+| 命令 | 结果 |
+|---|---|
+| `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store` | 通过（7 个工作区项目，较首审新增 `@wenshu/contract-runtime`） |
+| `pnpm run verify` | **通过**：config 7/7、contract-runtime 4/4、document-model 15/15、template-model 15/15、host-contract 28/28，合计 **69/69**；`generate:check` ×3 无漂移；6/6 包 typecheck Done；production build 成功 |
+| `tsc -p tsconfig.json --listFiles` ×6 包 | 见 §3 的 `B-02` 条目 |
+| 只读探针 `reprobe.ts` / `probe3.ts` | 见下 |
+| `git status --short` | 复审开始时为空；结束时仅本报告一处修改 |
+
+## 3. 首审发现逐项判定
+
+### BLOCKER
+
+**`B-01`　Host 协议放行任意绝对路径 —— 已关闭 ✅**
+
+修复方式经核验是**结构性**的而非补丁式：[`contract-runtime/src/index.ts:70-80`](../../packages/contract-runtime/src/index.ts#L70-L80) 新增 `classifyString` 钩子，使遍历器对**每一个字符串值**求值；[`host-contract/src/contract.ts:91-109`](../../packages/host-contract/src/contract.ts#L91-L109) 的 `isUnsafePathValue` 按值拒绝盘符、POSIX/UNC、`file:` 与 `..`，并先做最多 8 轮 URI 解码。安全性因此不再依赖键名。
+
+复跑首审原始反例——12 种路径形态 × 10 个替代键名（含首审泄漏的 `savePath`/`outputPath`/`dirPath`/`fullPath`/`destination`/`target`/`location`/`handle`/`grant_id`，外加对照键 `x`）：
+
+```text
+win drive fwd / win drive back / win drive lower   all keys rejected
+posix abs / UNC / UNC fwd / file: URL              all keys rejected
+traversal posix / traversal win                    all keys rejected
+pct-encoded / double-encoded / drive-relative      all keys rejected
+TOTAL key/payload leaks                            0        （首审：9 个键泄漏）
+nested/array position                              rejected
+legit relative value still allowed                 accepted（无误杀）
+```
+
+首审列出的两条整改路径中，实施者选择了 (a) 收紧契约**并**同步修正了文档：`docs/host-contract.md:44` 与 ADR-0003 决策 5 已改为按值描述，并保留"具体 payload Schema 仍须在能力实现前冻结"的门禁。新增负向 fixture [`disguised-absolute-path.json`](../../packages/host-contract/fixtures/invalid/disguised-absolute-path.json) 正是首审指出的 `savePath` 载荷。**发现关闭**（残留见 `NF-02`）。
+
+**`B-02`　`document-model` 测试未纳入 typecheck —— 已关闭 ✅**
+
+不采信 `typecheck` 的绿色输出，改用 `tsc --listFiles` 枚举实际检查的文件集合：
+
+| 包 | `src` | `test` | `scripts` | 其他 |
+|---|:--:|:--:|:--:|---|
+| `config` | ✅ | ✅ | — | `app-config.schema.json` |
+| `contract-runtime` | ✅ | ✅ | — | |
+| `document-model` | ✅ | **✅** | ✅ | schema、generated |
+| `template-model` | ✅ | ✅ | ✅ | schema、generated |
+| `host-contract` | ✅ | ✅ | ✅ | schema、generated（含新增 `contract.ts`/`session.ts`） |
+| `apps/web` | ✅ | — | — | **`vite.config.ts` ✅** |
+
+首审报出的 3 处 TS4111 已按索引访问语法修正（`fixture["expectedIssue"]`）。另核验治理未被反向放宽：`tsconfig.base.json` 在本次范围内**零改动**；全仓手写 TypeScript（排除 `src/generated/`）中 `any`、`as any`、`@ts-ignore`、`@ts-expect-error`、`@ts-nocheck` 的匹配数为 **0**。首审建议的"逐包证明文件集合覆盖"已写入 [`docs/implementation-roadmap.md`](../implementation-roadmap.md) 的 `G1-09` 验收标准。**发现关闭**。
+
+### MAJOR
+
+**`M-01`　`Asset.path` 接受盘符路径与远程 URL —— 已关闭 ✅**
+
+Schema 已按首审建议改为正向白名单，且比建议更严（路径段限定为 `[A-Za-z0-9_-]+`，结构上无法出现 `.`，因此 `..` 不可表达）。复跑 13 个必拒形态 + 4 个必收形态：
+
+```text
+必拒 13/13 全部 rejected（含 C:/、c:/、/etc、//UNC、\\UNC、https://、file:///、../、a/../../、./、.、%2e%2e/、C:report）
+必收 4/4  全部 accepted
+仓库既有 valid/minimal.json、valid/full.json  均 accepted（无回归）
+```
+
+新增 [`windows-absolute-asset.json`](../../packages/document-model/fixtures/invalid/windows-absolute-asset.json) 与 [`remote-asset-url.json`](../../packages/document-model/fixtures/invalid/remote-asset-url.json) 两个负向 fixture，正是首审要求的两类。**发现关闭**（收窄副作用见 `NF-03`）。
+
+**`M-02`　缺少输入预算，深层嵌套抛未捕获 `RangeError` —— 已关闭 ✅**
+
+首审指出的"三包对同一威胁三种答案"已收敛到 [`contract-runtime`](../../packages/contract-runtime/src/index.ts)：遍历迭代化、`cloneAndFreeze` 的冻结阶段迭代化，预算在克隆前生效。复跑首审原始反例：
+
+```text
+document depth=20000     rejected: DOCUMENT_BUDGET_EXCEEDED   （首审：THREW RangeError）
+document breadth=200000  rejected: DOCUMENT_BUDGET_EXCEEDED   （首审：ACCEPTED ok:true）
+template depth=20000     rejected: TEMPLATE_BUDGET_EXCEEDED
+host     depth=20000     rejected: HOST_BUDGET_EXCEEDED       （首审：THREW RangeError）
+```
+
+四个入口均返回稳定问题码，无未捕获异常。边界为 JSON 嵌套层数（document 64 层 ≈ 31 层 `section` 嵌套，实测 30 层通过、40 层拒绝），对 h1–h6 的报告结构余量充足。**发现关闭**。
+
+**`M-03`　继承访问器会被执行 —— 已关闭 ✅**
+
+修复采用比首审建议更彻底的做法：[`contract-runtime/src/index.ts:46-52,93-95`](../../packages/contract-runtime/src/index.ts#L46-L52) 的 `isAllowedPrototype` 在读取任何属性**之前**拒绝原型非 `null`/`Object.prototype`/`Array.prototype` 的对象，从根上消除了原型链取值路径。复跑首审反例（在原型上同时定义 `schemaVersion`/`dsl_version`/`kind` 三个计数 getter）：
+
+```text
+document: inherited accessor invocations  0 (want 0) ok=false   （首审：3 -> GUARANTEE BROKEN）
+template: inherited accessor invocations  0 (want 0) ok=false
+host:     inherited accessor invocations  0 (want 0) ok=false
+```
+
+三包均新增继承访问器测试，[`contract-runtime/test/runtime.test.ts`](../../packages/contract-runtime/test/runtime.test.ts) 还断言了精确的 `{ok:false, kind:"prototype", path:"/"}` 结构而非仅 `.some()`。**发现关闭**。
+
+**`M-04`　配置 Schema 装饰性 + `vite.config.ts` 漏检 —— 已关闭 ✅**
+
+[`config/src/index.ts:47-48,98-113`](../../packages/config/src/index.ts#L47-L48) 现直接 `ajv.compile(configSchema)` 并在解析路径上执行；测试新增 `assert.deepEqual(logLevel["enum"], CONFIG_LOG_LEVELS)`，堵住首审指出的枚举漂移盲区。探针核验：
+
+```text
+imports app-config.schema.json              yes
+compiles it with Ajv                        yes
+bad log level ("trace")                     rejected: CONFIG_INVALID: WENSHU_LOG_LEVEL
+schema LOG_LEVEL enum == CONFIG_LOG_LEVELS  in sync
+test asserts LOG_LEVEL enum sync            yes
+```
+
+`apps/web/tsconfig.json` 的 `include` 已含 `vite.config.ts`，`--listFiles` 证实其进入检查。**发现关闭**。
+
+**`M-05`　Host 无法表达唯一终态与错误码归属 —— 已关闭 ✅**
+
+实施者选择了首审两条路径中的 (a)：新增 [`session.ts`](../../packages/host-contract/src/session.ts) 的有状态 `validateHostSession`，并新增首审建议的三个稳定码（`HOST_TERMINAL_STATE_DUPLICATE`、`HOST_SEQUENCE_REGRESSION`、`HOST_ERROR_CODE_UNDECLARED`）及另外五个。按复审任务书第 5 项逐条反测：
+
+| 反测场景 | 返回问题码 |
+|---|---|
+| 正常 request+success | `ok:true`（无误报） |
+| 重复终态 | `HOST_TERMINAL_STATE_DUPLICATE` |
+| 未知请求（终态无对应 request） | `HOST_REQUEST_UNKNOWN` |
+| 对 unsupported 能力发起请求 | `HOST_CAPABILITY_UNSUPPORTED` |
+| 未声明错误码 | `HOST_ERROR_CODE_UNDECLARED` |
+| 进度序号倒退（2→1） | `HOST_SEQUENCE_REGRESSION` |
+| 对 `cancellation:none` 能力取消 | `HOST_CANCELLATION_UNDECLARED` |
+| 缺少终态 | `HOST_TERMINAL_STATE_MISSING` |
+| 终态能力名与请求不符 | `HOST_CAPABILITY_MISMATCH` |
+| `request_id` 复用 | `HOST_REQUEST_DUPLICATE` |
+
+八项强制反测全部命中预期码，注册表上下文（`error_codes`、`support_status`、`cancellation`、`progress`）确实参与判定。ADR-0003 决策 4 与 `docs/host-contract.md:41` 已同步改写为可验证表述。**发现关闭**（残留见 `NF-04`）。
+
+### MINOR 与 NOTE
+
+| 首审项 | 判定 | 复审核验 |
+|---|---|---|
+| `m-01` 模板负向 fixture 无独立意义 | **关闭 ✅** | 4 个 fixture 已改为 `{expectedIssue, injection:{path,value}}` 元数据；[`template.contract.test.ts:70-104`](../../packages/template-model/test/template.contract.test.ts#L70-L104) 以合法 `minimal.json` 为基线注入单个禁止字段，失败原因现可归属到被测字段 |
+| `m-02` Schema 问题码无区分度 | **合规延期 ⏭** | 已写入 `G1-09` 验收标准："非法 fixture 断言稳定 issue code 与预期 JSON path"。有明确任务归属，不阻塞 `G1-07` |
+| `m-03` `configuration.md` 状态抢跑 + `.mjs` 失效路径 | **关闭 ✅** | 状态改为"已实现，待 Claude 独立复审"；测试路径已改为 `.ts` |
+| `m-04` `deepFreeze` 三处重复 | **关闭 ✅** | 已收敛到 `@wenshu/contract-runtime`；三包均改为引用，未出现第四份副本 |
+| `m-05` 语言正则误拒合法 BCP 47 | **关闭 ✅** | [`document-model.md:18`](../document-model.md#L18) 改为"v0 只接受 `language[-Script][-REGION]` 子集，不宣称覆盖完整 BCP 47"，采用了首审建议的"限定表述"路径 |
+| `m-06` 键名黑名单误伤未来字段 | **关闭 ✅** | [`template-dsl.md:43`](../template-dsl.md#L43) 明确为"v0 保留命名空间……不能在 `0.1.0` 中放宽"，把隐含约束显式化 |
+| `N-01` MPL-2.0 / Python-2.0 传递依赖 | **合规延期 ⏭** | `G1-15` 行已加入"显式核查当前树中的 MPL-2.0 传递依赖及 Python 工具许可证""MPL 文件级义务和 Python 工具分发边界有书面结论" |
+| `N-02` payload Schema 仅登记 ID | 维持原判定 | 仍按原任务边界延后，文档门禁保留；整改记录第 28 行未把它伪装成已完成 |
+
+首审 `N-03`～`N-08` 的事实性结论在本次范围内未被推翻：浏览器 fixture 表述仍然克制、生成漂移机制未变、体量护栏仍满足（新增最大文件 `host-contract/src/contract.ts` 198 行、`session.ts` 153 行、`contract-runtime/src/index.ts` 151 行，均在 300 行预警线下）。
+
+## 4. 本次修复引入的新发现
+
+均为 `MINOR`，**无一阻塞 `G1-07`**。
+
+**`NF-01`（MINOR）　文档引用了不存在的函数名**
+
+[`docs/host-contract.md:41`](../host-contract.md#L41) 写"单条消息由 `validateHostMessage` 校验"，但全仓不存在该导出；实际导出为 `validateHostContract`（[`contract.ts:165`](../../packages/host-contract/src/contract.ts#L165)）。全仓检索 `validateHostMessage` 仅命中该行文档。属首审 `m-03` 同类的文档/代码指向失配，建议下次触碰该文档时改正，或将实现改名以匹配文档意图。
+
+**`NF-02`（MINOR）　`isUnsafePathValue` 只在字符串**起始**锚定，前缀即可绕过；文档措辞略强于实现**
+
+[`contract.ts:106`](../../packages/host-contract/src/contract.ts#L106) 的 `/^(?:[A-Za-z]:|[\\/]|file:)/iu` 使用 `^` 锚定且无 `m` 标志，因此绝对路径只要不在串首即不被识别。实测：
+
+```text
+"ok.pdf\u0000C:/Windows/win.ini"（NUL 截断）    ACCEPTED
+"report.pdf\nC:/Windows/win.ini"（换行）         ACCEPTED
+"report.pdf\rC:/Windows/win.ini" / \t           ACCEPTED
+（同理 "out=C:/Windows/win.ini" 一类前缀亦可绕过）
+```
+
+`docs/host-contract.md:44` 的"因此任意键名也不能传递系统路径"因此仍略强于实现。**不判为 MAJOR 的理由**：首审 `B-01` 的核心问题（唯一控制是键名、且最自然的载荷直接穿透）已消除；本项需要构造带分隔符前缀的畸形值，属纵深防御层的加固缺口；真正的主控制——按能力冻结的 payload Schema——文档与 ADR 已明确列为实现前必须完成的门禁，且当前无任何消费者解引用这些值。**门槛**：必须在任何真实 Host 实现（`G1-09`/`PA-14E`/`PB-10`）消费这些值之前修复，届时若仍为唯一控制则应按 MAJOR 处理。建议把两条正则改为全串扫描（去掉 `^` 锚定或加 `m`/全局搜索），并把 NUL/控制字符单列为拒绝条件。
+
+**`NF-03`（MINOR）　资源路径白名单为纯 ASCII，收窄面已披露但属产品级决定**
+
+新正则的路径段限定为 `[A-Za-z0-9_-]+`、扩展名限定为小写 `png|jpg|jpeg|svg`。实测被拒的合理输入：
+
+```text
+"资产/图表1.png"        REJECTED   （中文文件名）
+"assets/图 1.png"       REJECTED   （中文 + 空格）
+"assets/photo.PNG"      REJECTED   （Windows 常见大写扩展名）
+"assets/v1.2/chart.svg" REJECTED   （目录名含点）
+"assets/chart.webp"     REJECTED   （webp）
+```
+
+该约束已在 [`document-model.md:22`](../document-model.md#L22) 如实写明为"正向 ASCII 相对路径白名单"，因此**不是隐藏收窄**，判为 MINOR 而非回归缺陷。但文枢是中文优先产品，`PA-01`（Markdown 导入）与 `A-02D`（docx 导入）会直接遇到中文与大写扩展名的真实资源名，届时只能靠导入期改名。建议在 `PA-01` 开工前明确裁定："导入侧统一规范化重命名"还是"放宽白名单至 Unicode 字母 + 大小写不敏感扩展名"，避免在 PoC-A 期间被迫改动已冻结 Schema。
+
+**`NF-04`（MINOR）　会话校验器不标记终态之后到达的 `cancel`**
+
+[`session.ts:98-103`](../../packages/host-contract/src/session.ts#L98-L103) 对 `cancel` 只检查能力是否声明可取消，随即 `return`，未检查 `state.terminal`。实测：
+
+```text
+progress AFTER terminal   HOST_TERMINAL_STATE_DUPLICATE   （已捕获）
+cancel   AFTER terminal   ok:true                          （未捕获）
+```
+
+同一请求在终态之后仍收到取消属协议违规，与 `docs/host-contract.md:35`"每个请求只能产生一个终态"的精神一致但未被覆盖。影响有限（`cancel` 不产生终态、不改变状态机结果），建议在 `cancel` 分支补一次 `state.terminal` 判定并加一条会话测试。
+
+## 5. 未执行项与限制
+
+1. **生成漂移的破坏性验证仍未执行**（需篡改 `src/generated/*.ts`，超出审计权限）。`generate:check` 的重生成—全文比对逻辑经审读判定可靠，但各文档中"故意修改后失败、重新生成后恢复"的表述本次仍按未复核处理。
+2. `pnpm --filter @wenshu/web build:test` 与 `build:staging` 未执行（与 `pnpm build` 共用 `apps/web/dist`，会覆盖 `verify` 刚产生的生成物）；`pnpm dev` 未执行。
+3. 未复核范围外事项：DevEco、WPS 人工基线、产品功能、数据库、真实 Electron/ArkWeb 实现。
+4. 供应链结论仍不替代 `G1-15`；本次未重跑许可证枚举，`ce70ddc` 的 lockfile 变更仅为新增本地 workspace 包 `@wenshu/contract-runtime`，未引入新的外部依赖。
+5. `Ajv`、`json-schema-to-typescript` 内部正确性按锁定版本采信。
+
+## 6. 复审汇总与最终结论
+
+| 首审严重级别 | 首审数量 | 已关闭 | 合规延期 | 未关闭 |
+|---|---:|---:|---:|---:|
+| `BLOCKER` | 2 | 2 | 0 | **0** |
+| `MAJOR` | 5 | 5 | 0 | **0** |
+| `MINOR` | 6 | 5 | 1（`m-02`→`G1-09`） | **0** |
+| `NOTE` | 8 | — | 1（`N-01`→`G1-15`） | — |
+
+本次新增：`MINOR` 4 项（`NF-01`～`NF-04`），`BLOCKER`/`MAJOR` 0 项。
+
+**结论：`CONDITIONAL PASS`　——　允许进入 `G1-07`**
+
+判定依据：首审 2 项 `BLOCKER` 与 5 项 `MAJOR` 的原始反例已全部复跑并全部转为拒绝或安全行为，无一项靠放宽断言、删测试或改口径关闭；`tsconfig.base.json` 零改动、手写 `any`/`@ts-ignore` 计数为 0，确认严格度未被反向让步。两项延期（`m-02`、`N-01`）都已写入 `G1-09`/`G1-15` 的验收标准，具备明确任务归属，符合首审任务书对"合规延期"的要求。
+
+尤其值得记录的是，`B-01`、`M-02`、`M-03`、`M-04`、`M-05` 的修复都选择了结构性方案（值级校验、共享运行时、原型级拒绝、Schema 真正执行、有状态会话验证器），而不是针对审计反例的点状封堵——这使得本次复审的新探针（重复编码、UNC、盘符相对路径、数组/嵌套位置、`request_id` 复用等首审未测形态）也一并被覆盖。
+
+不判 `PASS` 而判 `CONDITIONAL PASS`，是因为本次新增的 4 项 `MINOR` 尚无任务归属，按首审任务书判据"`CONDITIONAL PASS`：仅有不阻塞 `G1-07` 的一般问题，且每项已有明确后续任务"，需先落实归属。**放行条件**（均不阻塞 `G1-07` 开工，但须在指定节点前闭环）：
+
+1. `NF-01`、`NF-04`：下次触碰 `docs/host-contract.md` 或 `session.ts` 时一并修正，无需单独任务。
+2. `NF-02`：登记为 `G1-09` 的验收项之一；**必须在任何真实 Host 实现消费协议值之前修复**（`G1-09`/`PA-14E`/`PB-10`）。
+3. `NF-03`：在 `PA-01` 开工前由业主或实施者裁定资源文件名策略，结论写入 `docs/document-model.md`；若选择放宽白名单，需按 `0.x` 次版本规则升级并重跑消费者契约。
+
+实施者可据本复审把 `G1-03`、`G1-03C`、`G1-04`、`G1-05`、`G1-06` 的路线图状态更新为最终完成，并把上述 3 条放行条件登记到对应任务；`G1-07` 可以启动。
+
+> 依 `AGENTS.md:55` 与 `CLAUDE.md`，本复审由未参与实施与修复的独立审计角色出具。`NF-01`～`NF-04` 同样不得由实施者自行关闭。
