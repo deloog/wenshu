@@ -173,3 +173,178 @@
 **关闭路径**：由 Codex 修复 `M-01`～`M-03`，为每项补对应反测（根级测试文件被审计发现、`Foo.Test.ts` 被拒绝、相同 index 必须失败），并同步修正 `AGENTS.md:99` 的表述；`m-01`～`m-05` 可与之合并处理或明确绑定后续原子任务（`m-02`、`m-03` 建议登记 `G1-11`）。复跑 `pnpm verify` 后由 Claude 依本报告逐项复审并签署关闭。审计者不提供也不应用补丁。
 
 > 依 `AGENTS.md:55` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具；实施者不得自行关闭上述发现，包括 `NF-01`/`NF-04` 的最终关闭状态以本报告 `N-01`/`N-02` 为准。
+
+---
+---
+
+# 复审（2026-07-20）：`dde75b0..efad008`
+
+> 复审者：Claude（独立只读）　实施者：Codex　任务书：[G1-08-claude-reaudit-task.md](G1-08-claude-reaudit-task.md)
+>
+> **本章节的结论取代上文首审的 `FAIL`。** 上文首审记录原样保留，不得改写。
+>
+> 命名说明：本节新增发现使用 `RA-xx` 前缀，以免与上文表示 Host 遗留项的 `NF-01`/`NF-04` 混淆。
+
+## 1. 复审范围与方法
+
+范围 `dde75b0..efad008`（`dde75b0` 仅归档首审报告，实质变更全部在 `efad008`「fix: remediate G1-08 isolation audit」，15 文件 +305/-51）。
+
+按任务书要求，**不采信 [整改记录](G1-08-remediation.md)，也不采信实施者自报的 `verify` 101/101 与 `test:contract` 91/91**——这两个数字我只用来核对是否有漏跑，并已独立复现：
+
+1. 逐行审读改写后的 `discovery.ts`、`isolation.ts`、`run-test-layer.ts`、`evidence.ts` 与根 `package.json`。
+2. **重跑首审的全部原始反例**，并按任务书第 9 节的 7 项逐条构造新反例：38 文件假工作区（17 必须发现 / 21 必须排除）、8 路与 16 路并发抢占、squatter 与 claim 篡改、清理 API 越权、多段 layer、空层退出码。
+3. 另找**整改本身引入**的结构性风险（`RA-01`、`RA-02`）。
+4. 复跑冻结安装、`pnpm verify`、分层命令、`tsc --listFiles`、零 `any`、体量、lockfile 与无数据库/E2E 冒充检查，并对 Host `NF-01`/`NF-04` 做回归抽查。
+
+复审全程未修改实现、测试、配置、lockfile、路线图、整改记录或验收标准；所有探针写入落在系统临时目录，仓库工作树保持干净。唯一写入仓库的文件是本报告。
+
+## 2. 首审发现逐项判定
+
+### `M-01`　层级审计只扫描三个硬编码根 —— **已关闭 ✅**
+
+[`discovery.ts:52-59`](../../packages/test-support/src/discovery.ts#L52-L59) 已改为从仓库根单点递归，`SEARCH_ROOTS` 白名单被删除，改为 17 项显式跳过清单（[`:6-24`](../../packages/test-support/src/discovery.ts#L6-L24)）。
+
+我把假工作区从首审的 13 个文件扩到 **38 个**，覆盖任务书点名的每一类位置：
+
+```text
+必须发现的 17 个（仓库根、tests/、e2e/、src/、brand-new-toplevel/、docs/、7 层深目录、
+                  apps/packages/tools，以及各类非规范命名）
+    未被发现：0（完整）
+必须排除的 21 个（node_modules、oh_modules、dist、build、out、coverage、test-results、
+                  artifacts、tmp、.git、.cache、.turbo、.vite、.deveco、.hvigor、.idea、
+                  .vscode，以及大小写变体 NODE_MODULES/、Dist/）
+    泄漏进发现：0（正确排除）
+```
+
+首审指出的四条逃逸路径（仓库根、`tests/`、`e2e/`、`src/`）全部被堵。`AGENTS.md:99`「审计**所有**测试文件」的表述现在与实现相符。**发现关闭。**
+
+### `M-02`　Windows 大小写变体逃逸 —— **已关闭 ✅**
+
+候选识别改用小写副本比较（[`discovery.ts:41-45`](../../packages/test-support/src/discovery.ts#L41-L45)），而 `classifyTestFile` 仍只接受规范小写后缀——这正是正确的组合：**捕获但不放行**。
+
+```text
+文件                     被发现   分类结果
+unclassified.test.ts     yes      undefined -> 审计 FAILS
+Sneaky.Test.ts           yes      undefined -> 审计 FAILS
+legacy.Spec.ts           yes      undefined -> 审计 FAILS
+Foo.Unit.Test.ts         yes      undefined -> 审计 FAILS
+wrong.unit.test.js       yes      undefined -> 审计 FAILS
+root.SPEC.ts             yes      undefined -> 审计 FAILS
+```
+
+并且逐层核对了 runner 的登记表：unit/contract/render/integration/e2e 五层中**没有任何一层把上述非规范文件当作已登记**。首审那条"能执行却不入审计"的路径已闭合。**发现关闭。**
+
+### `M-03`　重复 `workerIndex` 静默共享 —— **已关闭 ✅**
+
+[`isolation.ts:146-153`](../../packages/test-support/src/isolation.ts#L146-L153)：父段仍容忍 `EEXIST`（不同 index 的 worker 必须共享 run/layer 父目录），**worker 叶目录改用排他 `mkdir` 且不吞 `EEXIST`**，成功者随即以 `flag: "wx"` 写入随机 UUID claim 并获得带 Symbol 品牌的 `PreparedTestIsolation`。
+
+```text
+同一 run/layer/index 8 路并发     prepared=1（恰好一个），rejected=7，全部 EEXIST
+winner 的 token 与磁盘 claim      一致（uuid 格式）
+16 路跨 2 个 index                winners=2（每个槽位恰好一个）
+worker 叶目录被空目录预占          rejected: EEXIST
+worker 叶目录被普通文件预占        rejected: EEXIST
+worker 叶目录被 junction 预占      rejected: EEXIST
+<run-id> 父段被 junction 预占      rejected: test isolation refuses a non-directory link
+```
+
+首审"A 写完 B 覆盖、内容变成 worker B"的反例已不可复现。**发现关闭。**
+
+### MINOR 逐项
+
+| 首审项 | 判定 | 复审核验 |
+|---|---|---|
+| `m-01` `test:contract` 漏跑 config | **关闭 ✅** | 根 `package.json` 已把 `test:contract` 改为全仓 layer runner。实测：列出 **8** 个契约文件、**执行 8 个**（runner 直接 `spawnSync(node, ["--test", ...files])`，登记集合与执行集合按构造相同）、**91/91 通过、包含 `packages/config/test/config.contract.test.ts`**。生成漂移未丢失——`contracts:check` 中 4 次 `generate:check` 仍在 `verify` 里执行 |
+| `m-02` 空层退出 0 | **关闭 ✅** | 实测 render/integration/e2e 三层：默认 `exit=3`，`--allow-empty` `exit=0`；两种模式输出均为 `{"status":"not-registered",…,"allow_empty":…}`，**从未出现 PASS 字样** |
+| `m-03` 无清理策略 | **关闭 ✅**（新增caveat 见 `RA-02`） | 新增 `cleanupSuccessfulTestIsolation`。实测：清理 worker-0 后 worker-1 的 `precious.txt` 完好；错误 claim token、磁盘 claim 被篡改、JSON 往返后失去 Symbol 品牌的句柄、指向 `controlledRoot` 本身、指向受控根之外——**五种越权尝试全部拒绝**，且拒绝后数据完好 |
+| `m-04` `layer` 可为多段路径 | **关闭 ✅** | [`isolation.ts:93-95`](../../packages/test-support/src/isolation.ts#L93-L95) 在公共构造器内补了运行时 `isTestLayer`。实测 `a/b`、`../..`、`../../../etc`、`unit/../../x`、`UNIT`、空串、`e2e␠` 七种绕过全部拒绝；五个规范层级全部接受 |
+| `m-05` 发现健壮性 | **关闭 ✅** | 单根扫描后不再依赖三个根同时存在；符号链接判定已前置于跳过清单（[`discovery.ts:31-36`](../../packages/test-support/src/discovery.ts#L31-L36)）。实测名为 `dist`、`node_modules`、`harmless` 的真实 junction **全部被拒绝而非静默忽略** |
+
+## 3. 本次整改引入的新发现
+
+均为 `MINOR`，**无一阻断消费者**。
+
+**`RA-01`（MINOR）　"只接受已取得 claim 的句柄"在 `writeFailureEvidence` 中只是类型约束，运行时无校验**
+
+[`evidence.ts:23`](../../packages/test-support/src/evidence.ts#L23) 的形参类型由 `TestIsolation` 收紧为 `PreparedTestIsolation`，但函数体内**从不检查 Symbol 品牌或磁盘 claim**——它只 `lstat` 证据目录。对照之下，[`isolation.ts:169-171`](../../packages/test-support/src/isolation.ts#L169-L171) 的 `cleanupSuccessfulTestIsolation` **确实**在运行时检查品牌。两个 API 的强度不一致。
+
+实测：手工 `mkdir` 出证据目录、把未经 `prepareTestIsolation` 的 `TestIsolation` 断言成 `PreparedTestIsolation` 传入——
+
+```text
+writeFailureEvidence on an unprepared isolation   ACCEPTED（从未取得 claim）
+worker.claim exists on disk?                      no
+```
+
+[`docs/test-infrastructure.md:37`](../test-infrastructure.md#L37) 写的是「`writeFailureEvidence` **只接受**成功取得排他 claim 的 `PreparedTestIsolation`」，读起来是运行时保证。全仓 TypeScript 严格且零 `any`，因此需要一次刻意断言才能触发，风险有限；但既然 `cleanup` 已经做了运行时校验，`writeFailureEvidence` 应当一致。建议在函数入口加同样的品牌检查，或把文档表述改为"类型层面要求"。
+
+**`RA-02`（MINOR）　`cleanupSuccessfulTestIsolation` 会连同失败证据一并删除，无任何护栏**
+
+实测：worker 写入失败证据后调用清理——
+
+```text
+清理前 evidence 目录内容        ["failed-case"]
+对持有失败证据的 worker 调用清理  cleanup SUCCEEDED
+清理后证据是否还在              NO - 已删除
+```
+
+[`docs/test-infrastructure.md:38`](../test-infrastructure.md#L38) 的「失败时不得调用清理，以保留证据」是**纯调用方义务，零强制**；函数名中的 "Successful" 是唯一信号。`docs/testing-strategy.md` 与宪法 18 要求"失败保留日志、截图、trace 和随机 seed"，而首审 `m-03` 正是为了得到一个不会误删东西的清理策略。当前 runner 尚不存在（`G1-11` 才建），因此这是**潜在危害而非已发生的破坏**，故判 MINOR；但修复很便宜：证据目录非空时拒绝清理，或要求显式 `force` 参数。建议登记到 `G1-11`（即将编写调用方的任务）。
+
+## 4. 复跑证据与工程护栏
+
+| 检查 | 结果 |
+|---|---|
+| `pnpm install --frozen-lockfile` | 通过（9 个工作区项目） |
+| `pnpm run verify` | **通过，exit=0**：层级审计 10 文件 → unit 10/10 → config 7/7 → contract-runtime 4/4 → document 15/15 → template 15/15 → host 29/29 → project 21/21 → 8 包 typecheck → build，合计 **101/101**（与实施者自报一致，已独立复现） |
+| `pnpm test:contract` | **91/91**，8 个文件，含 config（独立于 `verify` 的路径） |
+| 空层退出码 | 默认 3 / `--allow-empty` 0，均输出 `not-registered`，无 PASS |
+| `tsc -p tsconfig.json --listFiles` | test-support **10/10** 手写 `.ts` 全覆盖（src 6、test 2、scripts 2），与磁盘清单一致 |
+| 零 `any` / 抑制指令 | 全仓手写 TypeScript 匹配数 **0**；`tsconfig.base.json` 本次零改动 |
+| 文件体量 | 最大测试 250 行（`isolation.unit.test.ts`）、最大源码 180 行（`isolation.ts`），均低于 300 行预警线 |
+| lockfile | **本次零改动**，未引入任何新依赖 |
+| 无数据库/E2E 冒充 | `test-support` 中 `sqlite\|better-sqlite\|pg\|mysql\|prisma\|drizzle\|fakeDb\|mockDb` 匹配数 0；render/integration/e2e 仍为 0 登记 |
+| Host `NF-01`/`NF-04` 回归 | 文档已无 `validateHostMessage`；`validateHostContract` 文档与导出一致；终态后 cancel 仍 `HOST_TERMINAL_STATE_DUPLICATE@/messages/2`；正常取消流 `ok:true` |
+| `git status --short` | 复审开始时为空；结束时仅本报告一处修改 |
+
+**其他已核验事实（不计缺陷）**：
+
+- **清理 API 的残余边界是可接受的。** 一个调用方若把兄弟 worker 的 `worker.claim` 从磁盘读出来再伪造句柄，确实能删除兄弟目录（实测 `DELETED`）。但同一进程内的调用方本来就能直接 `fs.rm`，因此 claim 是**防误接线**而非安全边界；`docs/test-infrastructure.md` 也未声称后者。记录备查，不作为发现。
+- **`prepareTestIsolation` 现在不再幂等**：同一 worker 第二次准备以 `EEXIST` 失败（这正是 `M-03` 修复的必然结果），成功清理后槽位可重新占用。消费者若在 `before` 与用例体内各准备一次会失败，`G1-11` 编写 runner 时需注意。
+- **`test:contract` 不再包含生成漂移检查**，已在 `docs/test-infrastructure.md:55` 明确写出，且 `verify` 仍通过 `contracts:check` 执行 4 次 `generate:check`，无覆盖损失。
+- **发现阶段对符号链接一律硬失败**（包括名为跳过目录者）。这是有意的严格选择，但开发者若用 junction 指向大体积资源目录会让 `pnpm test:layers` 以链接错误中止。属设计取舍，已记录。
+- **台账如实**：路线图 `G1-08` 标为「🟠 首审失败，整改已实现待复审」，`AGENTS.md` 写明"等待原审计角色独立复审，消费者继续暂停"，`docs/test-infrastructure.md` 状态同步，前置准备索引也如实记录首审 `FAIL`。未发现把未验证能力写成已完成事实。
+
+## 5. 未执行项与限制
+
+1. **未在真实 CI/并行 runner 下验证**：`G1-08` 只提供构造器与 claim 机制，实际分配 `workerIndex` 的 runner 属 `G1-11`。`RA-02` 的触发概率取决于该 runner 的写法。
+2. **未向真实仓库植入临时测试文件**：任务书第 4 项"新增临时契约测试不能静默漏跑"我在假工作区验证（新增 `.contract.test.ts` 即出现在 `discoverLayerTests` 结果中），并核对真实 runner 的登记集合与执行集合按构造同源；未在受审仓库内增删文件，以免修改被审工作树。
+3. **真符号链接（非 junction）在 Windows 上未测**：创建需管理员权限；已用目录联接覆盖等价 `lstat` 代码路径。
+4. **真实数据库/浏览器/E2E 隔离未验证**：按任务边界属 `PB-08/09`、`PA-03/05`、`A-12`；本次只确认当前无冒充。
+5. `pnpm --filter @wenshu/web build:test` 与 `build:staging` 未执行（与 `pnpm build` 共用 `apps/web/dist`）；`pnpm dev` 未执行。
+6. 生成漂移的破坏性验证未执行（需篡改 `src/generated/*.ts`，超出审计权限）；`generate:check` 已在 `verify` 中复跑。
+
+## 6. 复审汇总与最终结论
+
+| 首审严重级别 | 首审数量 | 已关闭 | 未关闭 |
+|---|---:|---:|---:|
+| `BLOCKER` | 0 | — | **0** |
+| `MAJOR` | 3 | 3 | **0** |
+| `MINOR` | 5 | 5 | **0** |
+
+本次新增：`MINOR` 2 项（`RA-01`、`RA-02`），`BLOCKER`/`MAJOR` **0** 项。
+
+**结论：`CONDITIONAL PASS`　——　`G1-08` 可作为后续实现任务的测试分层与并行隔离前置**
+
+判定依据：
+
+- 首审 3 项 `MAJOR` 与 5 项 `MINOR` 的**原始反例已逐条复跑并全部转为拒绝或安全行为**，无一项靠放宽断言、删测试或改口径关闭。`tsconfig.base.json` 零改动、手写 `any`/抑制指令计数为 0、lockfile 零改动，确认严格度与供应链边界都未被反向让步。
+- 三项 `MAJOR` 的修复都是结构性的而非针对反例的点状封堵：发现改为**单根全仓递归 + 显式跳过清单**（而不是补两个根目录）、大小写处理改为**捕获但不放行**（而不是把变体也当作合法后缀）、并发控制改为**排他 `mkdir` + 随机 claim + Symbol 品牌句柄**（而不是加一句文档警告）。因此我本轮新写的探针——38 文件假工作区、16 路跨槽位并发、三类 squatter、五种清理越权、七种 layer 绕过——也一并被覆盖。
+- 最能说明修复质量的是清理 API：`m-03` 只要求"有一个不会误删的清理策略"，实现却同时挡住了错误 token、磁盘篡改、失去品牌的句柄、指向受控根、指向受控根之外五种越权，且拒绝后数据完好。这超出了首审的最低要求。
+
+不判 `PASS` 而判 `CONDITIONAL PASS`，是因为本轮新增的 `RA-01`、`RA-02` 尚无任务归属。**放行条件**（均不阻断消费者开工）：
+
+1. `RA-02`：在 `G1-11` 编写并行 runner **之前**，给 `cleanupSuccessfulTestIsolation` 加护栏（证据目录非空时拒绝，或要求显式 `force`）。这是两项中唯一有真实破坏面的——它会删掉 G1-08 本身存在的理由（失败证据）。建议登记 `G1-11`。
+2. `RA-01`：让 `writeFailureEvidence` 与 `cleanup` 的运行时校验强度一致，或修正 `docs/test-infrastructure.md:37` 的表述。可随 `G1-09` 或下次触碰该文件时处理。
+
+实施者可据本复审把 `G1-08` 的路线图状态更新为最终完成，并把上述 2 条放行条件登记到对应任务；依赖 `G1-08` 的实现任务可以按各自 DoR 启动。首审报告中 `N-01`/`N-02` 对 Host `NF-01`/`NF-04` 的关闭结论经本轮回归抽查依然成立。
+
+> 依 `AGENTS.md:55` 与 `CLAUDE.md`，本复审由未参与实施与修复的独立审计角色出具。`RA-01`、`RA-02` 同样不得由实施者自行关闭。
