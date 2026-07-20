@@ -3,6 +3,7 @@ import { lstat, readFile, readdir } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 
 import { FixtureIntegrityError } from "./errors.ts";
+import type { FixtureIntegrityCode } from "./errors.ts";
 import { parseFixtureManifest } from "./manifest.ts";
 import type { FixtureEntry, VerifiedFixtureSet } from "./types.ts";
 
@@ -15,6 +16,21 @@ const MAX_MANIFEST_BYTES = 64 * 1024;
 
 export function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+async function classifyFileSystemFailure<Result>(
+  code: FixtureIntegrityCode,
+  message: string,
+  operation: () => Promise<Result>,
+): Promise<Result> {
+  try {
+    return await operation();
+  } catch (error: unknown) {
+    if (error instanceof FixtureIntegrityError) {
+      throw error;
+    }
+    throw new FixtureIntegrityError(code, message);
+  }
 }
 
 function portablePath(root: string, filePath: string): string {
@@ -32,11 +48,19 @@ async function discoverFiles(
       "fixture directory exceeds the nesting budget",
     );
   }
-  const entries = await readdir(directory, { withFileTypes: true });
+  const entries = await classifyFileSystemFailure(
+    "FIXTURE_SET_MISMATCH",
+    "fixture directory cannot be enumerated",
+    () => readdir(directory, { withFileTypes: true }),
+  );
   const paths: string[] = [];
   for (const entry of entries) {
     const entryPath = join(directory, entry.name);
-    const stats = await lstat(entryPath);
+    const stats = await classifyFileSystemFailure(
+      "FIXTURE_SET_MISMATCH",
+      "fixture directory entry cannot be inspected",
+      () => lstat(entryPath),
+    );
     if (stats.isSymbolicLink()) {
       throw new FixtureIntegrityError(
         "FIXTURE_SET_MISMATCH",
@@ -64,7 +88,11 @@ async function discoverFiles(
 }
 
 async function verifyEntry(root: string, entry: FixtureEntry): Promise<void> {
-  const bytes = await readFile(join(root, ...entry.path.split("/")));
+  const bytes = await classifyFileSystemFailure(
+    "FIXTURE_SET_MISMATCH",
+    `fixture cannot be read: ${entry.path}`,
+    () => readFile(join(root, ...entry.path.split("/"))),
+  );
   if (bytes.byteLength !== entry.bytes || sha256(bytes) !== entry.sha256) {
     throw new FixtureIntegrityError(
       "FIXTURE_SET_MISMATCH",
@@ -77,7 +105,11 @@ export async function verifyFixtureSet(
   rootDirectory: string,
 ): Promise<VerifiedFixtureSet> {
   const root = resolve(rootDirectory);
-  const rootStats = await lstat(root);
+  const rootStats = await classifyFileSystemFailure(
+    "FIXTURE_SET_MISMATCH",
+    "fixture root cannot be inspected",
+    () => lstat(root),
+  );
   if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) {
     throw new FixtureIntegrityError(
       "FIXTURE_SET_MISMATCH",
@@ -86,7 +118,11 @@ export async function verifyFixtureSet(
   }
 
   const manifestPath = join(root, MANIFEST_FILE);
-  const manifestStats = await lstat(manifestPath);
+  const manifestStats = await classifyFileSystemFailure(
+    "FIXTURE_MANIFEST_INVALID",
+    "fixture manifest cannot be inspected",
+    () => lstat(manifestPath),
+  );
   if (
     !manifestStats.isFile() ||
     manifestStats.isSymbolicLink() ||
@@ -97,7 +133,11 @@ export async function verifyFixtureSet(
       "fixture manifest must be a bounded real file",
     );
   }
-  const manifestBytes = await readFile(manifestPath);
+  const manifestBytes = await classifyFileSystemFailure(
+    "FIXTURE_MANIFEST_INVALID",
+    "fixture manifest cannot be read",
+    () => readFile(manifestPath),
+  );
   const manifestSha256 = sha256(manifestBytes);
   if (manifestSha256 !== FIXTURE_MANIFEST_SHA256) {
     throw new FixtureIntegrityError(

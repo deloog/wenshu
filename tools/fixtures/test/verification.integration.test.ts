@@ -97,6 +97,46 @@ test("manifest tampering, missing files, and unregistered files are rejected", a
   }
 });
 
+test("missing roots and manifests use stable sanitized error categories", async () => {
+  await mkdir(controlledRoot, { recursive: true });
+  const root = await mkdtemp(join(controlledRoot, "missing-"));
+  const missingRoot = join(root, "does-not-exist");
+  const emptyRoot = join(root, "empty");
+  await mkdir(emptyRoot);
+  try {
+    await assert.rejects(
+      verifyFixtureSet(missingRoot),
+      (error: unknown) =>
+        error instanceof FixtureIntegrityError &&
+        error.code === "FIXTURE_SET_MISMATCH" &&
+        !error.message.includes(root),
+    );
+    await assert.rejects(
+      verifyFixtureSet(emptyRoot),
+      (error: unknown) =>
+        error instanceof FixtureIntegrityError &&
+        error.code === "FIXTURE_MANIFEST_INVALID" &&
+        !error.message.includes(root),
+    );
+
+    const temporary = await temporaryFixtureCopy();
+    try {
+      await rm(join(temporary.fixtureRoot, "manifest.json"));
+      await assert.rejects(
+        verifyFixtureSet(temporary.fixtureRoot),
+        (error: unknown) =>
+          error instanceof FixtureIntegrityError &&
+          error.code === "FIXTURE_MANIFEST_INVALID" &&
+          !error.message.includes(temporary.root),
+      );
+    } finally {
+      await rm(temporary.root, { recursive: true });
+    }
+  } finally {
+    await rm(root, { recursive: true });
+  }
+});
+
 test("filesystem links inside the fixture root are rejected without traversal", async () => {
   const temporary = await temporaryFixtureCopy();
   const outside = await mkdtemp(join(controlledRoot, "outside-"));

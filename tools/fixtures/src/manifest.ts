@@ -13,6 +13,15 @@ const ENTRY_KEYS = Object.freeze(["bytes", "path", "sha256"]);
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const MAX_FIXTURE_BYTES = 50 * 1024 * 1024;
 const MAX_FIXTURE_COUNT = 128;
+const WINDOWS_RESERVED_NAME_PATTERN =
+  /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
+
+function containsControlCharacter(value: string): boolean {
+  return [...value].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+  });
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -33,14 +42,24 @@ export function isCanonicalFixturePath(value: string): boolean {
   if (
     value.length === 0 ||
     value.includes("\\") ||
-    value.includes("\0") ||
+    containsControlCharacter(value) ||
     value.startsWith("/") ||
     value.endsWith("/") ||
     posix.normalize(value) !== value
   ) {
     return false;
   }
-  return value.split("/").every((segment) => segment !== "." && segment !== "..");
+  return value
+    .split("/")
+    .every(
+      (segment) =>
+        segment !== "." &&
+        segment !== ".." &&
+        !segment.includes(":") &&
+        !segment.endsWith(" ") &&
+        !segment.endsWith(".") &&
+        !WINDOWS_RESERVED_NAME_PATTERN.test(segment),
+    );
 }
 
 function parseEntry(value: unknown): FixtureEntry {
@@ -106,15 +125,28 @@ export function parseFixtureManifest(value: unknown): FixtureManifest {
   const paths = entries.map((entry) => entry.path);
   const sorted = [...paths].sort((left, right) => left.localeCompare(right, "en"));
   const portable = new Set(paths.map((path) => path.toLocaleLowerCase("en-US")));
-  if (
-    paths.some((path, index) => path !== sorted[index]) ||
-    new Set(paths).size !== paths.length ||
-    portable.size !== paths.length ||
-    paths.includes("manifest.json")
-  ) {
+  if (paths.some((path, index) => path !== sorted[index])) {
     throw new FixtureIntegrityError(
       "FIXTURE_MANIFEST_INVALID",
-      "fixture entries must be sorted, unique, portable, and exclude manifest.json",
+      "fixture entries must use canonical sorted order",
+    );
+  }
+  if (new Set(paths).size !== paths.length) {
+    throw new FixtureIntegrityError(
+      "FIXTURE_MANIFEST_INVALID",
+      "fixture entries must use unique paths",
+    );
+  }
+  if (portable.size !== paths.length) {
+    throw new FixtureIntegrityError(
+      "FIXTURE_MANIFEST_INVALID",
+      "fixture entries must use unique portable path identity",
+    );
+  }
+  if (paths.includes("manifest.json")) {
+    throw new FixtureIntegrityError(
+      "FIXTURE_MANIFEST_INVALID",
+      "fixture entries must exclude manifest.json",
     );
   }
 

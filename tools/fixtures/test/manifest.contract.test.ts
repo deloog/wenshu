@@ -50,6 +50,18 @@ test("entry paths, hashes, sizes, ordering, and portable identity fail closed", 
     "a/../escape.txt",
     "/absolute.txt",
     "C:\\absolute.txt",
+    "C:drive-relative.txt",
+    "stream:payload.txt",
+    "con",
+    "CoN.txt",
+    "NUL.txt",
+    "nul.tar.gz",
+    "nested/COM1.log",
+    "nested/lpt9",
+    "trailing-space.txt ",
+    "trailing-dot.txt.",
+    "control\u001f.txt",
+    "delete\u007f.txt",
     "double//slash.txt",
     "trailing/",
     "manifest.json",
@@ -58,6 +70,16 @@ test("entry paths, hashes, sizes, ordering, and portable identity fail closed", 
     manifest["entries"] = [{ ...validEntry, path }];
     assert.throws(() => parseFixtureManifest(manifest), FixtureIntegrityError);
   }
+
+  const portableCollision = validManifest();
+  portableCollision["entries"] = [
+    { ...validEntry, path: "a.txt" },
+    { ...validEntry, path: "A.txt" },
+  ];
+  assert.throws(
+    () => parseFixtureManifest(portableCollision),
+    /portable path identity/u,
+  );
 
   for (const entries of [
     [validEntry, { ...validEntry, path: "A.txt" }],
@@ -81,4 +103,7 @@ test("canonical fixture path predicate allows stable relative Unicode paths", ()
   assert.equal(isCanonicalFixturePath("."), false);
   assert.equal(isCanonicalFixturePath(".."), false);
   assert.equal(isCanonicalFixturePath("line\0break.txt"), false);
+  assert.equal(isCanonicalFixturePath("data/report 1.0.txt"), true);
+  assert.equal(isCanonicalFixturePath("console.txt"), true);
+  assert.equal(isCanonicalFixturePath("com10.log"), true);
 });
