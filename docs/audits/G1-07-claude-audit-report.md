@@ -164,3 +164,196 @@
 **关闭路径**：由 Codex 按 `B-01` 的 (a)/(b) 两条方案择一重新设计责任模型，修复 `M-01`、`M-02`，补齐各条建议的负向 fixture 与跨包版本断言，复跑 `pnpm verify`，然后由 Claude 依本报告逐项复审并签署关闭。`MINOR` 中 `m-05` 已归属 `G1-09`，`m-01`～`m-04` 可与阻断项合并处理或明确绑定后续原子任务后作为条件项。审计者不提供也不应用补丁。
 
 > 依 `AGENTS.md:55` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具；实施者不得自行关闭上述发现。
+
+---
+---
+
+# 复审（2026-07-20）：`bc63ff0..76a0aec`
+
+> 复审者：Claude（独立只读）　实施者：Codex　任务书：[G1-07-claude-reaudit-task.md](G1-07-claude-reaudit-task.md)
+>
+> **本章节的结论取代上文首审的 `FAIL`。** 上文首审记录原样保留，不得改写。
+
+## 1. 复审范围与方法
+
+范围 `bc63ff0..76a0aec`（`bc63ff0` 仅归档首审报告，实质变更全部在 `76a0aec`「fix: remediate G1-07 responsibility audit」，18 文件 +425/-84）。
+
+按任务书要求，**不采信 [整改记录](G1-07-remediation.md) 的自述，也不采信 90/90 测试全绿**：
+
+1. 逐行审读新增的 `src/audit-semantics.ts`、改写后的 `src/validation.ts`、Schema 差异、fixture 差异与两个测试文件。
+2. **重跑首审的全部原始反例**，并对责任规则做**穷举**反测（5 action × 2 actor × 4 decision × 2 subject model × 2 nodes × 2 source refs × 4 哈希组合 = 每 action 128 种，共 **1,280 种组合**）。
+3. 对跨包漂移门禁做**只读等价探针**：用 `node:module` 的 `registerHooks` 在本探针的模块图内把上游 `DOCUMENT_SCHEMA_VERSION` 替换为 `0.9.9`，从而在**不修改仓库任何文件**的前提下真实触发漂移条件。
+4. 重跑首审的知识包篡改套件与输入安全套件，确认整改没有引入回归。
+5. 复跑冻结安装、`pnpm verify`、`tsc --listFiles`、零 `any`/抑制指令、生成漂移与体量检查。
+
+复审全程未修改代码、Schema、测试、fixture、整改记录、路线图或 lockfile；唯一写入的文件是本报告。
+
+## 2. 复跑证据
+
+| 命令 | 结果 |
+|---|---|
+| `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store` | 通过（8 个工作区项目） |
+| `pnpm run verify` | **通过**：**90/90**（config 7、contract-runtime 4、document-model 15、template-model 15、host-contract 28、project-contract **21**）；4×`generate:check` 无漂移；7 包 typecheck Done；production build 成功 |
+| `tsc -p tsconfig.json --listFiles`（project-contract） | 10/10 手写 `.ts` 全覆盖（见 §3 `check-5`） |
+| `node scripts/check-generated.ts` | exit=0 |
+| 只读探针 `g107re.ts` / `g107drift.ts` / `g107reg.ts` | 见下 |
+| `git status --short` | 复审开始时为空；结束时仅本报告一处修改 |
+
+## 3. 首审发现逐项判定
+
+### `B-01`　人类裁决与模型来源不可同时表达 —— **已关闭 ✅**
+
+修复是结构性的，不是给旧模型打补丁：
+
+- `actor` 枚举收窄为 `["user", "system"]`，**`ai` 在 Schema 层被彻底移除**（[schema:221](../../packages/project-contract/schema/project-contract.schema.json#L221)）——模型不再是责任主体。
+- `model_context` 改名并改变语义为 `subject_model_context`「被裁决对象来自哪个模型」（[schema:235](../../packages/project-contract/schema/project-contract.schema.json#L235)），与 `actor` 解耦。
+- [`src/audit-semantics.ts:57-60`](../../packages/project-contract/src/audit-semantics.ts#L57-L60)：`ai_change_decided` **强制** `actor === "user"` 且 `subject_model_context !== null` 且受影响节点非空——首审指出不可表达的那个事件，现在不仅可表达，而且是唯一合法形态。
+
+复跑首审的 actor × model_context 穷举（首审结论：能被接受的组合要么把裁决记在 AI 名下、要么丢掉模型出处）：
+
+```text
+actor=user   + subject_model_context 已记录     ACCEPTED   <- 首审时此组合被拒绝
+actor=user   + subject_model_context null       rejected:PROJECT_INTEGRITY
+actor=system + subject_model_context 已记录     rejected:PROJECT_INTEGRITY
+actor=system + subject_model_context null       rejected:PROJECT_INTEGRITY
+actor=ai     （任意）                            rejected:PROJECT_SCHEMA
+```
+
+`formal_version_approved` 的 actor 约束在**单事件与完整 bundle 两层**都验证：
+
+```text
+单事件   actor=user -> ACCEPTED   actor=system -> PROJECT_INTEGRITY   actor=ai -> PROJECT_SCHEMA
+完整包   bundle 中由 user 批准 -> ACCEPTED   由 system 批准 -> rejected   由 ai 批准 -> rejected
+完整包   bundle 中由 system 裁决 AI 修改 -> rejected
+```
+
+参考 fixture 也已改正：[`fixtures/valid/semantic-audit-event.json`](../../packages/project-contract/fixtures/valid/semantic-audit-event.json) 的 `actor` 由 `ai` 改为 `user`，首审指出的「冻结样例演示 AI 自批自己的修改」不复存在。**发现关闭。**
+
+### `M-01`　哈希/节点与 action、decision 脱节 —— **已关闭 ✅**
+
+[`src/audit-semantics.ts:56-110`](../../packages/project-contract/src/audit-semantics.ts#L56-L110) 为五类 action 各自绑定了 actor、模型出处、节点、source refs 与前后哈希的可执行组合规则。我做了 **1,280 种组合的穷举**，每个 action 的合法集合如下（括号内为 128 种中被接受的数量）：
+
+| action | 合法组合（4/2/2/1/1 of 128） |
+|---|---|
+| `ai_change_decided` (4) | `user` + 模型出处 + 节点非空，且 `accepted ⇒ 前后哈希不同`、`rejected ⇒ 前后哈希相同`；source refs 可有可无 |
+| `user_changed_after_ai` (2) | `user` + 模型出处 + 节点非空 + 哈希不同 |
+| `source_linked` (2) | `user` 或 `system` + **无**模型出处 + 节点非空 + source refs 非空 + 哈希不同 |
+| `template_applied` (1) | `user` + 无模型出处 + 无节点 + 无 refs + 哈希不同 |
+| `formal_version_approved` (1) | `user` + 无模型出处 + 无节点 + 无 refs + 哈希相同 |
+
+首审的三个原始反例全部转为拒绝：
+
+```text
+decision=rejected 但 before != after（拒绝了却改了真源）   rejected   <- 首审 ACCEPTED
+decision=accepted 但 节点为空 / 哈希均为 null              rejected   <- 首审 ACCEPTED
+decision=accepted 但 before === after（空修改）            rejected   <- 首审 ACCEPTED
+```
+
+任务书第 2 项要求的「rejected 确实不改变、accepted/applied 必要场景确实改变」在穷举结果中**双向成立**：`rejected` 的唯一合法哈希形态是相同，`accepted`/`applied`（除批准外）的唯一合法形态是不同。**发现关闭。**
+
+### `M-02`　上游版本四处硬编码、无漂移互锁 —— **已关闭 ✅**
+
+修复不止于测试断言，而是把互锁下沉到**运行时**：`package.json` 新增 `@wenshu/document-model` 与 `@wenshu/template-model` 依赖；[`src/validation.ts:13-19`](../../packages/project-contract/src/validation.ts#L13-L19) 导入真实常量构造 `PROJECT_UPSTREAM_VERSIONS`；新增的 `validateCompatibility` 在每次校验 compatibility 对象时比对 `readers.document`/`readers.template`。
+
+直接提交 `readers.document = "0.2.0"` 只会被 Schema 的 `const` 先行拒绝（`PROJECT_SCHEMA`），**无法证明运行时门禁真的活着**。因此我按任务书第 3 项做了只读等价探针：用 `registerHooks` 把 `@wenshu/document-model` 解析到 scratchpad 中的替身模块（`export * from` 真实包，仅覆盖 `DOCUMENT_SCHEMA_VERSION = "0.9.9"`），再导入真实的 `project-contract`：
+
+```text
+PROJECT_UPSTREAM_VERSIONS.document 现在读到      0.9.9
+仓库磁盘上的 document-model/src/index.ts         仍是 0.1.0（未被修改）
+已提交的 compatibility fixture 现在校验结果      rejected:PROJECT_INTEGRITY@/readers
+```
+
+即：上游版本一旦真的变动，**已提交的合法 fixture 会立刻在 `pnpm verify` 中失败**，门禁真实存在且方向正确。另外两项互锁也确认为跨文件值耦合而非自比较：
+
+```text
+schema DocumentReference.schema_version const 与 上游常量 0.9.9   MISMATCH -> 测试会失败
+project.document.document_id  ==  document-model/fixtures/valid/minimal.json .documentId   （doc_…0001，实时耦合）
+project.template.template_id  ==  template-model/fixtures/valid/minimal.json .template_id  （wenshu.minimal，实时耦合）
+若上游 fixture ID 漂移                                            断言会失败（非同一性比较）
+```
+
+**发现关闭。**
+
+### MINOR 逐项
+
+| 首审项 | 判定 | 复审核验 |
+|---|---|---|
+| `m-01` `truth.project`/`truth.audit` 哈希未被消费 | **合规延期 ⏭** | 契约层保持不伪造真实字节哈希（正确选择）。[`docs/implementation-roadmap.md`](../implementation-roadmap.md) 的 `PB-11` 行已改写，明确要求「从真实序列化字节计算并核验 `truth.project` 与 `truth.audit` entry 哈希」，并加了「只信 manifest 自报哈希不算通过」的停止条件。归属明确 |
+| `m-02` 非法日历日期 | **关闭 ✅** | [`audit-semantics.ts:8-12`](../../packages/project-contract/src/audit-semantics.ts#L8-L12) 的 `isCanonicalTimestamp` 做 UTC 解析回读，并应用于审计 `occurred_at`、项目 `formal_versions[].created_at`、知识包 `created_at` 三处。实测 `2026-02-31`、`2026-02-29`（2026 非闰年）、`2026-04-31` 全部 `PROJECT_INTEGRITY`；`2026-02-28` 与无毫秒形式仍接受 |
+| `m-03` 自由文本可承载正文/密钥 | **关闭 ✅** | `locator` 收窄为 `node_<32hex>` 或 `anchor:<受控字符集>`；实测中文正文、裸 `section-1`、`../../etc/passwd`、超长 anchor 全部拒绝。`provider`/`model` 加保守字符集 + 敏感形状启发式；`sk-live-*`、`sk_test_*`、`AIza*`、`ghp_*`、`xoxb-*`、`TOKEN-*` 全部拒绝（残留见 `NF-02`） |
+| `m-04` path/role 不一致 | **关闭 ✅** | [`validation.ts:127,142-144`](../../packages/project-contract/src/validation.ts#L142-L144) 强制 `truth.*`→`truth/`、`derived.*`→`derived/`。实测双向反转、根目录、`truthx/` 前缀混淆全部 `PROJECT_INTEGRITY`；`truth/` 对照组通过 |
+| `m-05` `PROJECT_SCHEMA` 粒度 | **合规延期 ⏭** | 维持 `G1-09` 归属，本轮未扩大错误模型（正确的范围克制）。`G1-09` 验收标准中「非法 fixture 断言稳定 issue code 与预期 JSON path」仍然有效，需覆盖本包 |
+
+### `check-4` / `check-5`　回归与工程护栏
+
+- **首审的知识包篡改套件 17/17 仍全部拒绝**（项目 ID 双侧、审计 ID/序号/缺失/重复、文档与模板哈希双侧、材料哈希、出处引用、真源缺失/孤儿、重复路径、真源派生互换）；未篡改基线仍 `ACCEPTED`。整改未引入回归。
+- **输入安全无回归**：四类对象各自的 20,000 层嵌套 → `PROJECT_BUDGET_EXCEEDED`，循环 → `PROJECT_SCHEMA`，继承访问器调用次数 **0**，无未捕获异常。
+- **`tsc --listFiles` 覆盖 10/10 手写 `.ts`**：`src` 4（`validation`、`audit-semantics`、`bundle`、`index`）、`test` 3（含新增 `audit-semantics.test.ts`、`fixture-helpers.ts`）、`scripts` 3，与磁盘 `find` 清单一致。
+- **零 `any`/抑制指令**：全仓手写 TypeScript（排除 `src/generated/`）中 `any`、`as any`、`@ts-ignore`、`@ts-expect-error`、`@ts-nocheck`、`eslint-disable` 匹配数为 **0**；生成文件 `any` 出现 0 次；`tsconfig.base.json` 在本次范围内**零改动**。
+- **体量合规**：`validation.ts` 208、`bundle.ts` 159、`audit-semantics.ts` 112；测试 `project-contract.test.ts` 231、`audit-semantics.test.ts` 125、`fixture-helpers.ts` 16。全部低于 300 行预警线，测试拆分是合理的职责拆分而非机械切片。
+- **台账如实**：路线图 `G1-07` 标为「🟠 首审失败，整改已实现待复审」，`docs/project-contract.md` 与 ADR-0004 状态同步为待复审，`AGENTS.md` 保留「消费者在审计闭环前暂停」。ADR-0004 新增决策 6 记录跨包互锁。未发现把未验证能力写成已完成事实。
+
+## 4. 本次整改引入的新发现
+
+均为 `MINOR`，**无一阻塞消费者启动**。
+
+**`NF-01`（MINOR）　`template_applied` 要求文档哈希改变，但文档真源没有模板字段，前后哈希的指称对象未声明**
+
+[`audit-semantics.ts:88-98`](../../packages/project-contract/src/audit-semantics.ts#L88-L98) 要求 `template_applied` 必须 `hashesDiffer` 且 `affected_node_ids` 为空。但 `packages/document-model/schema/document.schema.json` 中**不存在任何 template 字段**（实测正则匹配为 `NO`），因此套用模板不可能改变文档哈希。同时 `before_sha256`/`after_sha256` 在 Schema 中没有声明指称对象，只有 `formal_version_approved` 被 [`bundle.ts:143`](../../packages/project-contract/src/bundle.ts#L143) 隐式绑定为文档哈希。结果是 `template_applied` 的实现者要么必须伪造一次哈希变化，要么必须让同一字段在不同 action 下指称不同对象。建议在 `PB-06` 开工前明确：或为 `template_applied` 改用「哈希相同」规则，或在 Schema 中显式声明哈希指称对象（如增加 `hash_subject: "document" | "project"`）。
+
+**`NF-02`（MINOR）　敏感标识启发式同时存在误杀与漏放**
+
+[`audit-semantics.ts:14-20`](../../packages/project-contract/src/audit-semantics.ts#L14-L20) 与 Schema 的 `(?!.{0,20}(?:key|secret|token))` 前瞻按**子串**匹配，实测：
+
+```text
+误杀：provider="keystone-ai" / "turnkey-labs"、model="monkey-7b" / "tokenizer-v2"   全部被拒
+漏放：model="0123456789abcdef0123456789abcdef"、"aBcD3fGh1jKlMn0pQrStUvWx"          全部接受
+```
+
+即含关键词子串的正常厂商/模型名被挡住，而不含关键词的高熵密钥仍可通过。启发式在两个方向上都不可靠。建议改为依靠字符集 + 长度约束 + 文档明示「此字段禁止写入凭证」，或为误杀保留显式豁免路径；不要把安全保证建立在子串黑名单上（与 `G1-06` 首审 `B-01` 的教训同源）。
+
+**`NF-03`（MINOR）　`actor: "system"` 的可用范围未在文档中写明**
+
+穷举确认 `system` 实际只能执行 `source_linked` 一种 action，而 [`docs/project-contract.md:30`](../project-contract.md#L30) 只说「只允许 `user` 或有限的 `system` 行为」，未指明是哪一种。`PB-06` 的实现者需要靠读代码才能知道边界。建议在契约文档中显式列出 `system` 可执行的 action 集合。
+
+**`NF-04`（MINOR，已有归属）　`PROJECT_INTEGRITY` 进一步过载**
+
+该码现同时承载 decision 组合、时间戳、actor、哈希语义、path/role、compatibility readers 与敏感标识七类判定，仅靠 `path` 区分。这加重了首审 `m-05` 指出的诊断粒度问题；本轮未扩大错误模型是正确的范围克制，但 `G1-09` 的「断言稳定 issue code 与预期 JSON path」验收项必须覆盖本包这七类路径，否则断言强度不足。归属沿用 `G1-09`，无需新任务。
+
+## 5. 未执行项与限制
+
+1. **生成漂移的破坏性验证仍未执行**（需篡改 `src/generated/*.ts`，超出审计权限）。`check-generated.ts` 的重生成—全文比对逻辑经审读判定可靠，退出码 0 已复跑。
+2. 范围外未审计（依首审任务书）：数据库、ZIP/文件 IO、真实路径穿越与真实文件哈希。本次仅确认 `PB-09`/`PB-11` 门禁未被削弱，且 `PB-11` 新增了 `m-01` 的显式归属。
+3. `pnpm --filter @wenshu/web build:test` 与 `build:staging` 未执行（与 `pnpm build` 共用 `apps/web/dist`）；`pnpm dev` 未执行。
+4. 跨包漂移的模拟只覆盖 `@wenshu/document-model`；`@wenshu/template-model` 的互锁按同一份代码路径（`validateCompatibility` 同时比对两者）推定成立，未单独做替身模块。
+5. 供应链结论仍由 `G1-15` 签署；本次 lockfile 变更仅为新增两条本地 workspace 依赖，未引入新的外部依赖。
+
+## 6. 复审汇总与最终结论
+
+| 首审严重级别 | 首审数量 | 已关闭 | 合规延期 | 未关闭 |
+|---|---:|---:|---:|---:|
+| `BLOCKER` | 1 | 1 | 0 | **0** |
+| `MAJOR` | 2 | 2 | 0 | **0** |
+| `MINOR` | 5 | 3 | 2（`m-01`→`PB-11`、`m-05`→`G1-09`） | **0** |
+
+本次新增：`MINOR` 4 项（`NF-01`～`NF-04`），`BLOCKER`/`MAJOR` **0** 项。
+
+**结论：`CONDITIONAL PASS`　——　`G1-07` 可作为 `PB-05/06/07/08/11` 的前置**
+
+判定依据：
+
+- 首审的 1 项 `BLOCKER` 与 2 项 `MAJOR` 的**原始反例已逐条复跑并全部转为拒绝或安全行为**，无一项靠放宽断言、删测试或改口径关闭。`tsconfig.base.json` 零改动、手写 `any`/抑制指令计数为 0，确认严格度未被反向让步。
+- 三项修复都选择了结构性方案而非点状封堵：`B-01` 从 Schema 层删除 `ai` 这个 actor 并把模型出处重构为「被裁决对象」的属性；`M-01` 用五类 action 的可执行组合规则替代原先的零约束；`M-02` 把互锁下沉到运行时而不是只加一条测试断言。因此本轮新写的探针——1,280 种责任组合穷举、`registerHooks` 上游版本替身、path/role 四向反转、日历边界日期——也一并被覆盖。
+- 最有说服力的一项是 `M-02`：我在**不修改仓库任何文件**的前提下把上游常量替换为 `0.9.9`，已提交的合法 fixture 立即以 `PROJECT_INTEGRITY@/readers` 失败。这证明漂移门禁不是自比较的摆设，而是会真实阻断 `pnpm verify` 的活门禁。
+- 两项延期都有明确任务归属并已写入路线图验收标准（`PB-11` 行新增了两类哈希的核验要求与「只信 manifest 不算通过」的停止条件；`G1-09` 沿用原有归属），符合「一般问题只有在明确绑定后续原子任务时才能条件通过」。
+
+不判 `PASS` 而判 `CONDITIONAL PASS`，是因为本轮新增的 `NF-01`～`NF-03` 尚无任务归属。**放行条件**（均不阻塞消费者开工，但须在指定节点前闭环）：
+
+1. `NF-01`：在 `PB-06` 开工前裁定 `template_applied` 的哈希语义（改为「哈希相同」或显式声明哈希指称对象），结论写入 `docs/project-contract.md`。这是唯一可能触发 Schema 修订的一项，越早裁定成本越低。
+2. `NF-02`：把敏感标识的保证方式从子串黑名单改为字符集/长度约束加文档明示，或保留显式豁免路径；登记到 `G1-09` 或 `A-15`（安全专项）。
+3. `NF-03`：在 `docs/project-contract.md` 中显式列出 `actor: "system"` 可执行的 action 集合。
+4. `NF-04` 沿用 `G1-09` 归属，需确保其验收覆盖本包 `PROJECT_INTEGRITY` 的七类判定路径。
+
+实施者可据本复审把 `G1-07` 的路线图状态更新为最终完成，并把上述 4 条放行条件登记到对应任务；`PB-05`、`PB-06`、`PB-07`、`PB-08`、`PB-11` 可以按各自 DoR 启动。
+
+> 依 `AGENTS.md:55` 与 `CLAUDE.md`，本复审由未参与实施与修复的独立审计角色出具。`NF-01`～`NF-04` 同样不得由实施者自行关闭。
