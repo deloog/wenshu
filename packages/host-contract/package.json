@@ -13,6 +13,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@wenshu/contract-runtime": "workspace:*",
     "ajv": "catalog:"
   },
   "devDependencies": {

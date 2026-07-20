@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   CONFIG_ENVIRONMENTS,
+  CONFIG_LOG_LEVELS,
   ConfigValidationError,
   loadEnvironmentProfile,
   parseRuntimeConfig,
@@ -111,6 +112,7 @@ test("the committed example and JSON schema remain executable contracts", async 
   }
   const properties = requiredRecord(parsedSchema, "properties");
   const environment = requiredRecord(properties, "WENSHU_ENV");
+  const logLevel = requiredRecord(properties, "WENSHU_LOG_LEVEL");
   const entries: Array<readonly [string, string]> = example
     .split(/\r?\n/u)
     .map((line) => line.trim())
@@ -126,5 +128,6 @@ test("the committed example and JSON schema remain executable contracts", async 
   });
   assert.deepEqual(parsedSchema["required"], ["WENSHU_ENV", "WENSHU_LOG_LEVEL"]);
   assert.deepEqual(environment["enum"], expectedEnvironments);
+  assert.deepEqual(logLevel["enum"], CONFIG_LOG_LEVELS);
   assert.equal(parsedSchema["additionalProperties"], false);
 });

@@ -2,7 +2,7 @@
 
 > 日期：2026-07-20
 >
-> 状态：**已完成**
+> 状态：**已实现，待 Claude 独立复审**
 >
 > 范围：dev/test/staging/production 四环境契约、启动前校验和无密钥示例；不含部署、外部服务或真实凭证
 
@@ -12,7 +12,7 @@
 - 机器可读 schema：`packages/config/app-config.schema.json`
 - 无密钥示例：`.env.example`
 - Vite 启动门：`apps/web/vite.config.ts`
-- 契约测试：`packages/config/test/config.contract.test.mjs`
+- 契约测试：`packages/config/test/config.contract.test.ts`
 
 当前只允许两个最小非敏感字段：
 
@@ -22,6 +22,8 @@
 | `WENSHU_LOG_LEVEL` | 是 | `debug` / `info` / `warn` / `error` |
 
 解析器忽略与项目无关的操作系统变量，但会拒绝任何未登记的 `WENSHU_*` 字段。这使拼写错误、过期变量或把密钥误放入 Web 配置命名空间时都会立即失败。
+
+运行时解析器直接编译并执行上述 JSON Schema；日志级别等白名单同时有契约测试检查，避免 Schema、TypeScript 常量和文档各自漂移。`apps/web/vite.config.ts` 也纳入严格 TypeScript 检查。
 
 ## 2. 四环境显式基线
 

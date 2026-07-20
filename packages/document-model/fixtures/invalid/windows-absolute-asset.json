@@ -1,0 +1,25 @@
+{
+  "expectedIssue": "DOCUMENT_SCHEMA",
+  "schemaVersion": "0.1.0",
+  "documentId": "doc_61000000000000000000000000000001",
+  "revision": 0,
+  "title": "Windows 绝对路径",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_61000000000000000000000000000001",
+      "type": "figure",
+      "assetId": "asset_61000000000000000000000000000001",
+      "altText": "绝对路径"
+    }
+  ],
+  "assets": [
+    {
+      "id": "asset_61000000000000000000000000000001",
+      "kind": "image",
+      "path": "C:/Windows/System32/config/SAM.png",
+      "mediaType": "image/png",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ]
+}

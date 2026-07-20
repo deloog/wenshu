@@ -138,6 +138,67 @@ test("property accessors are rejected without invocation", () => {
   }
 });
 
+test("inherited accessors are rejected without invocation", () => {
+  let invoked = false;
+  const prototype = Object.create(null) as Record<string, unknown>;
+  Object.defineProperty(prototype, "protocol_version", {
+    get: (): unknown => {
+      invoked = true;
+      return HOST_PROTOCOL_VERSION;
+    },
+  });
+  const result = validateHostContract(Object.create(prototype) as unknown);
+  assert.equal(result.ok, false);
+  assert.equal(invoked, false);
+  if (!result.ok) {
+    assert.equal(result.issues[0]?.code, "HOST_PLATFORM_FIELD_FORBIDDEN");
+  }
+});
+
+test("deep host payloads fail with a stable budget issue", () => {
+  let input: Record<string, unknown> = {};
+  for (let index = 0; index < 50; index += 1) {
+    input = { child: input };
+  }
+  const result = validateHostContract({
+    protocol_version: HOST_PROTOCOL_VERSION,
+    kind: "request",
+    request_id: "req_00000000000000000000000000000020",
+    capability: "file.import.select",
+    capability_version: "0.1.0",
+    input,
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.issues[0]?.code, "HOST_BUDGET_EXCEEDED");
+  }
+});
+
+test("encoded and drive-relative path values cannot bypass key-independent checks", async () => {
+  const fixture = await readJson(
+    new URL("../fixtures/valid/success.json", import.meta.url),
+  );
+  if (!isRecord(fixture) || !isRecord(fixture["output"])) {
+    throw new Error("Success fixture must contain an output object.");
+  }
+  for (const unsafeValue of [
+    "C:drive-relative.txt",
+    "C%253A%252FWindows%252FSystem32",
+    "%252E%252E%252Fescape.txt",
+  ]) {
+    const candidate = structuredClone(fixture);
+    if (!isRecord(candidate["output"])) {
+      throw new Error("Cloned fixture must contain an output object.");
+    }
+    candidate["output"]["grant_id"] = unsafeValue;
+    const result = validateHostContract(candidate);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.issues[0]?.code, "HOST_PLATFORM_FIELD_FORBIDDEN");
+    }
+  }
+});
+
 test("diagnostics never echo host payload values", () => {
   const sentinel = "private-host-value-must-not-be-logged";
   const result = validateHostContract({

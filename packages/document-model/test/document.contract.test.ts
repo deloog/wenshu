@@ -41,17 +41,48 @@ test("all invalid document fixtures fail with stable issue codes", async (contex
   for (const file of await fixtureFiles("invalid")) {
     await context.test(file.pathname, async () => {
       const fixture = await readJson(file);
-      if (!isRecord(fixture) || typeof fixture.expectedIssue !== "string") {
+      if (!isRecord(fixture) || typeof fixture["expectedIssue"] !== "string") {
         throw new Error(`Invalid negative fixture metadata: ${file.pathname}`);
       }
-      const expectedIssue = fixture.expectedIssue;
-      delete fixture.expectedIssue;
+      const expectedIssue = fixture["expectedIssue"];
+      delete fixture["expectedIssue"];
       const result = validateDocument(fixture);
       assert.equal(result.ok, false, file.pathname);
       if (!result.ok) {
         assert.ok(result.issues.some((issue) => issue.code === expectedIssue));
       }
     });
+  }
+});
+
+test("deeply nested documents fail with a stable budget issue", () => {
+  let block: unknown = {
+    id: "node_ffffffffffffffffffffffffffffffff",
+    type: "paragraph",
+    text: "terminal",
+  };
+  for (let index = 0; index < 80; index += 1) {
+    block = {
+      id: `node_${index.toString(16).padStart(32, "0")}`,
+      type: "section",
+      level: 1,
+      title: "nested",
+      children: [block],
+    };
+  }
+
+  const result = validateDocument({
+    schemaVersion: DOCUMENT_SCHEMA_VERSION,
+    documentId: "doc_ffffffffffffffffffffffffffffffff",
+    revision: 0,
+    title: "budget probe",
+    language: "zh-CN",
+    blocks: [block],
+    assets: [],
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.issues[0]?.code, "DOCUMENT_BUDGET_EXCEEDED");
   }
 });
 

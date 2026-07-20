@@ -1,4 +1,5 @@
 import Ajv2020 from "ajv/dist/2020.js";
+import { cloneAndFreeze, inspectData } from "@wenshu/contract-runtime";
 
 import documentSchema from "../schema/document.schema.json" with { type: "json" };
 import type {
@@ -12,6 +13,7 @@ export type * from "./generated/document.ts";
 export const DOCUMENT_SCHEMA_VERSION = "0.1.0" as const;
 
 export type DocumentIssueCode =
+  | "DOCUMENT_BUDGET_EXCEEDED"
   | "DOCUMENT_DUPLICATE_ID"
   | "DOCUMENT_REFERENCE_MISSING"
   | "DOCUMENT_SCHEMA"
@@ -127,17 +129,21 @@ function validateIntegrity(document: WenshuDocument): readonly DocumentIssue[] {
   return Object.freeze(context.issues);
 }
 
-function deepFreeze<T>(value: T): T {
-  if (typeof value !== "object" || value === null || Object.isFrozen(value)) {
-    return value;
-  }
-  Object.values(value).forEach((child: unknown) => {
-    deepFreeze(child);
-  });
-  return Object.freeze(value);
-}
-
 export function validateDocument(input: unknown): DocumentValidationResult {
+  const inspection = inspectData(input, {
+    maxDepth: 64,
+    maxNodes: 100_000,
+  });
+  if (!inspection.ok) {
+    const code =
+      inspection.kind === "budget"
+        ? "DOCUMENT_BUDGET_EXCEEDED"
+        : "DOCUMENT_SCHEMA";
+    return Object.freeze({
+      ok: false,
+      issues: Object.freeze([Object.freeze({ code, path: inspection.path })]),
+    });
+  }
   if (!validateShape(input)) {
     const issues = (validateShape.errors ?? []).map((error) =>
       Object.freeze({
@@ -153,5 +159,5 @@ export function validateDocument(input: unknown): DocumentValidationResult {
     return Object.freeze({ ok: false, issues: integrityIssues });
   }
 
-  return Object.freeze({ ok: true, value: deepFreeze(structuredClone(input)) });
+  return Object.freeze({ ok: true, value: cloneAndFreeze(input) });
 }

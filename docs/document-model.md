@@ -1,6 +1,6 @@
 # G1-04 v0 文档对象契约
 
-> 状态：已冻结　Schema 版本：`0.1.0`　日期：2026-07-20
+> 状态：契约已冻结、修复已实现，待 Claude 独立复审　Schema 版本：`0.1.0`　日期：2026-07-20
 
 ## 1. 目的与边界
 
@@ -15,11 +15,11 @@
 - `schemaVersion`：当前只接受精确值 `0.1.0`；
 - `documentId`：文档稳定标识；
 - `revision`：非负修订号；
-- `title`、`language`：标题与 BCP 47 风格语言标签；
+- `title`、`language`：标题与受控语言标签；v0 只接受 `language[-Script][-REGION]` 子集，不宣称覆盖完整 BCP 47；
 - `blocks`：至少一个内容块；
 - `assets`：文档引用的受控资源清单。
 
-内容块使用可判别联合：`section`、`paragraph`、`list`、`quote`、`table`、`figure`、`pageBreak`。对象默认拒绝未知字段。表格必须让每行恰好覆盖全部已声明列；figure 必须指向清单中的资源。资源只允许相对安全路径、受控图片媒体类型和 64 位小写十六进制 SHA-256。
+内容块使用可判别联合：`section`、`paragraph`、`list`、`quote`、`table`、`figure`、`pageBreak`。对象默认拒绝未知字段。表格必须让每行恰好覆盖全部已声明列；figure 必须指向清单中的资源。资源路径采用正向 ASCII 相对路径白名单，拒绝盘符、绝对路径、URL、`.`/`..` 段和反斜杠；同时限定图片媒体类型和 64 位小写十六进制 SHA-256。
 
 ## 3. 稳定 ID 规则
 
@@ -48,9 +48,9 @@
 
 ## 5. 安全与诊断
 
-公共验证入口接收 `unknown`，成功后返回深复制、深冻结的类型化对象，避免调用方继续篡改输入。失败只返回稳定 issue code 与 JSON 路径，不回显正文、标题或资源内容。第三方库类型通过本地窄接口收口，项目手写 TypeScript 不使用 `any`。
+公共验证入口接收 `unknown`，先以最多 64 层、100,000 个对象/数组节点的预算检查输入，再执行 Schema 与跨对象校验；超限会返回稳定问题而不是抛出运行时栈溢出。输入还会拒绝函数、访问器、循环和非普通对象，且不会读取继承访问器。成功后返回深复制、深冻结的类型化对象，避免调用方继续篡改输入。失败只返回稳定 issue code 与 JSON 路径，不回显正文、标题或资源内容。第三方库类型通过本地窄接口收口，项目手写 TypeScript 不使用 `any`。
 
-当前稳定问题码为：`DOCUMENT_SCHEMA`、`DOCUMENT_DUPLICATE_ID`、`DOCUMENT_REFERENCE_MISSING`、`DOCUMENT_TABLE_COLUMN_MISMATCH`。
+当前稳定问题码为：`DOCUMENT_SCHEMA`、`DOCUMENT_BUDGET_EXCEEDED`、`DOCUMENT_DUPLICATE_ID`、`DOCUMENT_REFERENCE_MISSING`、`DOCUMENT_TABLE_COLUMN_MISMATCH`。
 
 ## 6. 生成、验证与证据
 
@@ -59,4 +59,4 @@
 - `pnpm contracts:check`：运行文档与模板漂移检查及全部契约 fixture。
 - `pnpm verify`：配置契约、文档契约、严格类型检查和生产构建的统一入口。
 
-冻结时证据：2 个合法 fixture 与 5 个非法 fixture 全部符合预期，共 12/12 测试通过；故意修改生成文件后漂移检查按预期失败，重新生成后恢复通过；全项目严格类型检查和生产构建通过。使用 Ajv `8.20.0` 做 JSON Schema 2020-12 运行时校验，使用 json-schema-to-typescript `15.0.4` 生成声明，两者均为 MIT 许可；精确版本与完整性由 lockfile 固定，完整供应链结论仍由 `G1-15` 签署。
+修复后自检证据：2 个合法 fixture 与 7 个非法 fixture 全部符合预期，共 15/15 测试通过；Windows 绝对路径、远程 URL 与深层输入均有负向测试；测试目录已纳入该包严格 TypeScript 检查。故意修改生成文件后漂移检查按预期失败，重新生成后恢复通过；最终结论仍等待独立复审。使用 Ajv `8.20.0` 做 JSON Schema 2020-12 运行时校验，使用 json-schema-to-typescript `15.0.4` 生成声明，两者均为 MIT 许可；精确版本与完整性由 lockfile 固定，完整供应链结论仍由 `G1-15` 签署。

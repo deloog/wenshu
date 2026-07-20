@@ -94,7 +94,7 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store`：冻结安装。
 - `pnpm dev`：启动最小 Web 开发入口。
 - `pnpm config:check`：运行 dev/test/staging/production 配置契约、快速失败和脱敏测试。
-- `pnpm contracts:check`：检查文档/模板/Host schema 与生成类型漂移，并运行合法、非法、安全和生命周期 fixture 契约测试。
+- `pnpm contracts:check`：检查文档/模板/Host schema 与生成类型漂移，并运行共享输入安全运行时及合法、非法、安全和生命周期 fixture 契约测试。
 - `pnpm typecheck`：严格类型检查。
 - `pnpm build`：生产构建。
 - `pnpm --filter @wenshu/web build:test`：test 配置构建。

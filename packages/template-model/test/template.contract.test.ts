@@ -21,6 +21,29 @@ async function fixtureFiles(kind: "invalid" | "valid"): Promise<URL[]> {
   return names.map((name) => new URL(name, directory));
 }
 
+function injectValue(
+  target: Record<string, unknown>,
+  path: readonly string[],
+  value: unknown,
+): void {
+  let current = target;
+  path.slice(0, -1).forEach((segment) => {
+    const child = current[segment];
+    if (isRecord(child)) {
+      current = child;
+      return;
+    }
+    const next: Record<string, unknown> = {};
+    current[segment] = next;
+    current = next;
+  });
+  const finalSegment = path.at(-1);
+  if (finalSegment === undefined) {
+    throw new Error("Injection path must not be empty.");
+  }
+  current[finalSegment] = value;
+}
+
 test("v0 template DSL version is frozen", () => {
   assert.equal(TEMPLATE_DSL_VERSION, "0.1.0");
 });
@@ -45,18 +68,36 @@ test("all valid template fixtures pass", async (context) => {
 });
 
 test("all invalid fixtures fail with stable issue codes", async (context) => {
+  const validFixture = await readJson(
+    new URL("../fixtures/valid/minimal.json", import.meta.url),
+  );
+  if (!isRecord(validFixture)) {
+    throw new Error("Minimal template fixture must be an object.");
+  }
   for (const file of await fixtureFiles("invalid")) {
     await context.test(file.pathname, async () => {
-      const fixture = await readJson(file);
-      if (!isRecord(fixture) || typeof fixture["expectedIssue"] !== "string") {
+      const metadata = await readJson(file);
+      if (!isRecord(metadata) || typeof metadata["expectedIssue"] !== "string") {
         throw new Error(`Invalid negative fixture metadata: ${file.pathname}`);
       }
-      const expectedIssue = fixture["expectedIssue"];
-      delete fixture["expectedIssue"];
-      const result = validateTemplate(fixture);
+      const injection = metadata["injection"];
+      if (
+        !isRecord(injection) ||
+        !Array.isArray(injection["path"]) ||
+        !injection["path"].every((segment) => typeof segment === "string")
+      ) {
+        throw new Error(`Invalid injection metadata: ${file.pathname}`);
+      }
+      const candidate = structuredClone(validFixture);
+      injectValue(candidate, injection["path"], injection["value"]);
+      const result = validateTemplate(candidate);
       assert.equal(result.ok, false, file.pathname);
       if (!result.ok) {
-        assert.ok(result.issues.some((issue) => issue.code === expectedIssue));
+        assert.ok(
+          result.issues.some(
+            (issue) => issue.code === metadata["expectedIssue"],
+          ),
+        );
       }
     });
   }
@@ -106,6 +147,24 @@ test("property accessors are rejected without invocation", () => {
   });
 
   const result = validateTemplate(input);
+  assert.equal(result.ok, false);
+  assert.equal(invoked, false);
+  if (!result.ok) {
+    assert.equal(result.issues[0]?.code, "TEMPLATE_DYNAMIC_CODE_FORBIDDEN");
+  }
+});
+
+test("inherited accessors are rejected without invocation", () => {
+  let invoked = false;
+  const prototype = Object.create(null) as Record<string, unknown>;
+  Object.defineProperty(prototype, "dsl_version", {
+    get: (): unknown => {
+      invoked = true;
+      return TEMPLATE_DSL_VERSION;
+    },
+  });
+
+  const result = validateTemplate(Object.create(prototype) as unknown);
   assert.equal(result.ok, false);
   assert.equal(invoked, false);
   if (!result.ok) {

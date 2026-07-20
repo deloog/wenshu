@@ -75,11 +75,11 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-01 | ✅ 已完成 | 本地 `main` 根提交 `dcbddc9`；工作树、ignore 与秘密模式探针通过 |
 | G1-01R | ⬜ 未开始 | 创建私有远程属于外部行为，尚待业主对该项单独批准；不阻塞可隔离的本地 G1 任务 |
 | G1-02 | ✅ 已完成 | `toolchain.versions.json`、ADR-0002；官方版本/许可证/来源/完整性证据已冻结，未安装业务依赖 |
-| G1-03 | 🟠 已实现待独立审计 | D 盘 Node/pnpm、冻结 lockfile、TypeScript strict + Vite 最小工作区；自检通过，纳入 [Claude 审计任务](audits/G1-03-to-G1-06-claude-audit-task.md) |
-| G1-03C | 🟠 已实现待独立审计 | [环境配置基线](configuration.md)：7/7 契约测试等自检通过，纳入同一独立审计；不得以实现者自检替代签署 |
-| G1-04 | 🟠 已实现待独立审计 | [v0 文档对象契约](document-model.md)：12/12 测试和漂移探针自检通过；等待 Claude 检查 Schema、ID、版本和验证器反例 |
-| G1-05 | 🟠 已实现待独立审计 | [v0 模板 DSL 契约](template-dsl.md)：14/14 测试和安全探针自检通过；等待 Claude 检查执行面与绕过可能 |
-| G1-06 | 🟠 已实现待独立审计 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：19/19 测试自检通过；等待 Claude 检查 payload Schema、生命周期与平台隔离完整性 |
+| G1-03 | 🟠 修复已实现待复审 | D 盘 Node/pnpm、冻结 lockfile、TypeScript strict + Vite 工作区；Claude 首审 `FAIL`，修复与处置见 [整改记录](audits/G1-03-to-G1-06-remediation.md) |
+| G1-03C | 🟠 修复已实现待复审 | [环境配置基线](configuration.md)：运行时 Schema 与 Vite 配置 typecheck 修复自检通过；不得以实施者自检替代复审签署 |
+| G1-04 | 🟠 修复已实现待复审 | [v0 文档对象契约](document-model.md)：15/15 自检通过，已覆盖测试 typecheck、路径白名单和输入预算；等待 Claude 复审 |
+| G1-05 | 🟠 修复已实现待复审 | [v0 模板 DSL 契约](template-dsl.md)：15/15 自检通过，已覆盖继承访问器和有效基线注入；等待 Claude 复审 |
+| G1-06 | 🟠 修复已实现待复审 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：28/28 自检通过，已补值级路径、预算及有状态会话校验；等待 Claude 复审 |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务
@@ -96,14 +96,14 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-06 | 冻结 v0 host 能力、错误、取消、进度契约。R-HOST/R-UX | G1-02 → G1-09/PB-10/A | schema/类型；浏览器/Electron/ArkWeb 实现不在本任务 | 能力支持/拒绝/取消/超时/降级的契约样例通过 | 平台类型泄漏到核心即停；回滚契约。与 G1-05 并行，契约文件隔离 |
 | G1-07 | 冻结 v0 项目、知识包、语义审计与版本兼容契约。R-DATA/R-RECORDS/R-OUTPUT | G1-04/06 → PB-05/07/08 | schema 与迁移原则；不选择数据库实现 | round-trip fixture、缺字段/未来版本拒绝契约测试 | 真源与派生无法区分即停。权威契约独占；无外部审批 |
 | G1-08 | 建立单元/契约/渲染/集成/E2E 测试骨架和隔离目录。R-TEST | G1-03/04/05/06 → 全实现 | 测试配置、worker 目录/端口构造器、证据目录；不写功能测试冒充通过 | 两 worker 并行写独立目录；失败保留日志/seed；测试层名称审计 | 隔离失败则相关层串行；回滚配置。可与 G1-09 并行 |
-| G1-09 | 建立工程标准、格式/lint/typecheck、文件体量与生成漂移护栏。R-TEST | G1-03 → 全任务 | `engineering-standards` 与本地检查；不增加宽泛豁免 | 显式/隐式 `any` 禁用护栏；300 行预警、生产>400/测试>500失败的正反 fixture；单一 verify 入口 | 工具误报先修规则，不加全局 ignore。第三方/生成声明必须在边界收窄，不得用 `as any` 或 `@ts-ignore`。独占根工具配置 |
+| G1-09 | 建立工程标准、格式/lint/typecheck、文件体量与生成漂移护栏。R-TEST | G1-03 → 全任务 | `engineering-standards` 与本地检查；不增加宽泛豁免 | 显式/隐式 `any` 禁用护栏；逐包枚举并证明 `src/test/scripts` 与 TS 配置文件均进入 typecheck；非法 fixture 断言稳定 issue code 与预期 JSON path；300 行预警、生产>400/测试>500失败的正反 fixture；单一 verify 入口 | 工具误报先修规则，不加全局 ignore。第三方/生成声明必须在边界收窄，不得用 `as any` 或 `@ts-ignore`。独占根工具配置 |
 | G1-10 | 固定 PoC fixture 哈希、只读复制和证据 manifest。R-PDF/R-TEST | G1-04/05/08 → PA 全部 | fixture manifest/校验工具；不修改冻结原件 | 篡改任一字节会失败；运行只写隔离副本 | 原 fixture 不一致即停并审计。可与 G1-09 并行，文件隔离 |
 | G1-11 | 建立并行 CI 骨架与本地同构 verify。R-TEST/R-LICENSE | G1-01R/03C/08/09 → G1 审计/全任务 | 快速 job：format/lint/type/unit/contract/build/secret/license；不创建付费服务 | 本地与私有远程 CI 同构；无依赖 job 并行；缓存键含锁文件/运行时；故意失败能快速定位 | CI 服务需登录时停在人工授权；不启用付费额度。独占流水线配置 |
 | G1-12 | 从华为官方安装并锁定 DevEco、SDK、缓存到 D 盘。R-COMPAT/R-COST | GR/G1-02 → PA-14H/PB-11 | IDE/SDK/模拟器路径、版本、哈希、环境说明；不写 ArkTS 业务 | D 盘主体/SDK/缓存、命令行版本、空项目官方诊断；记录不可避免 C 盘占用 | 登录/协议/下载源/空间不符即停；用官方卸载回滚。与 G1-04/05/06/07/08/09/10 可并行；不购买账号 |
 | G1-13 | 获取并登记固定中文字体及许可证。R-PDF/R-LICENSE | G1-02/10 → PA-03 | Adobe 官方字体、LICENSE、哈希、最小字重；不从镜像下载 | 干净字体清单、字符覆盖和篡改检测通过 | 授权/哈希不明即停并删除未采纳副本。可与 G1-12 并行；0 元 |
 | G1-14 | 建立参考机器、性能采样与资源预算说明。R-PERF | G1-02/03/10 → PA-13/A-14 | 环境清单、采样协议；不宣布未测阈值通过 | OS/CPU/RAM/DPI/磁盘/版本/fixture 哈希自动记录 | 噪声不可控则增加重复而不改阈值。可与 G1-12/13 并行 |
 | G1-14W | 落实 PoC-A 预注册的 Windows 11 64位参考环境。R-COMPAT/R-PA-METRIC | G1-14 → PA-05/13 | 现有合法设备或隔离VM的环境证据；不擅自升级当前Windows 10、不购买设备 | 100%缩放、96DPI、字体/Chromium/硬件信息可复现；与当前Win10基线差异记录 | 无可用Win11环境时必须请业主决定延期或批准实验环境变更；该变更需更新决策与重审。可与G1-12/13并行 |
-| G1-15 | 完成供应链初审与 SBOM/许可证基线。R-LICENSE/R-SEC | G1-02/03 → G1 审计 | 直接/传递依赖清单、用途、许可、漏洞；不批准例外 | GPL/AGPL/未知许可阻断 fixture；SBOM 可重建 | 不明许可即移除候选。可与 G1-11 并行；例外须业主批准 |
+| G1-15 | 完成供应链初审与 SBOM/许可证基线。R-LICENSE/R-SEC | G1-02/03 → G1 审计 | 直接/传递依赖清单、用途、许可、漏洞；不批准例外；显式核查当前树中的 MPL-2.0 传递依赖及 Python 工具许可证 | GPL/AGPL/未知许可阻断 fixture；SBOM 可重建；MPL 文件级义务和 Python 工具分发边界有书面结论 | 不明许可即移除候选。可与 G1-11 并行；例外须业主批准 |
 | G1-16 | 审计并签署 G1 工程底座。全部 G1 | G1-01/01R/02/03/03C/04/05/06/07/08/09/10/11/12/13/14/14W/15 → G2-01/02 | G1 报告、未完成项和命令索引；不做功能实现 | 从私有远程干净克隆后一键安装/verify；契约、真实测试设施、CI、工具链证据齐全 | 任一阻断未闭环不得进入功能实现；文档任务串行 |
 
 ## 5. PoC-A：排版生死闸原子任务

@@ -1,6 +1,7 @@
 {
   "expectedIssue": "TEMPLATE_FILE_ACCESS_FORBIDDEN",
-  "font": {
-    "path": "../../private/font.ttf"
+  "injection": {
+    "path": ["fonts", "path"],
+    "value": "../../private/font.ttf"
   }
 }

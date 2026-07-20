@@ -1,6 +1,6 @@
 # G1-06 v0 Host 能力与生命周期契约
 
-> 状态：已冻结　协议版本：`0.1.0`　日期：2026-07-20
+> 状态：契约已冻结、修复已实现，待 Claude 独立复审　协议版本：`0.1.0`　日期：2026-07-20
 
 ## 1. 目的与边界
 
@@ -38,11 +38,13 @@ registry → request → progress (0..n) → success | failure | cancelled
 - 错误只有稳定 code、是否可重试和本地化 detail key；原始系统错误、路径、密钥和用户内容不得穿透。
 - 降级是显式枚举，如浏览器下载、人工文件选择、手工复制/分享、系统打印或只读；安全失败不得通过扩大权限自动降级。
 
+单条消息由 `validateHostMessage` 校验；一段完整交互必须再由 `validateHostSession` 结合注册表做有状态校验。后者强制能力必须受支持、请求 ID 归属一致、进度声明且序号递增、错误码属于能力、取消符合声明，并且每个请求恰有一个终态。
+
 ## 4. 平台隔离与安全
 
 - Web 核心只能 import 本包的协议类型，禁止 import Electron、Node 文件 API、ArkTS 或平台插件。
-- 文件与目录位置由 Host 保管；核心只使用未来具体 payload Schema 定义的 `grant_id`、资源 handle 和安全文件名，不接收或提交任意绝对路径。
-- 协议预检拒绝 `path`、filesystem、Electron IPC、ArkTS context、shell、command、preload、Node integration 等平台字段，以及函数和 getter/setter。
+- 文件与目录位置由 Host 保管；核心只使用未来具体 payload Schema 定义的受控 `grant_id`、资源 handle 和安全文件名。当前协议预检按字段值拒绝盘符绝对路径、POSIX/UNC 绝对路径、`file:` URL 和 `..` 路径段，不依赖字段恰好命名为 `path`，因此任意键名也不能传递系统路径。
+- 协议预检另拒绝 path、filesystem、Electron IPC、ArkTS context、shell、command、preload、Node integration 等平台字段，以及函数、访问器和非普通对象；最多接受 32 层、10,000 个对象/数组节点，超限返回稳定问题而非栈溢出。
 - `secret.credential.manage` 不能返回明文凭证；状态查询只能返回是否存在、provider 和可公开元数据。具体密钥参数 Schema 在实现前另行冻结并安全审计。
 - 浏览器开发 Host 可以确定性模拟支持、拒绝权限、取消、超时和降级，但真实 Electron/ArkWeb 集成测试不得用它冒充平台实现。
 
@@ -61,4 +63,4 @@ registry → request → progress (0..n) → success | failure | cancelled
 - `pnpm contracts:check`：运行文档、模板和 Host 契约。
 - `pnpm verify`：运行全部 G1 契约、严格类型检查和生产构建。
 
-冻结时 19/19 项 Host 契约测试通过，覆盖 supported/degraded/unsupported 注册、权限拒绝、请求取消、取消终态、进度、成功、超时降级、未来版本、未知能力、注册缺失、Schema ID 错配、非法进度、原始路径、平台字段、getter 不执行、诊断脱敏和生成类型零 `any`。生成漂移反向探针必须失败并可通过重新生成恢复。
+修复后 28/28 项 Host 契约测试通过，新增覆盖伪装键名、重复编码与盘符相对路径、深度预算、继承访问器不执行，以及终态缺失/重复、错误码归属、进度序号、取消声明和 unsupported 能力的有状态会话校验。生成漂移反向探针必须失败并可通过重新生成恢复；最终结论仍等待独立复审。

@@ -1,3 +1,7 @@
+import Ajv2020 from "ajv/dist/2020.js";
+
+import configSchema from "../app-config.schema.json" with { type: "json" };
+
 export const CONFIG_ENVIRONMENTS = [
   "dev",
   "test",
@@ -13,6 +17,11 @@ export type ConfigLogLevel = (typeof CONFIG_LOG_LEVELS)[number];
 export interface RuntimeConfig {
   readonly environment: ConfigEnvironment;
   readonly logLevel: ConfigLogLevel;
+}
+
+interface RawRuntimeConfig {
+  readonly WENSHU_ENV: string;
+  readonly WENSHU_LOG_LEVEL: string;
 }
 
 export type ConfigErrorCode =
@@ -35,6 +44,8 @@ const CONFIG_PREFIX = "WENSHU_";
 const ENVIRONMENT_KEY = "WENSHU_ENV";
 const LOG_LEVEL_KEY = "WENSHU_LOG_LEVEL";
 const ALLOWED_KEYS = new Set([ENVIRONMENT_KEY, LOG_LEVEL_KEY]);
+const ajv = new Ajv2020({ allErrors: true, strict: true });
+const validateRawConfig = ajv.compile<RawRuntimeConfig>(configSchema);
 
 const ENVIRONMENT_PROFILES = {
   dev: { environment: "dev", logLevel: "debug" },
@@ -80,17 +91,33 @@ export function parseRuntimeConfig(
 
   const environment = source[ENVIRONMENT_KEY];
   const logLevel = source[LOG_LEVEL_KEY];
-  if (!isEnvironment(environment) || !isLogLevel(logLevel)) {
-    const invalidKeys: string[] = [];
+  const candidate = {
+    WENSHU_ENV: environment,
+    WENSHU_LOG_LEVEL: logLevel,
+  };
+  if (!validateRawConfig(candidate)) {
+    const invalidKeys = new Set<string>();
+    validateRawConfig.errors?.forEach((error) => {
+      const fieldName = error.instancePath.slice(1);
+      if (ALLOWED_KEYS.has(fieldName)) {
+        invalidKeys.add(fieldName);
+      }
+    });
     if (!isEnvironment(environment)) {
-      invalidKeys.push(ENVIRONMENT_KEY);
+      invalidKeys.add(ENVIRONMENT_KEY);
     }
     if (!isLogLevel(logLevel)) {
-      invalidKeys.push(LOG_LEVEL_KEY);
+      invalidKeys.add(LOG_LEVEL_KEY);
     }
-    throw new ConfigValidationError("CONFIG_INVALID", invalidKeys);
+    throw new ConfigValidationError("CONFIG_INVALID", [...invalidKeys].sort());
   }
 
+  if (!isEnvironment(environment) || !isLogLevel(logLevel)) {
+    throw new ConfigValidationError("CONFIG_INVALID", [
+      ENVIRONMENT_KEY,
+      LOG_LEVEL_KEY,
+    ]);
+  }
   return Object.freeze({
     environment,
     logLevel,
