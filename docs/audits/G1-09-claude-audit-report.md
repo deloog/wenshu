@@ -158,3 +158,180 @@
 **关闭路径**：由 Codex 修复 `M-01`、`M-02`，并为每项补反测（含 `.mts` 中的 `any` 必须失败、`src/generated/` 下的未登记文件必须失败），一并处理归属本任务的 `MINOR`，复跑 `pnpm verify` 后由 Claude 依本报告逐项复审并签署关闭。在复审给出 `PASS` 或合规 `CONDITIONAL PASS` 之前，`G1-11` 不得启动。审计者不提供也不应用补丁。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具；实施者不得自行关闭上述发现。`G1-07 NF-04` 与 `m-05` 的技术内容经 `N-08` 核实已达成，但其正式关闭状态随本报告结论一并由复审签署。
+
+---
+---
+
+# 复审（2026-07-20）：`41b7726..cba2aee`
+
+> 复审者：Claude（独立只读，与首审同一角色）　整改者：Codex　任务书：[G1-09-claude-reaudit-task.md](G1-09-claude-reaudit-task.md)
+>
+> **本章节的结论取代上文首审的 `FAIL`。** 上文首审记录原样保留，未删除或改写任何一行。
+>
+> 命名说明：本节新增发现使用 `RA-xx` 前缀。
+
+## 1. 复审范围与方法
+
+整改提交 `cba2aee fix: remediate G1-09 audit findings`（33 文件 +457/-50），新增 `tools/quality/src/generated-files.ts` 与其单元测试。
+
+按任务书要求，**不采信 [整改记录](G1-09-remediation.md) 的自述，也不采信 `pnpm verify` 全绿**（整改者自报 exit 0、115 项测试、13 个测试文件、9 个包 typecheck，我只用来核对漏跑，并已独立复现）：
+
+1. 逐行审读 `generated-files.ts`、`guardrails.ts`、`check-repository.ts`、`typecheck-coverage.ts`、`eslint.config.mjs`、`.prettierignore`、四个 `check-generated.ts`、`contract.ts`、`validation.ts`、`audit-semantics.ts`、`discovery.ts` 与各 `package.json`。
+2. **逐项重跑首审原始反例**，并按任务书第 2 节展开：扩展名矩阵、生成登记 11 种形态、Host 27 项敌意矩阵 + 19 项合法对照 + 8 项解码边界、typecheck include 遗漏、fixture 断言交换。
+3. 另找整改引入的新绕过（`RA-01`～`RA-03`）。
+4. 破坏性探针全部在 `D:\tmp\g109*` 仓库外副本执行（含把 `document-model` 整包复制出去、篡改 manifest 后运行**真实** `check-generated.ts`），**结束时已全部删除并核实无残留**，包括为解析依赖临时创建的 `D:\tmp\node_modules` 联接。
+5. 未运行 format、fix、generate 或任何修改 Git 历史的命令。全程未修改仓库内任何文件；结束时 `git status --short` 为空，唯一写入的是本报告的追加章节。
+
+## 2. 复跑证据
+
+| 检查 | 结果 |
+|---|---|
+| `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store`（CI=true） | 通过，10 个工作区项目 |
+| `pnpm verify` | **exit 0**：质量护栏 57 源码/188 仓库文件 → 层级审计 13 文件 → unit 20/20 → config 7/7 → contract-runtime 4/4 → document 15/15 → template 15/15 → host 31/31 → project 23/23（合计 **115**）→ 9 包 typecheck → build。与整改者自报一致，已独立复现 |
+| `pnpm-lock.yaml` / `tsconfig.base.json` | 本次范围内**零改动**，未借整改放宽严格度或扩大供应链 |
+| 手写代码中 `any`/`as any`/`@ts-*`/`eslint-disable` | 匹配数 **0**（扫描面已含 `.mts`/`.cts`/`.mjs`） |
+| 文件体量 | 最大源码 `contract.ts` 208 行、`validation.ts` 206 行；最大测试 89 行。全部低于 300 行预警线 |
+| `git status --short`（复审前 / 后） | 两次均为空 |
+
+## 3. 首审发现逐项判定
+
+### `M-01`　TypeScript 扩展名覆盖 —— **已关闭 ✅**
+
+修复是结构性的：`guardrails.ts` 新增 `TYPESCRIPT_EXTENSIONS`/`CODE_EXTENSIONS` 白名单与 `hasExactExtension`，`check-repository.ts` 改用白名单而非正则，ESLint 的 `files` 扩为四种 TS 扩展名，并新增 `hasNoncanonicalCodeExtension` 主动拒绝大小写变体。
+
+1. **ESLint 配置（任务书 M-01.1）**——在真实仓库查询 `--print-config`：
+
+   ```text
+   src/x.ts    no-explicit-any ACTIVE      src/x.mts   no-explicit-any ACTIVE
+   src/x.tsx   no-explicit-any ACTIVE      src/x.cts   no-explicit-any ACTIVE
+   ```
+
+   首审时 `.mts`/`.cts` 返回 `undefined`（无任何配置匹配），现已全部启用 TS 规则。
+
+2. **AST 扫描与体量（M-01.2）**——四种扩展名逐一实测：
+
+   | 扩展名 | 进入 AST 扫描 | 显式 `any` 命中 | 生产 401 / 400 | 测试 501 / 500 |
+   |---|---|---|---|---|
+   | `.ts` / `.tsx` / `.mts` / `.cts` | 均 yes | 均 1 | 均 `error(401)` / `warning(400)` | 均 `error(501)` / `warning(500)` |
+
+3. **typecheck 覆盖（M-01.3）**——仓库外假工作区：`include: ["src"]` 时四类文件全部入册（clean）；把 `include` 改为只含 `.ts`/`.tsx` 后，立即报 `TypeScript file is outside typecheck: src\b.mts`（`.cts` 同）。
+
+4. **大小写变体（M-01.4）**——首审时 `.TS` 只是"不被检查的死文件"，现在**主动失败**：`a.TS`、`a.MTS`、`a.CTS`、`a.Ts`、`a.TSX`、`a.JS`、`a.MJS` 全部命中 `noncanonical-code-extension`；`a.ts`、`a.mts` 与非代码文件 `README.MD` 正确不触发。
+
+5. **JavaScript 未回归（M-01.5）**——`.js`/`.jsx`/`.mjs`/`.cjs` 仍进入禁止语法扫描，正确豁免 TS 专属体量阈值；ESLint 对 `.js`/`.mjs`/`.cjs` 应用 `eslint.configs.recommended` 而不强加 TS 类型规则。残留见 `RA-01`。
+
+**发现关闭。**
+
+### `M-02`　生成文件身份 —— **已关闭 ✅**（形成真正的双向互锁）
+
+修复把"目录自助豁免"改为"manifest 登记 + 生成器反向确认"：`package.json` 增加 `wenshu.generatedFiles`，新增 `inspectGeneratedFileRegistry` 做正向校验，`checkFileSize` 改为只豁免**已登记文件**，同时把 `**/src/generated/**` 从 `.prettierignore` 与 ESLint `ignores` 中**移除**（实测 `--print-config packages/document-model/src/generated/document.ts` 现在返回 `no-explicit-any ACTIVE`）。
+
+**质量层 11 种形态（仓库外工作区）**：
+
+```text
+基线：1 个真实生成文件已登记                    ACCEPTED (registered: 1)
+src/generated/ 下未登记的手写文件                unregistered file in generated directory
+登记了不存在的文件                               invalid or missing generated file registration
+有 generate:check 但登记为空 / 无登记键          package with generate:check must register generated files
+登记项含 ../ 逃逸 / 绝对路径 / 大小写不符        invalid or missing generated file registration
+非字符串登记项                                   generated file registration must be a string
+近似目录名 src/generated-by-hand.ts              不获豁免（450 行仍 error(450)）
+已登记文件：体量豁免 clean，但显式 any 仍被扫描  按预期
+```
+
+**生成器层——把 `document-model` 整包复制到 `D:\tmp` 后运行真实 `check-generated.ts`**：
+
+```text
+A. 未篡改 manifest                        manifest 守卫未触发（其后因副本缺少依赖解析而中止，属探针假象）
+B. manifest 额外登记一个手写文件          exit=1  manifest 守卫触发
+C. 删除 wenshu 登记键                     exit=1  manifest 守卫触发
+D. 登记指向错误路径                       exit=1  manifest 守卫触发
+```
+
+这正是任务书第 2 节要求判断的关键点：**质量层单独接受"把手写文件也登记进 manifest"（`ACCEPTED (registered: 2)`），但该形态会被生成器层的 `check-generated.ts` 以硬编码的"恰好 1 项且等于本包生成路径"断言拒绝**。两层互相确认，不是把目录自助豁免换成 manifest 自助豁免。四个真实包的登记与生成器一一对应，`pnpm verify` 中四次 `generate:check` 全部 exit 0。字节漂移检查的严格 `!==` 语义与四包零漂移已在首审 `N-06` 用真实生成器逐字节证明，本次未重复。
+
+**发现关闭**（残留见 `RA-03`）。
+
+### 六项 MINOR
+
+| 首审项 | 判定 | 复审核验 |
+|---|---|---|
+| `m-01` 硬编码 fixture 清单 | **关闭 ✅** | `project-contract.contract.test.ts` 已改为 `readdir` 目录驱动并排序遍历，且在 `expectedIssue`/`expectedPath` 任一缺失或非字符串时 `throw`。新增 fixture 会自动纳入，元数据缺失会失败 |
+| `m-02` `expectedPath: "/"` 空洞断言 | **未完全关闭 ⚠** | 见下方 `RA-04` |
+| `m-03` 冻结 Schema 被静默放宽 | **关闭 ✅** | 逐键比对确认 `ModelContext.provider` 与 `.model` 的两条正则已**恢复到 G1-07 冻结值**（含 `(?!sk[-_])` 与 `(?!.{0,20}(?:key\|secret\|token))` 前瞻）。新增 `validateModelIdentifierInput` 在 Schema 校验**之前**运行，因此 `sk-live-abc`、`my-secret-store`、`TOKEN-production`、`apikey-x` 全部返回专用 `PROJECT_MODEL_IDENTIFIER_INVALID@/subject_model_context/{provider,model}` 而非泛化 `PROJECT_SCHEMA`；`anthropic` 仍正常接受。该函数只读取自有属性且运行在共享 `inspectData` 的原型/访问器守卫之后，不执行访问器。Schema 接受集合未被扩大 |
+| `m-04` 预检过宽误杀 | **关闭 ✅** | 首审 27 项敌意矩阵中 **26 项继续拒绝**；唯一变化的 `100%` 正是首审 `m-04` 要修的误杀本身（首审我把它放在"必拒"清单里，而把同类的 `50% complete` 判为误杀——**是我首审的清单归类不一致，不是实现缺陷**）。19 项合法对照 **全部接受**，含首审误杀的 `50% complete`、`anchor:section-1`、`mode:fast`、`mailto:`、`data:`、`http://`、多字节 `报告 2026.pdf`、`报告 50%.pdf` 与编码后的多字节。解码边界一致且可说明：`%z`/`%zz`/`%2` 拒绝，裸 `%`、`50% and %41`、纯有效编码接受，16 轮与 17 轮编码均拒绝；`engineering-standards.md:33` 已同步描述该边界。另测 9 种"裸 % 是否被用来夹带路径"的组合（`50%C:/…`、`100% /etc/shadow`、`%..%2f..`、`.%2e/x`、`%25` 三重、`% + file:`、`% + NUL`、真实 UNC）**全部仍被拒绝**——容忍裸 `%` 没有打开穿透面 |
+| `m-05` 按完整路径匹配导致误报 | **关闭 ✅** | `discoverTestFiles` 已改回按 basename 判定。实测 `fixtures.test.data/plain.json` 与 `a.spec.dir/note.md` **不再**成为候选；真实测试文件仍按 G1-08 规则全部发现（仓库根 `root.e2e.test.ts`、7 层深目录、`Sneaky.Test.ts` 大小写变体） |
+| `m-06` BlueOak 许可证未登记 | **关闭 ✅** | `docs/implementation-roadmap.md` 的 `G1-15` 行已把 BlueOak-1.0.0 与 MPL-2.0、Python-2.0 并列写入范围内与完成证据（"BlueOak 宽松许可是否可接受均有书面结论"），停止条件为"不明或未获业主批准的许可即移除候选"。**本次整改没有自行批准该许可证** |
+
+## 4. 本次复审的新发现
+
+均为 `MINOR`，**无一阻断消费者**。
+
+**`RA-01`（MINOR）　`.jsx` 没有任何 ESLint 配置**
+
+`eslint --print-config packages/test-support/src/x.jsx` 返回 `undefined`——与首审时 `.mts` 的症状相同。`.jsx` 已被纳入质量扫描器的 `CODE_EXTENSIONS`（禁止语法扫描生效），但 ESLint 的默认 `files` 只含 `**/*.js`、`**/*.mjs`、`**/*.cjs`，`eslint.config.mjs` 也未补 `.jsx`，因此 `.js`/`.mjs`/`.cjs` 能拿到 `eslint.configs.recommended` 而 `.jsx` 拿不到任何规则。影响有限（仓库中无 `.jsx`，且不应对它套用 TS 类型规则），但这是新建扩展名白名单里唯一未对齐的一项。**归属 `G1-09`**，最迟 `G1-11` 前：在 ESLint 的 JS 配置块补 `**/*.jsx`，或在质量扫描器中显式拒绝未登记的代码扩展名。
+
+**`RA-02`（MINOR）　Host 预检仍放行三种绝对路径形态，与文档声明不符**
+
+`docs/engineering-standards.md:33` 声明预检拒绝"POSIX/UNC 路径"，实测下列形态被接受：
+
+```text
+//server/share/secret            ACCEPTED   （正斜杠 UNC，Windows 与 Node 均按 UNC 解析）
+//10.0.0.1/c$/Windows/win.ini    ACCEPTED
+///etc/shadow                    ACCEPTED
+\Windows\win.ini                 ACCEPTED   （单前导反斜杠 = 当前盘根相对）
+对照：/etc/shadow、\\server\share、C:/Windows/win.ini 均正确拒绝
+```
+
+根因：POSIX 规则 `(?:^|[\s=:'"(])\/(?!\/)` 为放行 `https://` 而刻意豁免了连续 `//`，而 UNC 规则 `\\\\[^\\]` 只覆盖双反斜杠形态，没有单前导反斜杠规则。**已核实这是先存问题而非本次整改引入**：用首审基线 `41b7726` 的 `contract.ts` 对照，两条正则完全相同，因此这些形态在首审时同样被接受——是我首审的 27 项矩阵只测了反斜杠 UNC 和单前导 `/`，没有覆盖到。判 `MINOR` 的理由：这是 payload Schema 之前的纵深预检而非主控制，当前无任何消费者解引用这些值，且仅对特定形态 fail-open。**归属 `PB-05A`**（与 `m-04` 同批处理路径/标识规则），最迟真实 Host 实现（`PB-10`）开工前；同时应修正 `engineering-standards.md:33` 的措辞使其与实现一致。
+
+**`RA-03`（MINOR）　质量层不去重生成登记项**
+
+manifest 中重复登记同一路径（`["src/generated/out.ts", "src/generated/out.ts"]`）在质量层返回 `ACCEPTED (registered: 2)`。四个真实包由 `check-generated.ts` 的"恰好 1 项"断言兜住，但质量层自身没有去重或计数校验，未来新增生成包若其 `check-generated.ts` 写得更宽松就会失去这道保护。**归属 `G1-09`**，最迟 `G1-11` 前：在 `inspectGeneratedFileRegistry` 中对重复登记报错。
+
+**`RA-04`（MINOR，由 `m-02` 转入未关闭）　`missing-project-field` 的断言仍不具区分度**
+
+整改确有实质改进：Ajv 的 `required` 错误现在会拼出 `${instancePath}/${missingProperty}` 并正确做 JSON Pointer 转义（`~`→`~0`、`/`→`~1`），fixture 的 `expectedPath` 也由 `/` 改为 `/revision`，且该 pair 确实命中。但任务书第 2 节对 `m-02` 的验收标准是"**改成 `/` 或另一个缺失字段时断言必须失败**"，实测未达成：
+
+```text
+声明的 PROJECT_SCHEMA @ /revision      命中
+改成 PROJECT_SCHEMA @ /                *** 仍然命中 ***
+改成 PROJECT_SCHEMA @ /title           *** 仍然命中 ***
+错误 code + 正确 path                   正确失败
+该输入共返回 32 组不同的 code@path
+```
+
+根因是 fixture 同时缺失多个必填字段，Ajv 以 `allErrors` 为每个缺失字段各产生一条 `required` 错误，加上顶层 `oneOf` 失败产生的 `PROJECT_SCHEMA@/`，`.some(code && path)` 因此仍可被多个路径满足。**归属 `G1-09`**，最迟 `G1-11` 前：把该 fixture 改为**只缺失 `revision` 一个字段**（其余字段补全），使 `/` 与 `/title` 都不再命中。
+
+## 5. 未执行项与限制
+
+1. **未在真实仓库内植入任何探针文件**：`M-01`/`M-02` 的绕过与修复验证均在 `D:\tmp` 副本完成，并用真实仓库配置下的 `eslint --print-config` 交叉确认。
+2. **生成器层的字节漂移未在本轮重跑**：仓库外副本缺少 `json-schema-to-typescript` 的解析路径（`NODE_PATH` 对 ESM/`createRequire` 无效），因此案例 A/E 以模块解析失败中止，属探针假象。该能力已在首审 `N-06` 用真实生成器对四个包逐字节证明，本轮由 `pnpm verify` 中四次 `generate:check` exit 0 回归覆盖。
+3. **未执行 format、fix、generate 或 Git 历史操作**（任务书禁止）。
+4. **未对全部 33 个变更文件做 AST 级等价比对**；重点核对了质量工具、Host 预检、项目契约与测试断言方向（均为增强）。
+5. **范围外未审计**：数据库、真实 Host、Electron/ArkWeb、渲染/E2E、CI 服务、`G1-08 RA-01/RA-02` 的实现。
+6. **供应链结论仍由 `G1-15` 签署**；本轮只确认 lockfile 未变、无新增依赖。
+
+## 6. 复审汇总与最终结论
+
+| 首审严重级别 | 首审数量 | 已关闭 | 未完全关闭 |
+|---|---:|---:|---:|
+| `BLOCKER` | 0 | — | 0 |
+| `MAJOR` | 2 | **2** | **0** |
+| `MINOR` | 6 | 5 | 1（`m-02` → 转为 `RA-04`） |
+
+本次新增：`MINOR` 4 项（`RA-01`～`RA-04`），`BLOCKER`/`MAJOR` **0** 项。
+
+**结论：`CONDITIONAL PASS`　——　`G1-09` 可作为后续原子任务（含 `G1-11`）的前置**
+
+判定依据：
+
+- **两项 `MAJOR` 的原始反例已逐条复跑并全部转为拒绝或安全行为**，无一项靠放宽断言、删测试或改口径关闭。`tsconfig.base.json` 与 `pnpm-lock.yaml` 零改动、手写 `any`/抑制指令计数为 0，确认严格度与供应链边界未被反向让步。
+- 两项修复都选择了结构性方案：`M-01` 从"正则各写一份"改为**共享扩展名白名单 + 主动拒绝非规范大小写**（首审时 `.TS` 只是静默死文件，现在会让门禁失败）；`M-02` 从"路径自助豁免"改为**manifest 登记 + 生成器反向硬断言**。因此本轮新写的探针——四扩展名 × 体量/AST/typecheck 交叉矩阵、11 种登记形态、9 种裸 `%` 夹带组合——也一并被覆盖。
+- 最能说明修复质量的是 `M-02` 的双向互锁：质量层单独会接受"把手写文件也登记进 manifest"，而这一形态恰好被生成器层的硬断言拒绝。我把 `document-model` 整包复制出仓库、篡改 manifest 后运行**真实** `check-generated.ts` 验证了 B/C/D 三种篡改全部触发守卫——这不是把旧豁免换个位置，而是两层互相确认。
+- 不判 `PASS`，是因为 `m-02` 未达到任务书为它设定的验收标准（改成 `/` 或另一个缺失字段时断言仍然命中），另有 3 项新增 `MINOR`。四项均不阻塞消费者，且已在上文逐项写明归属与最迟关闭点：`RA-01`、`RA-03`、`RA-04` 归 `G1-09`，最迟 `G1-11` 前；`RA-02` 归 `PB-05A`，最迟 `PB-10` 开工前。
+- **`RA-02` 需特别说明**：我已用首审基线的 `contract.ts` 逐条对照，确认那三种绝对路径形态在首审时同样被接受——**这是我首审 27 项矩阵的覆盖盲区，不是本次整改造成的回归**。据实记录以免误判整改质量。
+
+**放行与后续**：实施者可据本复审把 `G1-09` 的路线图状态更新为最终完成，并把 `RA-01`～`RA-04` 登记到上述任务；`G1-11` 可以按自身 DoR 启动，且应在建立 CI 前一并消化归属 `G1-09` 的三项。首审 `N-08` 关于 `G1-07 NF-04` 与其 `m-05` 的技术结论，经本轮 `m-03`/`m-01` 复核依然成立，随本结论正式关闭。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复审由未参与实施与修复的独立审计角色出具。`RA-01`～`RA-04` 同样不得由实施者自行关闭。
