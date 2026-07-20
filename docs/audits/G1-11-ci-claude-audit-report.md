@@ -378,3 +378,204 @@ neutralise scanTextForSecrets      FAILS
 **放行边界**：本结论只签署"可以进入业主授权步骤"。**我没有也不会推送 workflow 或触发任何远程运行。** 首次远程运行须由业主另行授权；`CI-02`～`CI-05` 仍为未关闭 `MINOR`；依首审任务书，`G1-11` 在远程成功并完成收尾审计之前**不得标记最终完成**。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁。`CI-02`～`CI-05` 同样不得由实施者自行标记关闭。
+
+---
+
+# G1-11 远程首跑与 MINOR 收尾审计（2026-07-20）：`0a6877c..6ba1511`
+
+> 任务书：[G1-11-final-claude-audit-task.md](G1-11-final-claude-audit-task.md)　收尾提交：`6ba1511`　工作树 HEAD：`b4fda9d`
+>
+> 本章由与前两章同一独立审计角色出具，未参与任何实施或修复。所有结论只来自我自己重跑的命令、我自己构造的反例和只读远程查询，不采信实施记录、收尾台账或"全绿"自述。
+
+## 1. 边界与方法
+
+- **写入边界**：本轮只对本文件做严格追加。首审章节与 `CI-01` 定点复核章节一字未删、未改写。除本文件外未修改任何代码、测试、workflow、lockfile、配置、Schema、生成物或其他文档。
+- **探针边界**：全部破坏性验证在仓库外副本 `D:\tmp\g111f1`、`D:\tmp\g111f2`、`D:\tmp\g111f4`、`D:\tmp\g111f6` 中进行，审计结束后已全部删除（`ls -d /d/tmp/g111*` → 无残留）。
+- **远程边界**：只用 `gh api` 只读查询 run/job/log 与仓库元数据。**未 push、未创建 PR、未重新运行、未取消、未触发任何 Actions、未改动远程设置。**
+- **工具链**：本地复跑使用文档冻结的 D 盘工具链 `D:\Applications\Node\node-v24.17.0-win-x64`（`node v24.17.0`）+ `pnpm 11.15.1`，与远程一致。
+
+> 一处环境说明，供业主知情，不构成发现：本机 `pnpm` 在 `run` 前的依赖状态检查会尝试自动 `install` 并清空 `node_modules`（`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`），根因是 `node_modules/.pnpm-workspace-state-v1.json` 记录了 `filteredInstall`，与 Node 版本无关（换回冻结的 24.17.0 后现象相同）。为避免审计动作改动工作区，我用 `--config.verify-deps-before-run=false` 抑制 pnpm 的自动安装后再执行脚本本体。该参数只关闭 pnpm 自身的"跑前自动装依赖"，不改变被测脚本、不放宽任何断言。
+
+## 2. 首次远程运行证据（任务书 §2）
+
+`gh api repos/deloog/wenshu/actions/runs/29748496592` 独立取回：
+
+```json
+{"id":29748496592,"path":".github/workflows/verify.yml","event":"push","head_branch":"main",
+ "head_sha":"0a6877c74c8df50610ec16103d2cbdb2be152952","status":"completed","conclusion":"success",
+ "run_attempt":1,"created_at":"2026-07-20T13:57:24Z","updated_at":"2026-07-20T13:58:25Z"}
+```
+
+event、head SHA、status/conclusion 均与任务书要求一致。8 个 job 的名称集合与 `CI_JOB_NAMES` **精确一致**（无多、无少、无改名），conclusion 全部 `success`。以下 started/completed 与 runner 由我从 `/jobs` 端点独立取回，**不是抄文档表格**：
+
+| 作业 | conclusion | started (UTC) | completed (UTC) | 实测时长 | runner |
+|---|---|---|---|---:|---|
+| static | success | 13:57:27 | 13:58:00 | 33 秒 | GitHub Actions 1000005513 |
+| unit-config | success | 13:57:27 | 13:57:59 | 32 秒 | 1000005516 |
+| contracts | success | 13:57:29 | 13:57:59 | 30 秒 | 1000005518 |
+| typecheck | success | 13:57:27 | 13:58:25 | 58 秒 | 1000005515 |
+| build-test | success | 13:57:28 | 13:57:50 | 22 秒 | 1000005517 |
+| build-staging | success | 13:57:28 | 13:57:49 | 21 秒 | 1000005519 |
+| build-production | success | 13:57:27 | 13:57:49 | 22 秒 | 1000005514 |
+| security | success | 13:57:28 | 13:57:59 | 31 秒 | 1000005520 |
+
+我实测的 8 个时长与 [首次远程证据](G1-11-first-remote-run.md) 表格**逐项相同**；8 个作业落在 8 台不同 runner 上，是真实并发而非串行。
+
+**日志不是空步骤**：每个 job 的步骤序列均为 `Set up job → Checkout → Set up Node.js → Activate pnpm → Resolve pnpm store → Restore pnpm store → Install frozen dependencies → Run <job> → post steps`，且日志中可直接读到：
+
+- `node: v24.17.0`；`corepack prepare pnpm@11.15.1 --activate` 输出 `11.15.1`；
+- 冻结安装真实执行：`Lockfile is up to date, resolution step is skipped`、`Done in 4.2s using pnpm v11.15.1`；
+- 真实作业输出，例如 `[ci:static] format/lint/quality` 与 `Quality guardrails passed: 71 source/config files, 220 repository files`、`[ci:security] secrets` → `Secret scan passed: 220 tracked files.`、`[ci:security] licenses` → `License scan passed: 115 dependency paths; Apache-2.0=14, BlueOak-1.0.0=1, BSD-2-Clause=6, BSD-3-Clause=3, ISC=6, MIT=82, MPL-2.0=2, Python-2.0=1`。
+
+**缓存事实逐条核对属实**：
+
+- 首跑多个 job 为 miss：`static` 日志 `Cache not found for input keys: Linux-node-24.17.0-pnpm-11.15.1-0d38193794fa0ce98016a405eada7b13780c4551754dd4213df02401159ef9a8`；
+- `build-production` 先 miss 后在 post step（13:57:45→13:57:47）`Cache saved with key: <完整键>`；
+- `security`（started 13:57:28，晚于 `build-production` 的 13:57:27）在 Restore 步骤（13:57:47→13:57:50）`Cache hit for: <同一完整键>`、`Cache Size: ~24 MB (24980181 B)`、`Cache restored successfully`，post step 为 `Cache hit occurred on the primary key ..., not saving cache.`。恢复耗时 3 秒，对比 miss 的 0～1 秒，是真实恢复而非空操作；
+- 其他 job 的 post step 出现 `Failed to save: Unable to reserve cache with key ..., another job may be creating this cache.`，属同键并发保存竞争，**相关 job 仍为 success**，未被此竞争拖垮。
+
+证据文档"稍后启动的 `security`"这一措辞我按秒级时间戳核对过：`security` 13:57:28 确实晚于 `build-production` 13:57:27，措辞与事实相符。
+
+**`cancel-in-progress` 确为未验证**：`gh api .../actions/runs?per_page=100` 返回 `total_count: 1`，即该 workflow 至今只有这一次运行，`run_attempt` 为 1。不存在第二次同分支运行，因此取消行为**没有**任何实证。文档已如实写明未执行，未由单次成功推定 —— 这一点与我的独立查询一致。我同意不为触发取消而制造无意义提交。
+
+**远程同步状态**：`git rev-parse origin/main` = `0a6877c74c8df50610ec16103d2cbdb2be152952`；`git branch -r --contains 6ba1511` 为空，`6ba1511` 与 `b4fda9d` 均**尚未推送**。仓库 `private: true`、`fork: false`、open+closed PR 均为 0，与"未创建 PR、未公开仓库"一致。本轮只判断"是否允许最终同步"，**不把未推送代码视为已远程验证**。
+
+## 3. `CI-02`：matrix 双向互锁（任务书 §3）
+
+仓库外副本 `D:\tmp\g111f1`：整份 `tools/ci` 与 `.github/workflows/verify.yml` 复制出去，只改 workflow，跑 `node --test test/ci-runner.unit.test.ts`。
+
+| 变异 | 结果 | 失败原因 |
+|---|---|---|
+| 合法原文件（对照） | **PASSES** | — |
+| 新增 `sneaky-extra` | FAILS | 完整数组不相等 |
+| 删除 `security` | FAILS | 完整数组不相等 |
+| 改名 `typecheck`→`typecheck-renamed` | FAILS | 完整数组不相等 |
+| 重复 `contracts` | FAILS | 完整数组不相等 |
+| 调换 `static`/`unit-config` 顺序 | FAILS | 完整数组不相等 |
+| 调换 `build-test`/`build-staging` 顺序 | FAILS | 完整数组不相等 |
+
+断言是 `assert.deepEqual(matrixJobs, [...CI_JOB_NAMES])`——**有序全数组相等**，不是"恰好 8 个"。改名与调换顺序能被抓到，正说明它比较的是名称与次序本身；首审 `CI-02` 指出的**新增方向**已被覆盖。
+
+`CI_JOBS` 自身键集合互锁（`assert.deepEqual(Object.keys(CI_JOBS), [...CI_JOB_NAMES])`）在 `D:\tmp\g111f2` 单独验证，只改 `src/jobs.ts`：
+
+| 变异 | 结果 |
+|---|---|
+| `CI_JOBS` 键 `security`→`securityX` | FAILS |
+| `CI_JOBS` 新增 `sneaky-extra` 键 | FAILS |
+| `CI_JOBS` 调换 `contracts`/`typecheck` 键顺序 | FAILS |
+| 只往 `CI_JOB_NAMES` 加名字 | FAILS |
+| `CI_JOB_NAMES` 中重复 `security` | FAILS |
+
+互锁无回归。**`CI-02` 关闭。**
+
+## 4. `CI-03`：Action 完整 SHA（任务书 §4）
+
+测试实现为：`[...workflow.matchAll(/^\s+uses:\s+(\S+)/gmu)]` 取**捕获组 1**，即 `uses:` 后的引用值本身（`\S+` 在空格处终止，因此 `# v7.0.0` 注释根本不进入被校验字符串）；随后 `assert.equal(actionReferences.length, 3)` 与逐项 `assert.match(reference, /^[^@\s]+@[0-9a-f]{40}$/u)`。**校验对象是实际引用值，不是注释**。
+
+| 变异（改 `actions/checkout` 的引用） | 结果 |
+|---|---|
+| 合法原文件（3 个完整 SHA） | **PASSES** |
+| `@v7` | FAILS |
+| `@v7.0.0` | FAILS |
+| `@main` | FAILS |
+| 短 SHA（7 位） | FAILS |
+| 39 位十六进制 | FAILS |
+| 41 位十六进制 | FAILS |
+| 大写十六进制 | FAILS |
+| 含非十六进制字符 `...z` | FAILS |
+| 新增第 4 个 Action | FAILS（数量断言） |
+| 删到只剩 2 个 Action | FAILS（数量断言） |
+
+任务书列举的全部不合规形态均被拒绝，三个现有完整 SHA 通过。大写 SHA 亦被拒（`[0-9a-f]` 而非 `[0-9a-fA-F]`），比要求更严，方向正确。**`CI-03` 关闭。**
+
+> 一个不构成发现的边界说明：正则要求 `uses:` 前有缩进（`^\s+`）。零缩进的 `uses:` 不会被计数，但那已不是合法的 step 键，YAML 层面先失败，因此不构成可利用的绕过路径。
+
+## 5. `CI-04`：空/损坏 pnpm 仓库（任务书 §5）
+
+在 `D:\tmp\g111f2` 伪造虚拟仓库，直接调用 `discoverInstalledPackageDirectories`：
+
+| 伪造形态 | 结果 |
+|---|---|
+| `.pnpm` 存在但为空 | **THROWS** `pnpm virtual store contains no installed packages` |
+| `.pnpm` 下只有文件 | **THROWS** 同上 |
+| `.pnpm` 下只有 `node_modules` 保留目录 | **THROWS** 同上 |
+| 包条目缺嵌套 `node_modules` | **THROWS** `ENOENT` |
+| 嵌套 `node_modules` 为空 | **THROWS** 同上（零包目录） |
+| 完全没有 `node_modules` | **THROWS** `ENOENT` |
+| 合法普通包 `left-pad` | 返回 1 个路径 ✔ |
+| 合法 scoped 包 `@scope/util` | 返回 1 个路径 ✔ |
+| 普通 + scoped 并存 | 返回 2 个路径 ✔ |
+| 合法包 + 一个损坏条目 | **THROWS** `ENOENT`（损坏不被合法包掩盖） |
+
+全部损坏形态 fail-closed，合法形态发现集合正确。
+
+**两个守卫都是承重的**：
+
+- 删掉 `if (directories.size === 0)` 守卫后，空仓库不再抛错而是**静默返回 `[]`**（即首审 `CI-04` 的原始缺陷复现）；同一改动下跑 `test/security-scans.unit.test.ts`，`not ok 4 - license discovery rejects an empty pnpm virtual store`，`# pass 4 / # fail 1` —— 新增用例确实由该守卫承重，不是装饰。
+- 恢复首审的 ENOENT 静默吞掉逻辑后，「合法包 + 损坏条目」由 `THROWS` 变成**静默返回 1 个路径**，损坏条目被隐藏。这正是删除该 `try/catch` 的理由，修复方向正确。
+
+**真实仓库对照**：`discoverInstalledPackageDirectories("D:/wenshu")` 返回 **115** 条实际路径，全部位于 `node_modules/.pnpm` 下；`@wenshu/*` 工作区自有包命中数为 **0**，未被误算作第三方依赖。虚拟仓库中 33 个 `@` 开头的条目（`@eslint+*`、`@apidevtools+*` 等）均被正确发现，scoped 解包路径在真实数据上有效。`pnpm ci:verify` 的安全作业输出 `License scan passed: 115 dependency paths; Apache-2.0=14, BlueOak-1.0.0=1, BSD-2-Clause=6, BSD-3-Clause=3, ISC=6, MIT=82, MPL-2.0=2, Python-2.0=1`，分布非空且与远程首跑完全一致。**`CI-04` 关闭。**
+
+> 未执行项：我**没有**在本地重跑 `pnpm install --frozen-lockfile`，因为那会改写 `node_modules`，超出只读审计边界。替代证据强于本地重装——远程首跑本身就是在干净 runner 上执行冻结安装后跑出 115 条路径与同一许可分布的。
+
+## 6. `CI-05`：过程记录完整性（任务书 §6）
+
+[实施记录](G1-11-ci-implementation.md)「关键反例」现含 5 条，其中任务书列举的四项过程均在列，逐条与事实核对：
+
+| 任务书要求 | 记录原文 | 核对 |
+|---|---|---|
+| 首轮 static 因 4 个格式问题失败 | 「并行首轮中 `static` 因 4 个未格式化文件失败，其他 7 项继续完成，最终汇总精确标记失败」 | 与首审记录的失败形态一致；"其他 7 项继续完成"与 workflow `fail-fast: false` 及本地 runner 行为相符 |
+| 初版许可证只扫 11 个路径且分布为空 | 「许可证扫描初版只报告 11 个工作区路径且许可分布为空，被判为假阳性并废弃」 | 与首审 `CI-04` 上下文一致；现为 115 条非空分布，量级对得上 |
+| 暂存后秘密扫描命中私钥头 fixture，改为运行时拼接 | 「新文件暂存后，秘密扫描命中测试源码中的私钥头 fixture；fixture 改为运行时分段拼接」 | 属实：`security-scans.unit.test.ts:14` 为 `["-----BEGIN", "PRIVATE KEY-----"].join(" ")`，同文件 `:25` 的 AWS key 亦为 `["AKIA", "A".repeat(16)].join("")` |
+| 包目录 cwd 假设导致 ENOENT，改用 `import.meta.url` | 「`tools/ci` 从包目录运行时，workflow 测试因假设 cwd 为仓库根而 `ENOENT`；改为从 `import.meta.url` 解析仓库文件后，根目录与包目录均通过」 | 属实：测试用 `fileURLToPath(new URL("../../../.github/workflows/verify.yml", import.meta.url))`；我全部反例都是在包目录下执行的，确实可跑 |
+
+四项齐备，措辞与事实相符，且如实写成"失败与修复"，没有把实施失误包装成成果。**`CI-05` 关闭**（该项为过程记录完整性，不涉及运行时门禁）。
+
+## 7. 共同回归与漂移（任务书 §7）
+
+全部在冻结工具链（Node 24.17.0 / pnpm 11.15.1）上复跑：
+
+| 命令 | 结果 | 计数 |
+|---|---|---|
+| `pnpm --filter @wenshu/ci test` | EXIT=0 | tests 8 / pass 8 / fail 0 |
+| `pnpm typecheck` | EXIT=0 | 10 个工程全部 `Done`，零 TS 错误 |
+| `pnpm ci:verify` | EXIT=0 | 8/8 作业 PASS；`Secret scan passed: 223 tracked files.`；`License scan passed: 115 dependency paths`（分布同上）；`Quality guardrails passed: 71 source/config files, 223 repository files.` |
+| `pnpm verify` | EXIT=0 | 聚合 tests 132 / pass 132 / fail 0 |
+
+- **计数自洽**：远程首跑在 `0a6877c` 报 220 个跟踪文件；`git ls-tree -r --name-only 0a6877c` = 220，`6ba1511` = 222（新增两份文档），当前 HEAD `b4fda9d` = 223（`b4fda9d` 仅新增本轮任务书）。本地扫描的 223 与 `git ls-files` 完全一致，无未跟踪文件混入。
+- **`CI-01` 无回归**：独立重建 NUL 反例（key 前置 NUL、后置 NUL、双侧 NUL 包夹、64 字节 NUL 前后包夹的二进制形态、纯文本对照）——全部 `FLAGGED: AWS access key`；干净文件不误报。
+- **`IA-01`/`RA-01`/`RA-02` 无回归**：`test:foundation` 36/36 通过，隔离与证据守卫用例全部在列并通过，含「evidence rejects unprepared and brand-stripped handles」「非空证据阻止清理且保持字节一致」「同一 worker index 只能被认领一次」「清理拒绝被篡改的 worker claim」「排在证据写入之后的清理不能抹掉结果」等。
+- **零 `any`/抑制指令**：全仓库跟踪的 `*.ts`/`*.mts`/`*.tsx` 中 `: any`、`as any`、`<any>`、`@ts-ignore`、`@ts-expect-error`、`@ts-nocheck`、`eslint-disable` 命中数均为 **0**；收尾范围内也未新增。
+- **零漂移**：`git diff --name-only 0a6877c..6ba1511 -- pnpm-lock.yaml .github/ '*.schema.json' 'packages/*/src/generated/' 'schemas/'` **为空**——lockfile、workflow、Schema、生成物在收尾范围内一字未动。ESLint/Prettier/quality 配置同样未被触碰，不存在"靠放宽 ignore 换绿色"。收尾提交总面为 10 文件 `+74/-17`。
+- **文档未冒充**：`docs/ci.md`、`AGENTS.md`、`docs/implementation-roadmap.md`、索引与 [收尾台账](G1-11-followups.md) 均写明 `CI-02`～`CI-05` 为"已本地实施、**待独立复核**"，路线图 G1-11 仍为 🟡「首次远程通过，待 MINOR 收尾审计」，并明确"尚未最终完成"；[首次远程证据](G1-11-first-remote-run.md) 明确写出 `cancel-in-progress` 未验证、远程全绿不关闭 `CI-02`～`CI-05`。**没有把本地收尾冒充已推送，也没有提前标记 G1-11 完成。**
+
+## 8. 我自己的两处探针错误（自证）
+
+为免把探针缺陷记成实现缺陷，如实登记我本轮的两次自查纠正：
+
+1. 第一版 `CI_JOBS` 键变异用了 2 空格缩进的正则，而 `jobs.ts` 中该键为 4 空格缩进，替换实际是 **no-op**，却因我把 "applied" 写死在输出里而显示为"改了仍通过"。改用正确缩进重跑后，5 种键变异**全部 FAILS**（见 §3）。互锁没有问题，是我的探针错了。
+2. 统计真实仓库 scoped 包时我写的 `[\\/]` 经 shell heredoc 后退化成 `[\/]`（只匹配正斜杠），在 Windows 反斜杠路径上得出"scoped: 0"的假象。直接列举虚拟仓库后确认 33 个 `@` 开头条目均被正确发现。**不构成发现。**
+
+## 9. 未执行项与限制
+
+- **`cancel-in-progress` 仍未验证**：需要第二次同分支运行才能实证，本轮不制造无意义提交、不触发远程。该限制必须继续保留在证据文档中。
+- **本地未执行 `pnpm install --frozen-lockfile`**：会改写 `node_modules`，超出只读边界；以远程首跑的真实冻结安装为准。
+- **本轮未推送**：`6ba1511`、`b4fda9d` 及本报告的推送与随后的远程复跑，均须业主另行授权，由业主或实施者执行。
+- 本报告只签署事实，不提供也不应用补丁。
+
+## 10. 结论
+
+**结论：`CONDITIONAL PASS — 允许业主授权最终同步并复跑远程 CI`**
+
+判定依据：
+
+- **首次远程运行证据经独立只读核验全部属实**：run `29748496592` 为 `push`/`0a6877c`/`completed+success`/`run_attempt 1`；8 个作业名与 `CI_JOB_NAMES` 精确一致、全部 success、分布在 8 台 runner 上；日志含真实 checkout、Node 24.17.0、Corepack pnpm 11.15.1、冻结安装与真实 `pnpm ci:job` 输出，不是空步骤；缓存 miss→save→同运行内 hit 的链路可逐条对上；我实测的 8 个时长与文档表格逐项相同。
+- **`CI-02` 关闭**：新增、删除、改名、重复、调换顺序五个方向全部使测试失败，合法原文件通过；断言是有序全数组相等而非"恰好 8"；`CI_JOBS` 键集合互锁五种变异亦全部失败，无回归。
+- **`CI-03` 关闭**：`@v7`、`@v7.0.0`、`@main`、短 SHA、39/41 位、非十六进制、增删 Action 数量共 10 个方向全部失败，三个现有完整 SHA 通过；校验对象确为 `uses:` 的实际引用值而非 `# v7.0.0` 注释。
+- **`CI-04` 关闭**：五种空/损坏虚拟仓库全部 fail-closed，合法普通/scoped/并存三种发现集合正确；删除 `directories.size === 0` 守卫会让空仓库退回静默返回 `[]` 并使新增用例 `not ok`，恢复 ENOENT 静默吞掉会让损坏条目被合法包掩盖——两个守卫都承重；真实仓库仍为 115 条实际路径与非空许可分布，工作区自有包零误算。
+- **`CI-05` 关闭**：四项真实过程反例全部补齐，措辞与源码事实逐条对得上，未粉饰。
+- **无新增 BLOCKER/MAJOR**：`CI-01` NUL 反例、`IA-01`、`RA-01`/`RA-02` 均无回归；`pnpm verify` 132/132、`ci:verify` 8/8；零手写 `any`/抑制指令/宽泛 ignore；lockfile、workflow、Schema、生成物在收尾范围零漂移；文档未把本地收尾冒充已推送、未提前标记完成。
+
+**放行边界**：本结论只签署"可以进入业主授权的最终同步步骤"。**我没有也不会推送任何提交或触发任何远程运行。** 依任务书 §7，即便放行，`G1-11` 仍须等待 `6ba1511`、`b4fda9d` 与本审计报告推送后产生的**新远程 run 成功**才具备完成条件；`cancel-in-progress` 至今无实证，须继续作为 `G1-11` 的已知证据限制记录在案。**本轮不得据此标记 `G1-11` 最终完成。**
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本章由未参与实施与修复的独立审计角色出具。`CI-02`～`CI-05` 至此由独立审计签署关闭，实施者不得自行改写本结论。
