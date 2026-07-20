@@ -61,6 +61,7 @@ docs/adr/                           重大技术决策
 - `G1-08` 已获 Claude 独立复审 `CONDITIONAL PASS`，首审 3 项 MAJOR 与 5 项 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 `G1-11` 并行 runner 开工前硬门禁。
 - `G1-09` 已获 Claude 最终复核 `CONDITIONAL PASS`：`RA-01～RA-04` 与 `CF-01` 全部关闭，现可作为 G1-11 前置。新增 `CR-01`（质量工具包未声明直接使用的 ESLint）已登记到 G1-15，最迟 G1-16 前由独立审计签署。
 - `G1-11` 已完成：Claude 已关闭 RA-01/RA-02、IA-01 与 CI-01～CI-05；本地完整验证及首次、最终私有远程矩阵均 8/8 成功。`cancel-in-progress` 因两次运行未重叠而保留为证据限制。
+- `G1-10` 已实现，正在等待 Claude 独立审计；7 个 PoC-A 原件仍为冻结只读真源，在审计签署前不得作为 PA/G1-13/G1-14 的已完成前置。
 
 ## 文件与代码规则（进入 G1 后生效）
 
@@ -98,6 +99,7 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm dev`：启动最小 Web 开发入口。
 - `pnpm config:check`：运行 dev/test/staging/production 配置契约、快速失败和脱敏测试。
 - `pnpm contracts:check`：检查文档/模板/Host schema 与生成类型漂移，并运行共享输入安全运行时及合法、非法、安全和生命周期 fixture 契约测试。
+- `pnpm fixtures:check`：校验 PoC-A 冻结清单、7 个原件字节及隔离复制/证据契约；原件不一致立即失败。
 - `pnpm test:layers`：审计所有测试文件是否显式标注 unit/contract/render/integration/e2e 层级。
 - `pnpm test:unit` / `test:contract`：运行已登记的单元/契约测试。
 - `pnpm test:render` / `test:integration` / `test:e2e`：运行对应已登记测试；没有真实用例时报告 `not-registered` 并以非零退出，不代表通过。
@@ -123,4 +125,4 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 
 项目与知识包规则见 [v0 项目、知识包、语义审计与兼容契约](docs/project-contract.md)。真源 entry 必需且不可重建；派生 entry 非必需且必须可重建。语义审计不得承载正文、prompt、密钥、编辑器事务或 CRDT update；数据库表结构不得成为开放交换格式。
 
-测试、渲染、证据和打包命令将在对应原子任务建立后追加；不得从聊天记录猜命令或用临时命令冒充权威入口。
+后续渲染、PDF 和打包命令将在对应原子任务建立后追加；不得从聊天记录猜命令或用临时命令冒充权威入口。

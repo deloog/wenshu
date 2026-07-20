@@ -1,0 +1,24 @@
+{
+  "name": "@wenshu/fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check:committed": "node scripts/check-fixtures.ts",
+    "test:contract": "node --test test/*.contract.test.ts",
+    "test:integration": "node --test test/*.integration.test.ts",
+    "test": "pnpm test:contract && pnpm test:integration",
+    "check": "pnpm check:committed && pnpm test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wenshu/test-support": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

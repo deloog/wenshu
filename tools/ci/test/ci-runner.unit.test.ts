@@ -19,6 +19,10 @@ test("CI jobs cover independent gates and isolated build outputs", () => {
     CI_JOBS.security.map(({ label }) => label),
     ["secrets", "licenses"],
   );
+  assert.deepEqual(
+    CI_JOBS.contracts.map(({ label }) => label),
+    ["contracts", "fixtures"],
+  );
 });
 
 test("GitHub workflow delegates every matrix job to the local runner", async () => {

@@ -1,0 +1,42 @@
+{
+  "schema_version": "0.1.0",
+  "fixture_set_id": "wenshu-poc-a",
+  "fixture_version": "1.0.0",
+  "entries": [
+    {
+      "path": "chart-overview.svg",
+      "bytes": 1943,
+      "sha256": "4066411570a1b6e4c4e4487dc8834ec02fac3e5b7e206a876879c25d13b39f64"
+    },
+    {
+      "path": "chart-process.svg",
+      "bytes": 2064,
+      "sha256": "55a1edc77f7438530a93f118449113d65559a527c4fd831bd313f114088c5f1f"
+    },
+    {
+      "path": "fault-cases.json",
+      "bytes": 3164,
+      "sha256": "202b4e3da6f26011e3ca30c73e0dddb0e3bb481a4d5291f61eb61de72b8fd1dc"
+    },
+    {
+      "path": "formal-business.template.json",
+      "bytes": 1923,
+      "sha256": "3b4b5a08044ec9e48d05e2d9ee00a75341966a57f20d08b73a72dd3287ba2443"
+    },
+    {
+      "path": "golden-report.md",
+      "bytes": 30734,
+      "sha256": "ce12af8c93c95c2101537c08c1e279e120c178c60706619e229bf01a667124cd"
+    },
+    {
+      "path": "manual-baseline.csv",
+      "bytes": 789,
+      "sha256": "c46a07eaad9404f1a6f60b364fec63bd5708182666f747ecfcd9b0bf59f1a044"
+    },
+    {
+      "path": "report-data.csv",
+      "bytes": 398,
+      "sha256": "5d74c565e23b13add05a914b77bdad9b6f123a1cfe1a1e36ef9dc14871ce01be"
+    }
+  ]
+}

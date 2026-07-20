@@ -31,7 +31,10 @@ export const CI_JOBS: Readonly<Record<CiJobName, readonly CiCommand[]>> = Object
       command("unit", "test:foundation"),
       command("config", "config:check"),
     ]),
-    contracts: Object.freeze([command("contracts", "contracts:check")]),
+    contracts: Object.freeze([
+      command("contracts", "contracts:check"),
+      command("fixtures", "fixtures:check"),
+    ]),
     typecheck: Object.freeze([command("typecheck", "typecheck")]),
     "build-test": Object.freeze([
       command(

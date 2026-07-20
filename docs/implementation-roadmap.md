@@ -83,6 +83,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md) |
 | G1-08 | ✅ 已完成 | [测试骨架与并行隔离基线](test-infrastructure.md)：Claude 复审 `CONDITIONAL PASS`，首审 3 MAJOR、5 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 [G1-11 硬门禁](audits/G1-08-followups.md) |
 | G1-09 | ✅ 已完成 | [工程质量与本地验证标准](engineering-standards.md)：Claude 最终复核 `CONDITIONAL PASS`；`RA-01～RA-04` 与 `CF-01` 全部关闭，118 项验证通过；新增 CR-01 已登记到 [G1-15](audits/G1-09-followups.md) |
+| G1-10 | 🟡 已实现，待独立审计 | [fixture 完整性基线](fixture-integrity.md)：7 个冻结原件、manifest 自身锚点、真实文件系统隔离复制与证据门禁已实现；不得提前作为消费者前置 |
 | G1-11 | ✅ 已完成 | [并行 CI 基线](ci.md)本地验证通过；Claude 已关闭 CI-01～CI-05；[首次与最终 GitHub 运行](audits/G1-11-first-remote-run.md)均 8/8 成功，最终运行覆盖提交 `baff4ef` |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
