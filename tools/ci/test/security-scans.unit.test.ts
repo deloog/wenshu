@@ -8,13 +8,29 @@ import {
   discoverInstalledPackageDirectories,
   forbiddenLicenseReason,
 } from "../src/licenses.ts";
-import { scanTextForSecrets } from "../src/secrets.ts";
+import { scanTextForSecrets, scanTrackedFiles } from "../src/secrets.ts";
 
 test("secret signatures reject credentials without matching documentation examples", () => {
   const privateKeyHeader = ["-----BEGIN", "PRIVATE KEY-----"].join(" ");
   assert.deepEqual(scanTextForSecrets(privateKeyHeader), ["private key"]);
   assert.deepEqual(scanTextForSecrets(`token=ghp_${"a".repeat(36)}`), ["GitHub token"]);
   assert.deepEqual(scanTextForSecrets("sk-live-abc and gho_*** are examples"), []);
+});
+
+test("secret scanning inspects NUL-bearing tracked files", async () => {
+  const root = join("test-results", "g1-11-ci", "nul-secret");
+  await rm(root, { recursive: true, force: true });
+  await mkdir(root, { recursive: true });
+  const filePath = "binary.dat";
+  const accessKey = ["AKIA", "A".repeat(16)].join("");
+  await writeFile(
+    join(root, filePath),
+    Buffer.concat([Buffer.from(accessKey, "ascii"), Buffer.from([0])]),
+  );
+  assert.deepEqual(await scanTrackedFiles(root, [filePath]), [
+    { filePath, reason: "AWS access key" },
+  ]);
+  await rm(root, { recursive: true, force: true });
 });
 
 test("license discovery finds scoped and unscoped packages in the pnpm store", async () => {

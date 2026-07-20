@@ -55,9 +55,6 @@ export async function scanTrackedFiles(
       continue;
     }
     const content = await readFile(resolvedPath);
-    if (content.includes(0)) {
-      continue;
-    }
     for (const reason of scanTextForSecrets(content.toString("utf8"))) {
       findings.push(Object.freeze({ filePath, reason }));
     }
