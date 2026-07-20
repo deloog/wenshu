@@ -79,6 +79,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-03C | ✅ 已完成 | [环境配置基线](configuration.md)：四环境显式 profile、schema、`.env.example`、Vite 启动前校验；7/7 契约测试、未知字段脱敏失败探针和四环境构建/启动通过 |
 | G1-04 | ✅ 已完成 | [v0 文档对象契约](document-model.md)：schema `0.1.0`、稳定不透明 ID、生成类型与兼容规则；2 个合法/5 个非法 fixture 共 12/12 测试通过，生成漂移反向探针与统一 `verify` 通过 |
 | G1-05 | ✅ 已完成 | [v0 模板 DSL 契约](template-dsl.md)：声明式白名单、版本/空迁移占位及执行预算；函数/getter/脚本、文件、网络、能力和未来版本均拒绝，14/14 契约测试与生成漂移反向探针通过 |
+| G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：18 项能力、权限/预算、错误、取消、进度和降级；19/19 契约测试覆盖支持/拒绝/取消/超时/降级及平台泄漏拒绝 |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务

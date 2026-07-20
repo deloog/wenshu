@@ -1,0 +1,11 @@
+{
+  "protocol_version": "0.1.0",
+  "kind": "progress",
+  "request_id": "req_00000000000000000000000000000013",
+  "capability": "file.export.write",
+  "sequence": 2,
+  "phase": "running",
+  "completed": 40,
+  "total": 100,
+  "message_key": "host.export.writing"
+}

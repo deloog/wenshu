@@ -84,7 +84,7 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store`：冻结安装。
 - `pnpm dev`：启动最小 Web 开发入口。
 - `pnpm config:check`：运行 dev/test/staging/production 配置契约、快速失败和脱敏测试。
-- `pnpm contracts:check`：检查文档/模板 schema 与生成类型漂移，并运行合法、非法、安全 fixture 契约测试。
+- `pnpm contracts:check`：检查文档/模板/Host schema 与生成类型漂移，并运行合法、非法、安全和生命周期 fixture 契约测试。
 - `pnpm typecheck`：严格类型检查。
 - `pnpm build`：生产构建。
 - `pnpm --filter @wenshu/web build:test`：test 配置构建。
@@ -96,5 +96,7 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 文档对象规则见 [v0 文档对象契约](docs/document-model.md)。`packages/document-model/schema/document.schema.json` 是类型真源；修改 schema 后必须重新生成并运行漂移检查，禁止直接编辑 `src/generated`。
 
 模板规则见 [v0 模板 DSL 契约与安全边界](docs/template-dsl.md)。模板只有声明式白名单数据能力；不得加入函数、脚本、文件路径、网络、系统或自声明 capability，v0 迁移规则必须为空。
+
+平台能力规则见 [v0 Host 能力与生命周期契约](docs/host-contract.md)。Web 核心不得 import 或直调 Electron、Node 文件 API、ArkTS 等平台接口；文件位置只经 Host 的 grant/handle 表达，禁止任意绝对路径穿透。
 
 测试、渲染、证据和打包命令将在对应原子任务建立后追加；不得从聊天记录猜命令或用临时命令冒充权威入口。

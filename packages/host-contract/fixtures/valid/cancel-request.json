@@ -1,0 +1,6 @@
+{
+  "protocol_version": "0.1.0",
+  "kind": "cancel",
+  "request_id": "req_00000000000000000000000000000015",
+  "reason": "superseded"
+}

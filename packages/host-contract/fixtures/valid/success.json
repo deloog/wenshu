@@ -1,0 +1,10 @@
+{
+  "protocol_version": "0.1.0",
+  "kind": "success",
+  "request_id": "req_00000000000000000000000000000014",
+  "capability": "platform.info.read",
+  "output": {
+    "platform_kind": "browser",
+    "version": "fixture-1.0"
+  }
+}

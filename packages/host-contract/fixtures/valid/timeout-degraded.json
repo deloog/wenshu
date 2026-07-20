@@ -1,0 +1,15 @@
+{
+  "protocol_version": "0.1.0",
+  "kind": "failure",
+  "request_id": "req_00000000000000000000000000000012",
+  "capability": "print.pdf.export",
+  "error": {
+    "code": "HOST_TIMEOUT",
+    "retryable": true,
+    "detail_key": "host.print.timeout"
+  },
+  "fallback": {
+    "strategy": "system_print",
+    "reason_code": "PDF_EXPORT_TIMEOUT"
+  }
+}

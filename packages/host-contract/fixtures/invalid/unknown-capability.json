@@ -1,0 +1,9 @@
+{
+  "expectedIssue": "HOST_SCHEMA",
+  "protocol_version": "0.1.0",
+  "kind": "request",
+  "request_id": "req_00000000000000000000000000000017",
+  "capability": "system.command.execute",
+  "capability_version": "0.1.0",
+  "input": {}
+}

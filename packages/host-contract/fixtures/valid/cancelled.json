@@ -1,0 +1,7 @@
+{
+  "protocol_version": "0.1.0",
+  "kind": "cancelled",
+  "request_id": "req_00000000000000000000000000000011",
+  "capability": "print.pdf.export",
+  "reason": "user"
+}

@@ -1,0 +1,15 @@
+{
+  "protocol_version": "0.1.0",
+  "kind": "failure",
+  "request_id": "req_00000000000000000000000000000010",
+  "capability": "file.import.select",
+  "error": {
+    "code": "HOST_PERMISSION_DENIED",
+    "retryable": true,
+    "detail_key": "host.permission.import_denied"
+  },
+  "fallback": {
+    "strategy": "manual_file_picker",
+    "reason_code": "PERMISSION_DENIED"
+  }
+}
