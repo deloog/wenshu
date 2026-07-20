@@ -20,9 +20,9 @@ export default tseslint.config(
       reportUnusedDisableDirectives: "error",
     },
   },
+  eslint.configs.recommended,
   {
-    ...eslint.configs.recommended,
-    files: ["**/*.js", "**/*.jsx", "**/*.mjs", "**/*.cjs"],
+    files: ["**/*.jsx"],
     languageOptions: {
       parserOptions: {
         ecmaFeatures: { jsx: true },

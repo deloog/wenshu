@@ -82,7 +82,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：值级路径、预算和会话状态机反例通过；Claude 复审通过，NF-01/02/04 已登记到 G1-08/09 |
 | G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md) |
 | G1-08 | ✅ 已完成 | [测试骨架与并行隔离基线](test-infrastructure.md)：Claude 复审 `CONDITIONAL PASS`，首审 3 MAJOR、5 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 [G1-11 硬门禁](audits/G1-08-followups.md) |
-| G1-09 | 🟡 复审放行，补充整改待确认 | [工程质量与本地验证标准](engineering-standards.md)：Claude 复审 `CONDITIONAL PASS`，首审 2 MAJOR 全部关闭；复审新增 4 MINOR 已实施整改，待原审计者针对性确认后转为完成 |
+| G1-09 | 🟠 针对性确认失败，CF-01 已整改待复核 | [工程质量与本地验证标准](engineering-standards.md)：`RA-02/03/04` 已关闭；`.jsx` 修法曾使 TypeScript 丢失 45 条基础规则，现已恢复全局 recommended 并增加扫描面回归测试；复核签署前不得作为 G1-11 前置 |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务
