@@ -35,13 +35,13 @@ test-results/<run-id>/<layer>/<worker-id>/
 
 每个 worker 同时得到独立项目 ID 和不重叠端口段。run ID 只接受短的不透明安全标识，worker ID 由非负 `workerIndex` 唯一派生；`layer` 在公共构造器入口再次做运行时白名单校验。路径穿越、Windows 保留名、重复 worker index、负数索引、特权端口和超出 65535 的端口段均快速失败。
 
-准备目录时逐层拒绝符号链接/目录联接，并用排他 `mkdir` 占用 worker 叶目录；同一 run/layer/index 的并发准备只有一个能得到带随机 claim 的 `PreparedTestIsolation`，其余稳定以 `EEXIST` 失败。成功运行可调用 `cleanupSuccessfulTestIsolation`：它重新验证全路径无链接且磁盘 claim 与调用者相符后，只递归删除自己的 worker 叶目录，不删除兄弟 worker 或受控根。失败时不得调用清理，以保留证据。调用方仍须保证 run ID 对一次运行唯一；无法隔离的共享资源必须显式串行。
+准备目录时逐层拒绝符号链接/目录联接，并用排他 `mkdir` 占用 worker 叶目录；同一 run/layer/index 的并发准备只有一个能得到带随机 claim 的 `PreparedTestIsolation`，其余稳定以 `EEXIST` 失败。证据写入和成功清理共用运行时所有权校验：句柄必须由当前进程真实签发、保有 Symbol 品牌且不可变，worker 与三个子目录均为真实目录，磁盘 claim 为真实文件且内容匹配。成功运行可调用 `cleanupSuccessfulTestIsolation`；但只要 `evidence/` 非空就必须拒绝清理并原样保留证据，不存在静默 force 入口。空证据的成功清理只递归删除自己的 worker 叶目录，不删除兄弟 worker 或受控根。调用方仍须保证 run ID 对一次运行唯一；无法隔离的共享资源必须显式串行。
 
 `database/` 只是隔离位置，不代表已经运行数据库测试。原始 fixture 保持只读，运行期只能写隔离副本。
 
 ## 4. 失败证据
 
-`writeFailureEvidence` 只接受成功取得排他 claim 的 `PreparedTestIsolation`，并在其 `evidence/<case-id>/` 下保存：
+`writeFailureEvidence` 只接受通过上述运行时所有权校验的 `PreparedTestIsolation`，并要求证据层级与 worker 层级相同，再在其 `evidence/<case-id>/` 下保存：
 
 - `failure.json`：层级、固定 seed、用例 ID 和错误摘要；
 - `diagnostic.log`：错误名、消息和可选 stack。

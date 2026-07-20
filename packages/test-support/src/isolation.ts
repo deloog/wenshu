@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { lstat, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { assertSafeTestIdentifier } from "./identifiers.ts";
@@ -18,6 +18,7 @@ export interface TestIsolationOptions {
 }
 
 export interface TestIsolation {
+  readonly layer: TestLayer;
   readonly controlledRoot: string;
   readonly rootDirectory: string;
   readonly databaseDirectory: string;
@@ -32,6 +33,9 @@ export interface PreparedTestIsolation extends TestIsolation {
   readonly [PREPARED_ISOLATION]: true;
   readonly claimToken: string;
 }
+
+const issuedPreparedIsolations = new WeakSet<PreparedTestIsolation>();
+const isolationOperationTails = new WeakMap<PreparedTestIsolation, Promise<void>>();
 
 function requireNonNegativeInteger(label: string, value: number): void {
   if (!Number.isSafeInteger(value) || value < 0) {
@@ -59,6 +63,13 @@ async function requireRealDirectory(directory: string): Promise<void> {
   const stats = await lstat(directory);
   if (!stats.isDirectory() || stats.isSymbolicLink()) {
     throw new Error(`test isolation refuses a non-directory link: ${directory}`);
+  }
+}
+
+async function requireRealFile(filePath: string): Promise<void> {
+  const stats = await lstat(filePath);
+  if (!stats.isFile() || stats.isSymbolicLink()) {
+    throw new Error(`test isolation refuses a non-file link: ${filePath}`);
   }
 }
 
@@ -113,6 +124,7 @@ export function buildTestIsolation(options: TestIsolationOptions): TestIsolation
 
   return Object.freeze({
     controlledRoot,
+    layer: options.layer,
     rootDirectory,
     databaseDirectory: join(rootDirectory, "database"),
     filesDirectory: join(rootDirectory, "files"),
@@ -151,25 +163,77 @@ export async function prepareTestIsolation(
     createDirectoryWithoutFollowingLinks(isolation.filesDirectory),
     createDirectoryWithoutFollowingLinks(isolation.evidenceDirectory),
   ]);
-  return Object.freeze({
+  const prepared = Object.freeze({
     ...isolation,
     [PREPARED_ISOLATION]: true as const,
     claimToken,
   });
+  issuedPreparedIsolations.add(prepared);
+  return prepared;
+}
+
+function requireIssuedPreparedIsolation(isolation: PreparedTestIsolation): void {
+  const brand = Object.getOwnPropertyDescriptor(isolation, PREPARED_ISOLATION);
+  if (
+    !issuedPreparedIsolations.has(isolation) ||
+    brand?.value !== true ||
+    !Object.isFrozen(isolation)
+  ) {
+    throw new Error("only a runtime-issued prepared isolation is accepted");
+  }
+}
+
+export async function requirePreparedTestIsolation(
+  isolation: PreparedTestIsolation,
+): Promise<void> {
+  requireIssuedPreparedIsolation(isolation);
+  requireContained(isolation.controlledRoot, isolation.rootDirectory);
+  await requireRealIsolationPath(isolation);
+  await Promise.all([
+    requireRealDirectory(isolation.databaseDirectory),
+    requireRealDirectory(isolation.filesDirectory),
+    requireRealDirectory(isolation.evidenceDirectory),
+  ]);
+  const claimPath = join(isolation.rootDirectory, CLAIM_FILE);
+  await requireRealFile(claimPath);
+  const storedClaim = await readFile(claimPath, "utf8");
+  if (storedClaim !== isolation.claimToken) {
+    throw new Error("worker isolation claim does not match");
+  }
+}
+
+export async function withPreparedTestIsolationOperation<Result>(
+  isolation: PreparedTestIsolation,
+  operation: () => Promise<Result>,
+): Promise<Result> {
+  requireIssuedPreparedIsolation(isolation);
+  const previous = isolationOperationTails.get(isolation) ?? Promise.resolve();
+  const release = { run: (): void => {} };
+  const gate = new Promise<void>((resolveGate) => {
+    release.run = resolveGate;
+  });
+  const tail = previous.then(() => gate);
+  isolationOperationTails.set(isolation, tail);
+  await previous;
+  try {
+    await requirePreparedTestIsolation(isolation);
+    return await operation();
+  } finally {
+    release.run();
+    if (isolationOperationTails.get(isolation) === tail) {
+      isolationOperationTails.delete(isolation);
+    }
+  }
 }
 
 export async function cleanupSuccessfulTestIsolation(
   isolation: PreparedTestIsolation,
 ): Promise<void> {
-  if (isolation[PREPARED_ISOLATION] !== true) {
-    throw new Error("only a prepared isolation can be cleaned up");
-  }
-  requireContained(isolation.controlledRoot, isolation.rootDirectory);
-  await requireRealIsolationPath(isolation);
-  const claimPath = join(isolation.rootDirectory, CLAIM_FILE);
-  const storedClaim = await readFile(claimPath, "utf8");
-  if (storedClaim !== isolation.claimToken) {
-    throw new Error("worker isolation claim does not match");
-  }
-  await rm(isolation.rootDirectory, { recursive: true });
+  await withPreparedTestIsolationOperation(isolation, async () => {
+    if ((await readdir(isolation.evidenceDirectory)).length > 0) {
+      throw new Error("successful cleanup refuses non-empty failure evidence");
+    }
+    await rm(isolation.rootDirectory, { recursive: true });
+    issuedPreparedIsolations.delete(isolation);
+  });
 }

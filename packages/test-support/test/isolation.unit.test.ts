@@ -231,6 +231,13 @@ test("failure evidence retains the layer, seed, and diagnostic log", async () =>
     }),
     /EEXIST/u,
   );
-  await cleanupSuccessfulTestIsolation(prepared);
+  await assert.rejects(
+    cleanupSuccessfulTestIsolation(prepared),
+    /refuses non-empty failure evidence/u,
+  );
+  assert.equal(
+    await readFile(paths.manifestPath, "utf8"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
   await rm(root, { recursive: true });
 });
