@@ -1,0 +1,56 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dependencies and package-manager caches
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+
+# Build, coverage, test, and generated output
+dist/
+build/
+out/
+coverage/
+.cache/
+.vite/
+.turbo/
+test-results/
+playwright-report/
+artifacts/
+tmp/
+
+# Local databases, journals, and runtime state
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.opfs
+
+# Logs, traces, and crash output
+*.log
+*.trace
+*.dmp
+crash-reports/
+
+# IDE and operating-system state
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local installers and platform tool caches if copied into the workspace
+Installers/
+.deveco/
+.hvigor/
+oh_modules/

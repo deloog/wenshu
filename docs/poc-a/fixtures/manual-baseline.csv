@@ -1,0 +1,4 @@
+run_id,tool,tool_version,os,task_order,start_time,end_time,total_minutes,manual_formatting_minutes,manual_adjustments,page_count,unresolved_p0,unresolved_p1,would_send,notes
+BASE-01,WPS,12.1.0.27458,Windows 10 Pro 10.0.19045,1-pilot-incomplete,2026-07-20T07:10:14+08:00,2026-07-20T09:12:30+08:00,122.3,,,22,,,no,"Exploratory run stopped before an acceptable document was reached. PDF is parseable A4 but remains incomplete: raw Markdown/YAML and TOC marker remain; tables/images were not fully laid out. The owner's approximately 3-hour completion estimate is qualitative and is not recorded as measured time."
+BASE-02,Microsoft Word,N/A,not-run,deferred,,,,,,,,,N/A,"Owner-approved deferral on 2026-07-20; Word is not installed and is not a G0 blocker."
+POCA-01,Wenshu PoC-A,,,,,,,,,,,,,

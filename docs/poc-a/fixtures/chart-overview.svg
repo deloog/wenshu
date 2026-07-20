@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">报告总时间与手工排版时间变化</title>
+  <desc id="desc">合成数据折线图，显示十二个月内报告总时间从九十六分钟降至六十分钟，手工排版时间从五十一分钟降至二十四分钟。</desc>
+  <rect width="1200" height="680" fill="#ffffff"/>
+  <text x="80" y="64" font-family="Source Han Sans CN, sans-serif" font-size="30" fill="#17324D">报告制作时间趋势（合成数据）</text>
+  <line x1="100" y1="560" x2="1120" y2="560" stroke="#A9B4BE" stroke-width="2"/>
+  <line x1="100" y1="110" x2="100" y2="560" stroke="#A9B4BE" stroke-width="2"/>
+  <g fill="#66737F" font-family="Source Han Sans CN, sans-serif" font-size="18">
+    <text x="50" y="566">0</text><text x="35" y="476">20</text><text x="35" y="386">40</text><text x="35" y="296">60</text><text x="35" y="206">80</text><text x="25" y="116">100</text>
+    <text x="90" y="600">1月</text><text x="275" y="600">3月</text><text x="460" y="600">5月</text><text x="645" y="600">7月</text><text x="830" y="600">9月</text><text x="1005" y="600">11月</text>
+  </g>
+  <polyline points="100,128 193,146 285,160 378,173 471,191 564,205 656,218 749,236 842,250 935,263 1027,277 1120,290" fill="none" stroke="#2E6F95" stroke-width="7"/>
+  <polyline points="100,331 193,344 285,358 378,367 471,380 564,389 656,403 749,416 842,425 935,434 1027,443 1120,452" fill="none" stroke="#D97706" stroke-width="7"/>
+  <g font-family="Source Han Sans CN, sans-serif" font-size="20">
+    <line x1="760" y1="75" x2="820" y2="75" stroke="#2E6F95" stroke-width="7"/><text x="835" y="82" fill="#1F2933">总完成时间（分钟）</text>
+    <line x1="760" y1="110" x2="820" y2="110" stroke="#D97706" stroke-width="7"/><text x="835" y="117" fill="#1F2933">手工排版时间（分钟）</text>
+  </g>
+</svg>
+

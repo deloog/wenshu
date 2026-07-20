@@ -1,0 +1,92 @@
+{
+  "fixture_version": "1.0.0",
+  "base_document": "golden-report.md",
+  "rule": "Each case applies exactly one mutation to a fresh copy of the base fixture.",
+  "cases": [
+    {
+      "id": "F01",
+      "severity": "P0",
+      "mutation": "Set the long identifier in appendix B to no-wrap and width greater than the content box.",
+      "expected_validator": "no_overflow",
+      "expected_location": "附录 B"
+    },
+    {
+      "id": "F02",
+      "severity": "P0",
+      "mutation": "Render chart-overview.svg at 140 percent of the content-box width without clipping.",
+      "expected_validator": "no_overflow",
+      "expected_location": "图 1"
+    },
+    {
+      "id": "F03",
+      "severity": "P0",
+      "mutation": "Replace one generated table-of-contents page number with the preceding page number.",
+      "expected_validator": "toc_page_numbers_match",
+      "expected_location": "目录"
+    },
+    {
+      "id": "F04",
+      "severity": "P0",
+      "mutation": "Remove the required Source Han Sans CN Regular font from the render environment.",
+      "expected_validator": "font_available",
+      "expected_location": "document"
+    },
+    {
+      "id": "F05",
+      "severity": "P0",
+      "mutation": "Duplicate the paragraph beginning with '分页是最难通过操作序列' during pagination.",
+      "expected_validator": "no_duplicate_content",
+      "expected_location": "3.3 分页连锁反应"
+    },
+    {
+      "id": "F06",
+      "severity": "P0",
+      "mutation": "Drop the final paragraph of appendix B from the generated PDF.",
+      "expected_validator": "content_complete",
+      "expected_location": "附录 B"
+    },
+    {
+      "id": "F07",
+      "severity": "P1",
+      "mutation": "Force heading '4.3 版本与迁移' to be the last rendered item on a page.",
+      "expected_validator": "heading_not_last_item",
+      "expected_location": "4.3 版本与迁移"
+    },
+    {
+      "id": "F08",
+      "severity": "P1",
+      "mutation": "Place heading '5.2 用户为什么仍需裁决' on one page and its first paragraph on the next.",
+      "expected_validator": "heading_keep_with_next",
+      "expected_location": "5.2 用户为什么仍需裁决"
+    },
+    {
+      "id": "F09",
+      "severity": "P1",
+      "mutation": "Leave one line of the final appendix B paragraph alone on the following page.",
+      "expected_validator": "widow_orphan_minimum",
+      "expected_location": "附录 B"
+    },
+    {
+      "id": "F10",
+      "severity": "P1",
+      "mutation": "Suppress the repeated header when table 3 crosses a page boundary.",
+      "expected_validator": "table_header_repeated",
+      "expected_location": "表 3"
+    },
+    {
+      "id": "F11",
+      "severity": "P1",
+      "mutation": "Split the '模型输出破坏内容' row of table 3 across two pages.",
+      "expected_validator": "table_row_not_split",
+      "expected_location": "表 3"
+    },
+    {
+      "id": "F12",
+      "severity": "P1",
+      "mutation": "Move the caption for chart-process.svg to the next page while leaving the figure behind.",
+      "expected_validator": "figure_with_caption",
+      "expected_location": "图 2"
+    }
+  ]
+}
+

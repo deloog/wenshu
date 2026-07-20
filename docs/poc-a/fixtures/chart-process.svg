@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">专业报告交付流程</title>
+  <desc id="desc">从资料与草稿开始，经过结构识别、模板和分页、页面检查、人类裁决，最终输出专业PDF。</desc>
+  <rect width="1200" height="520" fill="#F7F9FB"/>
+  <text x="70" y="70" font-family="Source Han Sans CN, sans-serif" font-size="30" fill="#17324D">从草稿到成品的约束闭环</text>
+  <g font-family="Source Han Sans CN, sans-serif" font-size="22" text-anchor="middle">
+    <g fill="#E7F0F6" stroke="#2E6F95" stroke-width="3"><rect x="60" y="180" width="180" height="100" rx="14"/><rect x="285" y="180" width="180" height="100" rx="14"/><rect x="510" y="180" width="180" height="100" rx="14"/><rect x="735" y="180" width="180" height="100" rx="14"/><rect x="960" y="180" width="180" height="100" rx="14"/></g>
+    <g fill="#17324D"><text x="150" y="225">资料与草稿</text><text x="150" y="255">固定输入</text><text x="375" y="225">结构识别</text><text x="375" y="255">类型化对象</text><text x="600" y="225">模板与分页</text><text x="600" y="255">确定性渲染</text><text x="825" y="225">页面检查</text><text x="825" y="255">问题定位</text><text x="1050" y="225">用户裁决</text><text x="1050" y="255">PDF 交付</text></g>
+  </g>
+  <g stroke="#D97706" stroke-width="5" fill="none"><path d="M240 230h35"/><path d="M465 230h35"/><path d="M690 230h35"/><path d="M915 230h35"/></g>
+  <g fill="#D97706"><path d="M275 230l-16-10v20z"/><path d="M500 230l-16-10v20z"/><path d="M725 230l-16-10v20z"/><path d="M950 230l-16-10v20z"/></g>
+  <path d="M825 300c0 110-450 110-450 0" fill="none" stroke="#66737F" stroke-width="4" stroke-dasharray="10 8"/>
+  <path d="M375 300l-10 18h20z" fill="#66737F"/>
+  <text x="600" y="420" font-family="Source Han Sans CN, sans-serif" font-size="20" text-anchor="middle" fill="#66737F">发现问题后回到结构或规则层修正，不逐页手工拖拽</text>
+</svg>
