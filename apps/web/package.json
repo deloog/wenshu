@@ -4,9 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vite --mode dev",
+    "build": "vite build --mode production",
+    "build:staging": "vite build --mode staging",
+    "build:test": "vite build --mode test",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wenshu/config": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:",

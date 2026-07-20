@@ -81,8 +81,13 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 
 - `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store`：冻结安装。
 - `pnpm dev`：启动最小 Web 开发入口。
+- `pnpm config:check`：运行 dev/test/staging/production 配置契约、快速失败和脱敏测试。
 - `pnpm typecheck`：严格类型检查。
 - `pnpm build`：生产构建。
-- `pnpm verify`：当前 G1 统一验证入口（typecheck + build）。
+- `pnpm --filter @wenshu/web build:test`：test 配置构建。
+- `pnpm --filter @wenshu/web build:staging`：staging 配置构建。
+- `pnpm verify`：当前 G1 统一验证入口（config contract + typecheck + production build）。
+
+配置规则见 [环境配置基线](docs/configuration.md)。真实 `.env`/`.env.*` 不得提交；任何新 `WENSHU_*` 字段必须先更新 schema、解析器与契约测试，错误日志只能记录字段名，不得记录原始值。
 
 测试、渲染、证据和打包命令将在对应原子任务建立后追加；不得从聊天记录猜命令或用临时命令冒充权威入口。

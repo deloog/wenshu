@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/app-config.schema.json",
+  "title": "Wenshu runtime configuration",
+  "description": "Contract for the WENSHU_ namespace after unrelated operating-system variables are removed.",
+  "type": "object",
+  "required": ["WENSHU_ENV", "WENSHU_LOG_LEVEL"],
+  "properties": {
+    "WENSHU_ENV": {
+      "type": "string",
+      "enum": ["dev", "test", "staging", "production"]
+    },
+    "WENSHU_LOG_LEVEL": {
+      "type": "string",
+      "enum": ["debug", "info", "warn", "error"]
+    }
+  },
+  "additionalProperties": false
+}

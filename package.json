@@ -11,8 +11,9 @@
   "scripts": {
     "dev": "pnpm --filter @wenshu/web dev",
     "build": "pnpm -r --if-present run build",
+    "config:check": "pnpm --filter @wenshu/config test",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "verify": "pnpm typecheck && pnpm build"
+    "verify": "pnpm config:check && pnpm typecheck && pnpm build"
   },
   "devDependencies": {
     "typescript": "6.0.3"
