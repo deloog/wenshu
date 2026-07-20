@@ -59,7 +59,7 @@ docs/adr/                           重大技术决策
 - Claude 的短入口是 [CLAUDE.md](CLAUDE.md)，审计任务与报告统一放在 `docs/audits/`。
 - `G1-03～G1-06` 与 `G1-07` 均已获 Claude 独立复审 `CONDITIONAL PASS`；首审 BLOCKER/MAJOR 已全部关闭，新增 MINOR 已登记到 `PB-05A`/`G1-09`。各消费者仍须满足自身依赖与 DoR。
 - `G1-08` 已获 Claude 独立复审 `CONDITIONAL PASS`，首审 3 项 MAJOR 与 5 项 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 `G1-11` 并行 runner 开工前硬门禁。
-- `G1-09` 针对性确认中 `RA-02/03/04` 已由 Claude 关闭；`RA-01` 的修法引入 `CF-01` MAJOR，当前结论为 `FAIL`。`CF-01` 已实施整改，仍待原审计者复核；签署前不得启动 G1-11，实施者不得自行关闭发现。
+- `G1-09` 已获 Claude 最终复核 `CONDITIONAL PASS`：`RA-01～RA-04` 与 `CF-01` 全部关闭，现可作为 G1-11 前置。新增 `CR-01`（质量工具包未声明直接使用的 ESLint）已登记到 G1-15，最迟 G1-16 前由独立审计签署。
 
 ## 文件与代码规则（进入 G1 后生效）
 
