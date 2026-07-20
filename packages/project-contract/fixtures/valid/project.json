@@ -24,9 +24,7 @@
       "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
     }
   ],
-  "semantic_audit_event_ids": [
-    "audit_00000000000000000000000000000001"
-  ],
+  "semantic_audit_event_ids": ["audit_00000000000000000000000000000001"],
   "formal_versions": [],
   "derived_data": [
     {

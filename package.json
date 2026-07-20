@@ -11,8 +11,14 @@
   "scripts": {
     "dev": "pnpm --filter @wenshu/web dev",
     "build": "pnpm -r --if-present run build",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint": "eslint .",
+    "quality:check": "pnpm --filter @wenshu/quality check",
     "config:check": "pnpm --filter @wenshu/config test",
-    "contracts:check": "pnpm --filter @wenshu/document-model generate:check && pnpm --filter @wenshu/template-model generate:check && pnpm --filter @wenshu/host-contract generate:check && pnpm --filter @wenshu/project-contract generate:check && pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/host-contract test && pnpm --filter @wenshu/project-contract test",
+    "generated:check": "pnpm -r --if-present run generate:check",
+    "contracts:test": "pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/host-contract test && pnpm --filter @wenshu/project-contract test",
+    "contracts:check": "pnpm generated:check && pnpm contracts:test",
     "test:layers": "pnpm --filter @wenshu/test-support layers:check",
     "test:unit": "node packages/test-support/scripts/run-test-layer.ts unit",
     "test:contract": "node packages/test-support/scripts/run-test-layer.ts contract",
@@ -21,9 +27,13 @@
     "test:e2e": "node packages/test-support/scripts/run-test-layer.ts e2e",
     "test:foundation": "pnpm test:layers && pnpm test:unit",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "verify": "pnpm test:foundation && pnpm config:check && pnpm contracts:check && pnpm typecheck && pnpm build"
+    "verify": "pnpm format:check && pnpm lint && pnpm quality:check && pnpm test:foundation && pnpm config:check && pnpm contracts:check && pnpm typecheck && pnpm build"
   },
   "devDependencies": {
-    "typescript": "6.0.3"
+    "@eslint/js": "10.0.1",
+    "eslint": "10.7.0",
+    "prettier": "3.9.5",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.64.0"
   }
 }

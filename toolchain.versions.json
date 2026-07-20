@@ -27,6 +27,30 @@
     "source": "https://registry.npmjs.org/typescript/-/typescript-6.0.3.tgz",
     "integrity": "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="
   },
+  "eslint": {
+    "version": "10.7.0",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/eslint/-/eslint-10.7.0.tgz",
+    "integrity": "sha512-GVTD7s1vdIl6UYvAfriOPeY1Df8LIZjfofLvHwde+erDHGGuHyuM6xoxRxmHiebhYuD2p1vN4wWh0XzPARSGDQ=="
+  },
+  "eslintJs": {
+    "version": "10.0.1",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/@eslint/js/-/js-10.0.1.tgz",
+    "integrity": "sha512-zeR9k5pd4gxjZ0abRoIaxdc7I3nDktoXZk2qOv9gCNWx3mVwEn32VRhyLaRsDiJjTs0xq/T8mfPtyuXu7GWBcA=="
+  },
+  "typescriptEslint": {
+    "version": "8.64.0",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/typescript-eslint/-/typescript-eslint-8.64.0.tgz",
+    "integrity": "sha512-0qg+pDNMnqYzqH9AnNK+39tejHvsShUOUUoRUgtnTGE7QuMZhiFDnozq8nHJVq+Wae6NMLKNWLg5WmkcC/ndyQ=="
+  },
+  "prettier": {
+    "version": "3.9.5",
+    "license": "MIT",
+    "source": "https://registry.npmjs.org/prettier/-/prettier-3.9.5.tgz",
+    "integrity": "sha512-/FVl766LpUfB5vXgCYOYa0MeV/441Ia99AeICQIQFTY/Nw0roZwULcXpku5i1/m5kt/baz+s4Zogspd839HSMg=="
+  },
   "vite": {
     "version": "8.1.5",
     "license": "MIT",

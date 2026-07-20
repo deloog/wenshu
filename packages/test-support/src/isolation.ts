@@ -62,9 +62,7 @@ async function requireRealDirectory(directory: string): Promise<void> {
   }
 }
 
-async function createDirectoryWithoutFollowingLinks(
-  directory: string,
-): Promise<void> {
+async function createDirectoryWithoutFollowingLinks(directory: string): Promise<void> {
   try {
     await mkdir(directory);
   } catch (error: unknown) {
@@ -85,9 +83,7 @@ async function requireRealIsolationPath(isolation: TestIsolation): Promise<void>
   }
 }
 
-export function buildTestIsolation(
-  options: TestIsolationOptions,
-): TestIsolation {
+export function buildTestIsolation(options: TestIsolationOptions): TestIsolation {
   assertSafeTestIdentifier("runId", options.runId);
   requireNonNegativeInteger("workerIndex", options.workerIndex);
   if (!isTestLayer(options.layer)) {
@@ -135,10 +131,9 @@ export async function prepareTestIsolation(
   await requireRealDirectory(isolation.controlledRoot);
 
   let current = isolation.controlledRoot;
-  const segments = relative(
-    isolation.controlledRoot,
-    isolation.rootDirectory,
-  ).split(sep);
+  const segments = relative(isolation.controlledRoot, isolation.rootDirectory).split(
+    sep,
+  );
   for (const segment of segments.slice(0, -1)) {
     current = join(current, segment);
     await createDirectoryWithoutFollowingLinks(current);

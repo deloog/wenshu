@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
-import {
-  DOCUMENT_SCHEMA_VERSION,
-  validateDocument,
-} from "@wenshu/document-model";
-import {
-  TEMPLATE_DSL_VERSION,
-  validateTemplate,
-} from "@wenshu/template-model";
+import { DOCUMENT_SCHEMA_VERSION, validateDocument } from "@wenshu/document-model";
+import { TEMPLATE_DSL_VERSION, validateTemplate } from "@wenshu/template-model";
 
 import {
   PROJECT_CONTRACT_VERSION,
@@ -16,9 +10,7 @@ import {
   validateKnowledgeBundle,
   validateProjectContract,
 } from "../src/index.ts";
-import contractSchema from "../schema/project-contract.schema.json" with {
-  type: "json",
-};
+import contractSchema from "../schema/project-contract.schema.json" with { type: "json" };
 import { asRecord, readJson, validFixture } from "./fixture-helpers.ts";
 
 test("v0 project contract version is frozen", () => {
@@ -50,18 +42,31 @@ test("knowledge bundle closes project, audit, material, and hash references", as
   assert.deepEqual(result, { ok: true });
 });
 
-test("missing fields and future versions are rejected", async () => {
+test("invalid fixtures fail with stable issue codes and paths", async () => {
   for (const name of ["future-project", "missing-project-field"]) {
-    const input = await readJson(
-      new URL(`../fixtures/invalid/${name}.json`, import.meta.url),
+    const input = asRecord(
+      await readJson(new URL(`../fixtures/invalid/${name}.json`, import.meta.url)),
     );
+    const expectedIssue = input["expectedIssue"];
+    const expectedPath = input["expectedPath"];
+    if (typeof expectedIssue !== "string" || typeof expectedPath !== "string") {
+      throw new Error(`Invalid negative fixture metadata: ${name}`);
+    }
+    delete input["expectedIssue"];
+    delete input["expectedPath"];
     const result = validateProjectContract(input);
     assert.equal(result.ok, false);
     if (!result.ok) {
-      assert.ok(result.issues.some((entry) => entry.code === "PROJECT_SCHEMA"));
+      assert.ok(
+        result.issues.some(
+          (entry) => entry.code === expectedIssue && entry.path === expectedPath,
+        ),
+      );
     }
   }
+});
 
+test("future versions are rejected across all contract kinds", async () => {
   const versionFields = [
     ["project", "schema_version"],
     ["knowledge-package", "format_version"],
@@ -89,9 +94,7 @@ test("truth and derived package entries cannot exchange guarantees", async () =>
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.ok(
-      result.issues.some(
-        (entry) => entry.code === "PROJECT_TRUTH_DERIVED_MIXED",
-      ),
+      result.issues.some((entry) => entry.code === "PROJECT_TRUTH_DERIVED_MIXED"),
     );
   }
 });
@@ -106,7 +109,13 @@ test("package paths agree with their truth or derived roles", async () => {
   const result = validateProjectContract(manifest);
   assert.equal(result.ok, false);
   if (!result.ok) {
-    assert.ok(result.issues.some((entry) => entry.path.endsWith("/path")));
+    assert.ok(
+      result.issues.some(
+        (entry) =>
+          entry.code === "PROJECT_PACKAGE_PATH_INVALID" &&
+          entry.path === "/entries/0/path",
+      ),
+    );
   }
 });
 
@@ -162,9 +171,7 @@ test("bundle rejects missing audit events and mismatched project identity", asyn
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.ok(
-      result.issues.some(
-        (entry) => entry.code === "PROJECT_REFERENCE_MISSING",
-      ),
+      result.issues.some((entry) => entry.code === "PROJECT_REFERENCE_MISSING"),
     );
   }
 });
@@ -173,10 +180,7 @@ test("bundle rejects duplicate audit inputs and orphan truth entries", async () 
   const project = await validFixture("project");
   const manifest = asRecord(await validFixture("knowledge-package"));
   const audit = await validFixture("semantic-audit-event");
-  assert.equal(
-    validateKnowledgeBundle(project, manifest, [audit, audit]).ok,
-    false,
-  );
+  assert.equal(validateKnowledgeBundle(project, manifest, [audit, audit]).ok, false);
 
   const entries = manifest["entries"];
   if (!Array.isArray(entries)) {

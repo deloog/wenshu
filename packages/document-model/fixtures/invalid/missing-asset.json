@@ -1,5 +1,6 @@
 {
   "expectedIssue": "DOCUMENT_REFERENCE_MISSING",
+  "expectedPath": "/blocks/0/assetId",
   "schemaVersion": "0.1.0",
   "documentId": "doc_40000000000000000000000000000001",
   "revision": 0,

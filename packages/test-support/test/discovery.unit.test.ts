@@ -1,19 +1,9 @@
 import assert from "node:assert/strict";
-import {
-  mkdir,
-  mkdtemp,
-  rm,
-  symlink,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import test from "node:test";
 
-import {
-  classifyTestFile,
-  discoverTestFiles,
-} from "../src/index.ts";
+import { classifyTestFile, discoverTestFiles } from "../src/index.ts";
 
 const controlledRoot = resolve("test-results", "g1-08-discovery");
 
@@ -30,15 +20,9 @@ async function writeCandidate(root: string, path: string): Promise<void> {
 
 test("canonical test file names declare their layer", () => {
   assert.equal(classifyTestFile("test/parser.unit.test.ts"), "unit");
-  assert.equal(
-    classifyTestFile("test/project.contract.test.ts"),
-    "contract",
-  );
+  assert.equal(classifyTestFile("test/project.contract.test.ts"), "contract");
   assert.equal(classifyTestFile("test/page.render.test.ts"), "render");
-  assert.equal(
-    classifyTestFile("test/sqlite.integration.test.ts"),
-    "integration",
-  );
+  assert.equal(classifyTestFile("test/sqlite.integration.test.ts"), "integration");
   assert.equal(classifyTestFile("test/export.e2e.test.ts"), "e2e");
   assert.equal(classifyTestFile("test/ambiguous.test.ts"), undefined);
   assert.equal(classifyTestFile("test/Foo.Unit.Test.ts"), undefined);
@@ -80,15 +64,8 @@ test("a skipped-name directory link is rejected before exclusion", async () => {
   const root = await temporaryRoot();
   const outside = await temporaryRoot();
   const link = join(root, "dist");
-  await symlink(
-    outside,
-    link,
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  await symlink(outside, link, process.platform === "win32" ? "junction" : "dir");
   await assert.rejects(discoverTestFiles(root), /symbolic links are not allowed/u);
   await unlink(link);
-  await Promise.all([
-    rm(root, { recursive: true }),
-    rm(outside, { recursive: true }),
-  ]);
+  await Promise.all([rm(root, { recursive: true }), rm(outside, { recursive: true })]);
 });

@@ -1,9 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import {
-  generatedPath,
-  renderProjectContractTypes,
-} from "./render-types.ts";
+import { generatedPath, renderProjectContractTypes } from "./render-types.ts";
 
 const expected = await renderProjectContractTypes();
 const actual = await readFile(generatedPath, "utf8");

@@ -1,5 +1,6 @@
 {
   "expectedIssue": "TEMPLATE_DYNAMIC_CODE_FORBIDDEN",
+  "expectedPath": "/pagination_rules/script",
   "injection": {
     "path": ["pagination_rules", "script"],
     "value": "return true"

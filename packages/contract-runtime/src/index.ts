@@ -1,9 +1,5 @@
 export type InspectionFailureKind =
-  | "accessor"
-  | "budget"
-  | "cycle"
-  | "function"
-  | "prototype";
+  "accessor" | "budget" | "cycle" | "function" | "prototype";
 
 export type InspectionResult<TCode extends string> =
   | { readonly ok: true }
@@ -94,9 +90,7 @@ export function inspectData<TCode extends string = never>(
       return failure("prototype", current.path);
     }
 
-    const descriptors = Object.entries(
-      Object.getOwnPropertyDescriptors(current.value),
-    );
+    const descriptors = Object.entries(Object.getOwnPropertyDescriptors(current.value));
     for (let index = descriptors.length - 1; index >= 0; index -= 1) {
       const entry = descriptors[index];
       if (entry === undefined) {
@@ -137,9 +131,7 @@ export function cloneAndFreeze<T>(value: T): T {
       continue;
     }
     seen.add(current);
-    for (const descriptor of Object.values(
-      Object.getOwnPropertyDescriptors(current),
-    )) {
+    for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(current))) {
       const child: unknown = descriptor.value;
       if (typeof child === "object" && child !== null) {
         stack.push(child);

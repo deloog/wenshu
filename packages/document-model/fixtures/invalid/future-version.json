@@ -1,5 +1,6 @@
 {
   "expectedIssue": "DOCUMENT_SCHEMA",
+  "expectedPath": "/schemaVersion",
   "schemaVersion": "1.0.0",
   "documentId": "doc_20000000000000000000000000000001",
   "revision": 0,

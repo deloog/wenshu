@@ -14,9 +14,7 @@ export function isTestLayer(value: string): value is TestLayer {
 
 export function classifyTestFile(filePath: string): TestLayer | undefined {
   const normalized = filePath.replaceAll("\\", "/");
-  return TEST_LAYERS.find((layer) =>
-    normalized.endsWith(`.${layer}.test.ts`),
-  );
+  return TEST_LAYERS.find((layer) => normalized.endsWith(`.${layer}.test.ts`));
 }
 
 export function acceptedTestSuffixes(): readonly string[] {

@@ -2,12 +2,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 
 import configSchema from "../app-config.schema.json" with { type: "json" };
 
-export const CONFIG_ENVIRONMENTS = [
-  "dev",
-  "test",
-  "staging",
-  "production",
-] as const;
+export const CONFIG_ENVIRONMENTS = ["dev", "test", "staging", "production"] as const;
 
 export const CONFIG_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 
@@ -25,10 +20,7 @@ interface RawRuntimeConfig {
 }
 
 export type ConfigErrorCode =
-  | "CONFIG_ENV_MISMATCH"
-  | "CONFIG_INVALID"
-  | "CONFIG_MISSING"
-  | "CONFIG_UNKNOWN";
+  "CONFIG_ENV_MISMATCH" | "CONFIG_INVALID" | "CONFIG_MISSING" | "CONFIG_UNKNOWN";
 
 export class ConfigValidationError extends Error {
   readonly code: ConfigErrorCode;
@@ -75,9 +67,7 @@ function namespacedKeys(source: Readonly<Record<string, unknown>>): string[] {
 export function parseRuntimeConfig(
   source: Readonly<Record<string, unknown>>,
 ): RuntimeConfig {
-  const unknownKeys = namespacedKeys(source).filter(
-    (key) => !ALLOWED_KEYS.has(key),
-  );
+  const unknownKeys = namespacedKeys(source).filter((key) => !ALLOWED_KEYS.has(key));
   if (unknownKeys.length > 0) {
     throw new ConfigValidationError("CONFIG_UNKNOWN", unknownKeys.sort());
   }
@@ -113,10 +103,7 @@ export function parseRuntimeConfig(
   }
 
   if (!isEnvironment(environment) || !isLogLevel(logLevel)) {
-    throw new ConfigValidationError("CONFIG_INVALID", [
-      ENVIRONMENT_KEY,
-      LOG_LEVEL_KEY,
-    ]);
+    throw new ConfigValidationError("CONFIG_INVALID", [ENVIRONMENT_KEY, LOG_LEVEL_KEY]);
   }
   return Object.freeze({
     environment,
@@ -137,9 +124,7 @@ export function resolveRuntimeConfig(
   overrides: Readonly<Record<string, unknown>> = {},
 ): RuntimeConfig {
   const profile = loadEnvironmentProfile(environment);
-  const unknownKeys = namespacedKeys(overrides).filter(
-    (key) => !ALLOWED_KEYS.has(key),
-  );
+  const unknownKeys = namespacedKeys(overrides).filter((key) => !ALLOWED_KEYS.has(key));
   if (unknownKeys.length > 0) {
     throw new ConfigValidationError("CONFIG_UNKNOWN", unknownKeys.sort());
   }

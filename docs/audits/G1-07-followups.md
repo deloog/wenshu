@@ -9,6 +9,6 @@ G1-07 已获 `CONDITIONAL PASS`，首审 1 项 BLOCKER 与 2 项 MAJOR 全部关
 | NF-01：`template_applied` 的前后哈希指称不明确 | PB-05A | PB-06 开工前 | 依据真实 diff 语义逐类定义 hash subject；模板应用不得靠伪造文档哈希表达；若修订 Schema，按 `0.x` 兼容规则和 ADR 流程处理 |
 | NF-02：模型标识的敏感子串启发式既误杀又漏检 | PB-05A | PB-06 开工前 | 使用结构化 provider/model 注册标识；契约明确禁止承载凭证，不以关键词或高熵猜测充当密钥防护 |
 | NF-03：system 实际权限集合未在文档中明确列出 | PB-05A | PB-06 开工前 | 明列 system 唯一允许的 action，并以允许/拒绝矩阵验证 |
-| NF-04：`PROJECT_INTEGRITY` 承载七类判定，问题码区分度不足 | G1-09 | 首个依赖稳定问题码分支的消费者开工前 | 非法 fixture 同时断言稳定 issue code 与预期 JSON path，裁定是否拆分问题码 |
+| NF-04：`PROJECT_INTEGRITY` 承载七类判定，问题码区分度不足 | G1-09（已实施，待独立审计） | 首个依赖稳定问题码分支的消费者开工前 | 非法 fixture 同时断言稳定 issue code 与预期 JSON path，裁定是否拆分问题码 |
 
 原审计延期项继续按既有归属执行：`m-01` 由 PB-11 用真实序列化字节哈希关闭，`m-05` 与 NF-04 一并由 G1-09 处理。

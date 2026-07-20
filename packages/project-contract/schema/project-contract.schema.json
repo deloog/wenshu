@@ -73,7 +73,14 @@
         "material_id": { "$ref": "#/$defs/MaterialId" },
         "display_name": { "type": "string", "minLength": 1, "maxLength": 255 },
         "media_type": {
-          "enum": ["text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/svg+xml", "text/csv"]
+          "enum": [
+            "text/markdown",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "image/png",
+            "image/jpeg",
+            "image/svg+xml",
+            "text/csv"
+          ]
         },
         "sha256": { "$ref": "#/$defs/Sha256" }
       }
@@ -81,7 +88,13 @@
     "FormalVersion": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version_id", "created_at", "document_sha256", "template_sha256", "approval_event_id"],
+      "required": [
+        "version_id",
+        "created_at",
+        "document_sha256",
+        "template_sha256",
+        "approval_event_id"
+      ],
       "properties": {
         "version_id": { "$ref": "#/$defs/FormalVersionId" },
         "created_at": { "$ref": "#/$defs/Timestamp" },
@@ -95,7 +108,9 @@
       "additionalProperties": false,
       "required": ["kind", "rebuildable", "source_sha256s"],
       "properties": {
-        "kind": { "enum": ["search_index", "vector_index", "render_cache", "thumbnail"] },
+        "kind": {
+          "enum": ["search_index", "vector_index", "render_cache", "thumbnail"]
+        },
         "rebuildable": { "const": true },
         "source_sha256s": {
           "type": "array",
@@ -108,7 +123,19 @@
     "ProjectManifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["contract_kind", "schema_version", "project_id", "revision", "title", "document", "template", "materials", "semantic_audit_event_ids", "formal_versions", "derived_data"],
+      "required": [
+        "contract_kind",
+        "schema_version",
+        "project_id",
+        "revision",
+        "title",
+        "document",
+        "template",
+        "materials",
+        "semantic_audit_event_ids",
+        "formal_versions",
+        "derived_data"
+      ],
       "properties": {
         "contract_kind": { "const": "project" },
         "schema_version": { "const": "0.1.0" },
@@ -139,14 +166,32 @@
     "PackageEntry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "role", "classification", "required", "sha256", "size_bytes", "rebuildable"],
+      "required": [
+        "path",
+        "role",
+        "classification",
+        "required",
+        "sha256",
+        "size_bytes",
+        "rebuildable"
+      ],
       "properties": {
         "path": {
           "type": "string",
           "pattern": "^(?:[a-z0-9_-]+/)*[a-z0-9_-]+(?:\\.[a-z0-9_-]+)+$"
         },
         "role": {
-          "enum": ["truth.project", "truth.document", "truth.template", "truth.audit", "truth.material", "derived.search_index", "derived.vector_index", "derived.render_cache", "derived.thumbnail"]
+          "enum": [
+            "truth.project",
+            "truth.document",
+            "truth.template",
+            "truth.audit",
+            "truth.material",
+            "derived.search_index",
+            "derived.vector_index",
+            "derived.render_cache",
+            "derived.thumbnail"
+          ]
         },
         "classification": { "enum": ["truth", "derived"] },
         "required": { "type": "boolean" },
@@ -158,7 +203,14 @@
     "KnowledgePackageManifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["contract_kind", "format_version", "package_id", "project_id", "created_at", "entries"],
+      "required": [
+        "contract_kind",
+        "format_version",
+        "package_id",
+        "project_id",
+        "created_at",
+        "entries"
+      ],
       "properties": {
         "contract_kind": { "const": "knowledge_package" },
         "format_version": { "const": "0.1.0" },
@@ -185,7 +237,10 @@
         "sha256": { "$ref": "#/$defs/Sha256" },
         "locator": {
           "oneOf": [
-            { "type": "string", "pattern": "^(?:node_[a-f0-9]{32}|anchor:[a-z0-9][a-z0-9._-]{0,99})$" },
+            {
+              "type": "string",
+              "pattern": "^(?:node_[a-f0-9]{32}|anchor:[a-z0-9][a-z0-9._-]{0,99})$"
+            },
             { "type": "null" }
           ]
         }
@@ -198,11 +253,11 @@
       "properties": {
         "provider": {
           "type": "string",
-          "pattern": "^(?!sk[-_])(?!.{0,20}(?:key|secret|token))[a-z][a-z0-9.-]{0,39}$"
+          "pattern": "^[a-z][a-z0-9.-]{0,39}$"
         },
         "model": {
           "type": "string",
-          "pattern": "^(?!sk[-_])(?!.{0,20}(?:key|secret|token))[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$"
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$"
         },
         "invocation_id": { "type": "string", "pattern": "^inv_[a-f0-9]{32}$" }
       }
@@ -210,7 +265,22 @@
     "SemanticAuditEvent": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["contract_kind", "schema_version", "event_id", "project_id", "sequence", "occurred_at", "actor", "action", "decision", "affected_node_ids", "before_sha256", "after_sha256", "source_refs", "subject_model_context"],
+      "required": [
+        "contract_kind",
+        "schema_version",
+        "event_id",
+        "project_id",
+        "sequence",
+        "occurred_at",
+        "actor",
+        "action",
+        "decision",
+        "affected_node_ids",
+        "before_sha256",
+        "after_sha256",
+        "source_refs",
+        "subject_model_context"
+      ],
       "properties": {
         "contract_kind": { "const": "semantic_audit_event" },
         "schema_version": { "const": "0.1.0" },
@@ -219,33 +289,60 @@
         "sequence": { "type": "integer", "minimum": 0 },
         "occurred_at": { "$ref": "#/$defs/Timestamp" },
         "actor": { "enum": ["user", "system"] },
-        "action": { "enum": ["ai_change_decided", "user_changed_after_ai", "source_linked", "template_applied", "formal_version_approved"] },
+        "action": {
+          "enum": [
+            "ai_change_decided",
+            "user_changed_after_ai",
+            "source_linked",
+            "template_applied",
+            "formal_version_approved"
+          ]
+        },
         "decision": { "enum": ["accepted", "rejected", "applied", "approved"] },
         "affected_node_ids": {
           "type": "array",
           "uniqueItems": true,
           "items": { "type": "string", "pattern": "^node_[a-f0-9]{32}$" }
         },
-        "before_sha256": { "oneOf": [{ "$ref": "#/$defs/Sha256" }, { "type": "null" }] },
+        "before_sha256": {
+          "oneOf": [{ "$ref": "#/$defs/Sha256" }, { "type": "null" }]
+        },
         "after_sha256": { "oneOf": [{ "$ref": "#/$defs/Sha256" }, { "type": "null" }] },
         "source_refs": {
           "type": "array",
           "items": { "$ref": "#/$defs/SourceReference" }
         },
-        "subject_model_context": { "oneOf": [{ "$ref": "#/$defs/ModelContext" }, { "type": "null" }] }
+        "subject_model_context": {
+          "oneOf": [{ "$ref": "#/$defs/ModelContext" }, { "type": "null" }]
+        }
       }
     },
     "CompatibilityManifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["contract_kind", "policy_version", "readers", "unknown_version", "same_major_change", "destructive_change", "history_policy", "migration_paths"],
+      "required": [
+        "contract_kind",
+        "policy_version",
+        "readers",
+        "unknown_version",
+        "same_major_change",
+        "destructive_change",
+        "history_policy",
+        "migration_paths"
+      ],
       "properties": {
         "contract_kind": { "const": "compatibility" },
         "policy_version": { "const": "0.1.0" },
         "readers": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["project", "knowledge_package", "semantic_audit", "document", "template"],
+          "required": [
+            "project",
+            "knowledge_package",
+            "semantic_audit",
+            "document",
+            "template"
+          ],
           "properties": {
             "project": { "const": "0.1.0" },
             "knowledge_package": { "const": "0.1.0" },

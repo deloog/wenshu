@@ -23,11 +23,7 @@
   "fonts": {
     "primary": "Source Han Sans CN",
     "version": "2.005R",
-    "weights": [
-      400,
-      500,
-      700
-    ],
+    "weights": [400, 500, 700],
     "fallback_policy": "fail_before_export"
   },
   "layout_tokens": {

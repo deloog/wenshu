@@ -43,7 +43,7 @@ registry → request → progress (0..n) → success | failure | cancelled
 ## 4. 平台隔离与安全
 
 - Web 核心只能 import 本包的协议类型，禁止 import Electron、Node 文件 API、ArkTS 或平台插件。
-- 文件与目录位置由 Host 保管；核心只使用未来具体 payload Schema 定义的受控 `grant_id`、资源 handle 和安全文件名。当前协议预检按字段值拒绝盘符绝对路径、POSIX/UNC 绝对路径、`file:` URL 和 `..` 路径段，不依赖字段恰好命名为 `path`，因此任意键名也不能传递系统路径。
+- 文件与目录位置由 Host 保管；核心只使用未来具体 payload Schema 定义的受控 `grant_id`、资源 handle 和安全文件名。当前协议预检按字段值拒绝 NUL/控制字符，以及带任意普通前缀的盘符绝对或盘符相对路径、POSIX/UNC 路径、`file:` URL 和 `..` 路径段；百分号编码按有限预算反复解码，无法稳定时关闭式拒绝。检查不依赖字段恰好命名为 `path`，因此任意键名也不能传递系统路径。
 - 协议预检另拒绝 path、filesystem、Electron IPC、ArkTS context、shell、command、preload、Node integration 等平台字段，以及函数、访问器和非普通对象；最多接受 32 层、10,000 个对象/数组节点，超限返回稳定问题而非栈溢出。
 - `secret.credential.manage` 不能返回明文凭证；状态查询只能返回是否存在、provider 和可公开元数据。具体密钥参数 Schema 在实现前另行冻结并安全审计。
 - 浏览器开发 Host 可以确定性模拟支持、拒绝权限、取消、超时和降级，但真实 Electron/ArkWeb 集成测试不得用它冒充平台实现。
@@ -64,3 +64,5 @@ registry → request → progress (0..n) → success | failure | cancelled
 - `pnpm verify`：运行全部 G1 契约、严格类型检查和生产构建。
 
 G1-06 修复后的 28/28 项 Host 契约测试已获 Claude `CONDITIONAL PASS`。G1-08 又增加“终态后 cancel”反测，Host 契约当前为 29/29；Claude 在 G1-08 首审中以原始反例和新增变体确认文档导出名 NF-01、终态后 cancel NF-04 均已关闭且正常取消链路无回归。
+
+G1-09 已实现 NF-02 的前缀与控制字符补强，并增加恶意矩阵和合法值对照；该发现是否关闭须由 Claude 独立复审判定，实施者不自行关闭。

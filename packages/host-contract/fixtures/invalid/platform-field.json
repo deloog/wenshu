@@ -1,5 +1,6 @@
 {
   "expectedIssue": "HOST_PLATFORM_FIELD_FORBIDDEN",
+  "expectedPath": "/input/electron_ipc",
   "protocol_version": "0.1.0",
   "kind": "request",
   "request_id": "req_00000000000000000000000000000001",

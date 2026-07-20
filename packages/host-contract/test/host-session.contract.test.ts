@@ -36,10 +36,7 @@ function hasIssue(
 
 test("a supported request reaches exactly one success terminal", async () => {
   const registry = await registryFixture();
-  const start = request(
-    "req_00000000000000000000000000000021",
-    "platform.info.read",
-  );
+  const start = request("req_00000000000000000000000000000021", "platform.info.read");
   const success = {
     protocol_version: HOST_PROTOCOL_VERSION,
     kind: "success",
@@ -59,10 +56,7 @@ test("a supported request reaches exactly one success terminal", async () => {
 
 test("failures must use error codes declared by the capability", async () => {
   const registry = await registryFixture();
-  const start = request(
-    "req_00000000000000000000000000000022",
-    "platform.info.read",
-  );
+  const start = request("req_00000000000000000000000000000022", "platform.info.read");
   const failure = {
     protocol_version: HOST_PROTOCOL_VERSION,
     kind: "failure",
@@ -85,10 +79,7 @@ test("failures must use error codes declared by the capability", async () => {
 
 test("progress sequence and cancellation follow the registry declaration", async () => {
   const registry = await registryFixture();
-  const start = request(
-    "req_00000000000000000000000000000023",
-    "file.export.write",
-  );
+  const start = request("req_00000000000000000000000000000023", "file.export.write");
   const progress = (sequence: number): Readonly<Record<string, unknown>> => ({
     protocol_version: HOST_PROTOCOL_VERSION,
     kind: "progress",
@@ -127,41 +118,27 @@ test("progress sequence and cancellation follow the registry declaration", async
 
 test("unsupported capabilities cannot start a session request", async () => {
   const registry = await registryFixture();
-  const start = request(
-    "req_00000000000000000000000000000025",
-    "project.save.atomic",
-  );
+  const start = request("req_00000000000000000000000000000025", "project.save.atomic");
   assert.ok(
-    hasIssue(
-      validateHostSession(registry, [start]),
-      "HOST_CAPABILITY_UNSUPPORTED",
-    ),
+    hasIssue(validateHostSession(registry, [start]), "HOST_CAPABILITY_UNSUPPORTED"),
   );
 });
 
 test("every accepted request must reach one terminal state", async () => {
   const registry = await registryFixture();
-  const start = request(
-    "req_00000000000000000000000000000025",
-    "platform.info.read",
-  );
+  const start = request("req_00000000000000000000000000000025", "platform.info.read");
   const result = validateHostSession(registry, [start]);
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.ok(
-      result.issues.some(
-        (issue) => issue.code === "HOST_TERMINAL_STATE_MISSING",
-      ),
+      result.issues.some((issue) => issue.code === "HOST_TERMINAL_STATE_MISSING"),
     );
   }
 });
 
 test("cancel after a terminal state returns a stable protocol issue", async () => {
   const registry = await registryFixture();
-  const start = request(
-    "req_00000000000000000000000000000026",
-    "file.export.write",
-  );
+  const start = request("req_00000000000000000000000000000026", "file.export.write");
   const success = {
     protocol_version: HOST_PROTOCOL_VERSION,
     kind: "success",

@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-import {
-  DOCUMENT_SCHEMA_VERSION,
-  validateDocument,
-} from "../src/index.ts";
+import { DOCUMENT_SCHEMA_VERSION, validateDocument } from "../src/index.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -41,15 +38,25 @@ test("all invalid document fixtures fail with stable issue codes", async (contex
   for (const file of await fixtureFiles("invalid")) {
     await context.test(file.pathname, async () => {
       const fixture = await readJson(file);
-      if (!isRecord(fixture) || typeof fixture["expectedIssue"] !== "string") {
+      if (
+        !isRecord(fixture) ||
+        typeof fixture["expectedIssue"] !== "string" ||
+        typeof fixture["expectedPath"] !== "string"
+      ) {
         throw new Error(`Invalid negative fixture metadata: ${file.pathname}`);
       }
       const expectedIssue = fixture["expectedIssue"];
+      const expectedPath = fixture["expectedPath"];
       delete fixture["expectedIssue"];
+      delete fixture["expectedPath"];
       const result = validateDocument(fixture);
       assert.equal(result.ok, false, file.pathname);
       if (!result.ok) {
-        assert.ok(result.issues.some((issue) => issue.code === expectedIssue));
+        assert.ok(
+          result.issues.some(
+            (issue) => issue.code === expectedIssue && issue.path === expectedPath,
+          ),
+        );
       }
     });
   }

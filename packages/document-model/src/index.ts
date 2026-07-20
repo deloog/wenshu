@@ -2,11 +2,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { cloneAndFreeze, inspectData } from "@wenshu/contract-runtime";
 
 import documentSchema from "../schema/document.schema.json" with { type: "json" };
-import type {
-  Block,
-  Table,
-  WenshuDocument,
-} from "./generated/document.ts";
+import type { Block, Table, WenshuDocument } from "./generated/document.ts";
 
 export type * from "./generated/document.ts";
 
@@ -59,11 +55,7 @@ function recordId(context: IntegrityContext, id: string, path: string): void {
   context.ids.add(id);
 }
 
-function validateTable(
-  table: Table,
-  path: string,
-  context: IntegrityContext,
-): void {
+function validateTable(table: Table, path: string, context: IntegrityContext): void {
   const columnIds = new Set<string>();
   table.columns.forEach((column, columnIndex) => {
     recordId(context, column.id, `${path}/columns/${columnIndex}/id`);
@@ -136,9 +128,7 @@ export function validateDocument(input: unknown): DocumentValidationResult {
   });
   if (!inspection.ok) {
     const code =
-      inspection.kind === "budget"
-        ? "DOCUMENT_BUDGET_EXCEEDED"
-        : "DOCUMENT_SCHEMA";
+      inspection.kind === "budget" ? "DOCUMENT_BUDGET_EXCEEDED" : "DOCUMENT_SCHEMA";
     return Object.freeze({
       ok: false,
       issues: Object.freeze([Object.freeze({ code, path: inspection.path })]),

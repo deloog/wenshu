@@ -283,13 +283,7 @@
     "HostSuccessResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "protocol_version",
-        "kind",
-        "request_id",
-        "capability",
-        "output"
-      ],
+      "required": ["protocol_version", "kind", "request_id", "capability", "output"],
       "properties": {
         "protocol_version": { "$ref": "#/$defs/ProtocolVersion" },
         "kind": { "const": "success" },
@@ -334,13 +328,7 @@
     "HostCancelledResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "protocol_version",
-        "kind",
-        "request_id",
-        "capability",
-        "reason"
-      ],
+      "required": ["protocol_version", "kind", "request_id", "capability", "reason"],
       "properties": {
         "protocol_version": { "$ref": "#/$defs/ProtocolVersion" },
         "kind": { "const": "cancelled" },

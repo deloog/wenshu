@@ -1,5 +1,6 @@
 {
   "expectedIssue": "HOST_SCHEMA",
+  "expectedPath": "/protocol_version",
   "protocol_version": "0.2.0",
   "kind": "cancel",
   "request_id": "req_00000000000000000000000000000016",

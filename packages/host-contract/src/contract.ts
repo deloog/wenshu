@@ -81,16 +81,14 @@ const forbiddenPlatformKeys = new Set([
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 const validateShape = ajv.compile<HostContractMessage>(hostSchema);
 
-function issue(
-  code: HostContractIssueCode,
-  path: string,
-): HostContractIssue {
+function issue(code: HostContractIssueCode, path: string): HostContractIssue {
   return Object.freeze({ code, path });
 }
 
 function isUnsafePathValue(value: string): boolean {
   let decoded = value;
-  for (let pass = 0; pass < 8; pass += 1) {
+  let stabilized = false;
+  for (let pass = 0; pass < 16; pass += 1) {
     let next: string;
     try {
       next = decodeURIComponent(decoded);
@@ -98,13 +96,26 @@ function isUnsafePathValue(value: string): boolean {
       return true;
     }
     if (next === decoded) {
+      stabilized = true;
       break;
     }
     decoded = next;
   }
+  if (!stabilized) {
+    return true;
+  }
+  const containsControlCharacter = [...decoded].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
+  });
+  const isHttpsUrl = /^https:\/\//iu.test(decoded);
   return (
-    /^(?:[A-Za-z]:|[\\/]|file:)/iu.test(decoded) ||
-    /(?:^|[\\/])\.\.(?:[\\/]|$)/u.test(decoded)
+    containsControlCharacter ||
+    /file:/iu.test(decoded) ||
+    (!isHttpsUrl && /[A-Za-z]:(?:[\\/]|[A-Za-z0-9._-])/u.test(decoded)) ||
+    /\\\\[^\\]/u.test(decoded) ||
+    /(?:^|[\s=:'"(])\/(?!\/)/u.test(decoded) ||
+    /(?:^|[^A-Za-z0-9])\.\.(?:[\\/]|$)/u.test(decoded)
   );
 }
 
@@ -147,9 +158,7 @@ function validateRegistry(registry: HostRegistry): readonly HostContractIssue[] 
   return Object.freeze(issues);
 }
 
-function validateSemantics(
-  message: HostContractMessage,
-): readonly HostContractIssue[] {
+function validateSemantics(message: HostContractMessage): readonly HostContractIssue[] {
   if (message.kind === "registry") {
     return validateRegistry(message);
   }
@@ -162,12 +171,9 @@ function validateSemantics(
   return Object.freeze([]);
 }
 
-export function validateHostContract(
-  input: unknown,
-): HostContractValidationResult {
+export function validateHostContract(input: unknown): HostContractValidationResult {
   const inspection = inspectData<"platform">(input, {
-    classifyKey: (key) =>
-      forbiddenPlatformKeys.has(key) ? "platform" : undefined,
+    classifyKey: (key) => (forbiddenPlatformKeys.has(key) ? "platform" : undefined),
     classifyString: (value) => (isUnsafePathValue(value) ? "platform" : undefined),
     maxDepth: 32,
     maxNodes: 10_000,

@@ -10,10 +10,7 @@ interface GeneratorOptions {
   readonly unknownAny: boolean;
 }
 
-type CompileFromFile = (
-  filename: string,
-  options: GeneratorOptions,
-) => Promise<string>;
+type CompileFromFile = (filename: string, options: GeneratorOptions) => Promise<string>;
 
 function loadCompileFromFile(): CompileFromFile {
   const require = createRequire(import.meta.url);

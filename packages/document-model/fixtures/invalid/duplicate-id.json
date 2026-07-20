@@ -1,5 +1,6 @@
 {
   "expectedIssue": "DOCUMENT_DUPLICATE_ID",
+  "expectedPath": "/blocks/1/id",
   "schemaVersion": "0.1.0",
   "documentId": "doc_30000000000000000000000000000001",
   "revision": 0,

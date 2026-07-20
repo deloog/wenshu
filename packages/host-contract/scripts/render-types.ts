@@ -10,10 +10,7 @@ interface GeneratorOptions {
   readonly unknownAny: boolean;
 }
 
-type CompileFromFile = (
-  filename: string,
-  options: GeneratorOptions,
-) => Promise<string>;
+type CompileFromFile = (filename: string, options: GeneratorOptions) => Promise<string>;
 
 function loadCompileFromFile(): CompileFromFile {
   const require = createRequire(import.meta.url);
@@ -30,10 +27,7 @@ function loadCompileFromFile(): CompileFromFile {
 }
 
 export const schemaPath = resolve(import.meta.dirname, "../schema/host.schema.json");
-export const generatedPath = resolve(
-  import.meta.dirname,
-  "../src/generated/host.ts",
-);
+export const generatedPath = resolve(import.meta.dirname, "../src/generated/host.ts");
 
 export function renderHostTypes(): Promise<string> {
   return loadCompileFromFile()(schemaPath, {

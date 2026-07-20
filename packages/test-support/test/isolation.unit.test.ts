@@ -46,11 +46,7 @@ test("two workers receive distinct directories, projects, and ports", async () =
   ]);
   await Promise.all([
     writeFile(join(first.filesDirectory, "worker.log"), first.projectId, "utf8"),
-    writeFile(
-      join(second.filesDirectory, "worker.log"),
-      second.projectId,
-      "utf8",
-    ),
+    writeFile(join(second.filesDirectory, "worker.log"), second.projectId, "utf8"),
   ]);
 
   assert.notEqual(first.rootDirectory, second.rootDirectory);
@@ -85,8 +81,11 @@ test("the same worker index can be claimed only once", async () => {
     Array.from({ length: 8 }, () => prepareTestIsolation(isolation)),
   );
   const prepared = attempts.filter(
-    (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof prepareTestIsolation>>> =>
-      result.status === "fulfilled",
+    (
+      result,
+    ): result is PromiseFulfilledResult<
+      Awaited<ReturnType<typeof prepareTestIsolation>>
+    > => result.status === "fulfilled",
   );
   const rejected = attempts.filter(
     (result): result is PromiseRejectedResult => result.status === "rejected",
@@ -149,10 +148,7 @@ test("pre-existing non-directories cannot redirect isolation writes", async () =
     workerIndex: 0,
     layer: "integration",
   });
-  await assert.rejects(
-    prepareTestIsolation(isolation),
-    /non-directory link/u,
-  );
+  await assert.rejects(prepareTestIsolation(isolation), /non-directory link/u);
   await rm(root, { recursive: true });
 });
 
@@ -160,26 +156,16 @@ test("pre-existing directory links cannot escape the controlled root", async () 
   const root = await temporaryRoot();
   const outside = await temporaryRoot();
   const linkedRun = join(root, "linked-run");
-  await symlink(
-    outside,
-    linkedRun,
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  await symlink(outside, linkedRun, process.platform === "win32" ? "junction" : "dir");
   const isolation = buildTestIsolation({
     controlledRoot: root,
     runId: "linked-run",
     workerIndex: 0,
     layer: "integration",
   });
-  await assert.rejects(
-    prepareTestIsolation(isolation),
-    /non-directory link/u,
-  );
+  await assert.rejects(prepareTestIsolation(isolation), /non-directory link/u);
   await unlink(linkedRun);
-  await Promise.all([
-    rm(root, { recursive: true }),
-    rm(outside, { recursive: true }),
-  ]);
+  await Promise.all([rm(root, { recursive: true }), rm(outside, { recursive: true })]);
 });
 
 test("cleanup refuses a tampered worker claim", async () => {

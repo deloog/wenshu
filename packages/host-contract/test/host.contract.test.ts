@@ -44,15 +44,25 @@ test("invalid host fixtures fail with stable issue codes", async (context) => {
   for (const file of await fixtureFiles("invalid")) {
     await context.test(file.pathname, async () => {
       const fixture = await readJson(file);
-      if (!isRecord(fixture) || typeof fixture["expectedIssue"] !== "string") {
+      if (
+        !isRecord(fixture) ||
+        typeof fixture["expectedIssue"] !== "string" ||
+        typeof fixture["expectedPath"] !== "string"
+      ) {
         throw new Error(`Invalid negative fixture metadata: ${file.pathname}`);
       }
       const expectedIssue = fixture["expectedIssue"];
+      const expectedPath = fixture["expectedPath"];
       delete fixture["expectedIssue"];
+      delete fixture["expectedPath"];
       const result = validateHostContract(fixture);
       assert.equal(result.ok, false, file.pathname);
       if (!result.ok) {
-        assert.ok(result.issues.some((issue) => issue.code === expectedIssue));
+        assert.ok(
+          result.issues.some(
+            (issue) => issue.code === expectedIssue && issue.path === expectedPath,
+          ),
+        );
       }
     });
   }
@@ -71,9 +81,7 @@ test("registry must declare every capability exactly once", async () => {
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
-    assert.ok(
-      result.issues.some((issue) => issue.code === "HOST_REGISTRY_INCOMPLETE"),
-    );
+    assert.ok(result.issues.some((issue) => issue.code === "HOST_REGISTRY_INCOMPLETE"));
   }
 });
 
@@ -196,6 +204,56 @@ test("encoded and drive-relative path values cannot bypass key-independent check
     if (!result.ok) {
       assert.equal(result.issues[0]?.code, "HOST_PLATFORM_FIELD_FORBIDDEN");
     }
+  }
+});
+
+test("prefixed paths and control characters cannot bypass value checks", async () => {
+  const fixture = await readJson(
+    new URL("../fixtures/valid/success.json", import.meta.url),
+  );
+  if (!isRecord(fixture) || !isRecord(fixture["output"])) {
+    throw new Error("Success fixture must contain an output object.");
+  }
+  const unsafeValues = [
+    "report.pdf\nC:/Windows/win.ini",
+    "output=C:/Windows/win.ini",
+    "report.pdfC:/Windows/win.ini",
+    "output=C:private.txt",
+    "output=/etc/passwd",
+    "output=\\\\server\\share\\secret.txt",
+    "output=file:///etc/passwd",
+    "output=../secret.txt",
+    "output=%252Fetc%252Fpasswd",
+    "report.pdf\u0000hidden",
+  ];
+  for (const unsafeValue of unsafeValues) {
+    const candidate = structuredClone(fixture);
+    if (!isRecord(candidate["output"])) {
+      throw new Error("Cloned fixture must contain an output object.");
+    }
+    candidate["output"]["grant_id"] = unsafeValue;
+    const result = validateHostContract(candidate);
+    assert.equal(result.ok, false, unsafeValue);
+    if (!result.ok) {
+      assert.deepEqual(result.issues[0], {
+        code: "HOST_PLATFORM_FIELD_FORBIDDEN",
+        path: "/output/grant_id",
+      });
+    }
+  }
+});
+
+test("ordinary relative identifiers and web URLs are not mistaken for system paths", async () => {
+  const fixture = await readJson(
+    new URL("../fixtures/valid/success.json", import.meta.url),
+  );
+  for (const safeValue of ["report.pdf", "https://example.com/resource"]) {
+    const candidate = structuredClone(fixture);
+    if (!isRecord(candidate) || !isRecord(candidate["output"])) {
+      throw new Error("Success fixture must contain an output object.");
+    }
+    candidate["output"]["grant_id"] = safeValue;
+    assert.equal(validateHostContract(candidate).ok, true, safeValue);
   }
 });
 

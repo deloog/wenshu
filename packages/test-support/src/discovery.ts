@@ -38,18 +38,14 @@ async function walk(directory: string, files: string[]): Promise<void> {
         await walk(path, files);
         return;
       }
-      const lowercaseName = entry.name.toLowerCase();
-      if (
-        entry.isFile() &&
-        (lowercaseName.includes(".test.") || lowercaseName.includes(".spec."))
-      ) {
+      if (entry.isFile()) {
         files.push(path);
       }
     }),
   );
 }
 
-export async function discoverTestFiles(
+export async function discoverWorkspaceFiles(
   workspaceRoot: string,
 ): Promise<readonly string[]> {
   const absoluteRoot = resolve(workspaceRoot);
@@ -58,14 +54,24 @@ export async function discoverTestFiles(
   return Object.freeze(files.sort((left, right) => left.localeCompare(right)));
 }
 
+export async function discoverTestFiles(
+  workspaceRoot: string,
+): Promise<readonly string[]> {
+  const files = await discoverWorkspaceFiles(workspaceRoot);
+  return Object.freeze(
+    files.filter((file) => {
+      const lowercaseName = file.toLowerCase();
+      return lowercaseName.includes(".test.") || lowercaseName.includes(".spec.");
+    }),
+  );
+}
+
 export async function discoverLayerTests(
   workspaceRoot: string,
   layer: TestLayer,
 ): Promise<readonly string[]> {
   const files = await discoverTestFiles(workspaceRoot);
-  return Object.freeze(
-    files.filter((file) => classifyTestFile(file) === layer),
-  );
+  return Object.freeze(files.filter((file) => classifyTestFile(file) === layer));
 }
 
 export function displayTestPath(workspaceRoot: string, filePath: string): string {

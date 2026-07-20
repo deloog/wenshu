@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-import {
-  TEMPLATE_DSL_VERSION,
-  validateTemplate,
-} from "../src/index.ts";
+import { TEMPLATE_DSL_VERSION, validateTemplate } from "../src/index.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -77,7 +74,11 @@ test("all invalid fixtures fail with stable issue codes", async (context) => {
   for (const file of await fixtureFiles("invalid")) {
     await context.test(file.pathname, async () => {
       const metadata = await readJson(file);
-      if (!isRecord(metadata) || typeof metadata["expectedIssue"] !== "string") {
+      if (
+        !isRecord(metadata) ||
+        typeof metadata["expectedIssue"] !== "string" ||
+        typeof metadata["expectedPath"] !== "string"
+      ) {
         throw new Error(`Invalid negative fixture metadata: ${file.pathname}`);
       }
       const injection = metadata["injection"];
@@ -95,7 +96,9 @@ test("all invalid fixtures fail with stable issue codes", async (context) => {
       if (!result.ok) {
         assert.ok(
           result.issues.some(
-            (issue) => issue.code === metadata["expectedIssue"],
+            (issue) =>
+              issue.code === metadata["expectedIssue"] &&
+              issue.path === metadata["expectedPath"],
           ),
         );
       }

@@ -1,5 +1,6 @@
 {
   "expectedIssue": "TEMPLATE_NETWORK_ACCESS_FORBIDDEN",
+  "expectedPath": "/theme/url",
   "injection": {
     "path": ["theme", "url"],
     "value": "https://invalid.example/template.css"

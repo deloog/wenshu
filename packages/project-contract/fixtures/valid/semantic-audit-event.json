@@ -8,9 +8,7 @@
   "actor": "user",
   "action": "ai_change_decided",
   "decision": "accepted",
-  "affected_node_ids": [
-    "node_00000000000000000000000000000001"
-  ],
+  "affected_node_ids": ["node_00000000000000000000000000000001"],
   "before_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   "after_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "source_refs": [

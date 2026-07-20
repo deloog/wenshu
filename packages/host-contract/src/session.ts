@@ -1,7 +1,4 @@
-import type {
-  CapabilityName,
-  HostRegistry,
-} from "./generated/host.ts";
+import type { CapabilityName, HostRegistry } from "./generated/host.ts";
 import {
   type HostContractIssue,
   type HostContractIssueCode,
@@ -76,9 +73,7 @@ export function validateHostSession(
         return;
       }
       if (declaration.support_status === "unsupported") {
-        issues.push(
-          sessionIssue("HOST_CAPABILITY_UNSUPPORTED", index, "/capability"),
-        );
+        issues.push(sessionIssue("HOST_CAPABILITY_UNSUPPORTED", index, "/capability"));
       }
       requests.set(message.request_id, {
         capability: message.capability,
@@ -133,10 +128,7 @@ export function validateHostSession(
     ) {
       issues.push(sessionIssue("HOST_ERROR_CODE_UNDECLARED", index, "/error/code"));
     }
-    if (
-      message.kind === "cancelled" &&
-      state.declaration.cancellation === "none"
-    ) {
+    if (message.kind === "cancelled" && state.declaration.cancellation === "none") {
       issues.push(sessionIssue("HOST_CANCELLATION_UNDECLARED", index));
     }
     state.terminal = true;
@@ -144,9 +136,7 @@ export function validateHostSession(
 
   requests.forEach((state) => {
     if (!state.terminal) {
-      issues.push(
-        sessionIssue("HOST_TERMINAL_STATE_MISSING", state.requestIndex),
-      );
+      issues.push(sessionIssue("HOST_TERMINAL_STATE_MISSING", state.requestIndex));
     }
   });
 

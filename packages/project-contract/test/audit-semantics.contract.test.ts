@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  validateKnowledgeBundle,
-  validateProjectContract,
-} from "../src/index.ts";
+import { validateKnowledgeBundle, validateProjectContract } from "../src/index.ts";
 import { asRecord, validFixture } from "./fixture-helpers.ts";
 
 test("semantic audit records metadata, not prompts or document content", async () => {
@@ -88,13 +85,68 @@ test("timestamps, locators, and model identifiers reject ambiguous content", asy
   assert.equal(validateProjectContract(badLocator).ok, false);
 
   const badProvider = structuredClone(fixture);
-  asRecord(badProvider["subject_model_context"])["provider"] =
-    "sk-live-secret-shape";
+  asRecord(badProvider["subject_model_context"])["provider"] = "sk-live-secret-shape";
   assert.equal(validateProjectContract(badProvider).ok, false);
   const uppercaseSecret = structuredClone(fixture);
   asRecord(uppercaseSecret["subject_model_context"])["model"] =
     "TOKEN-production-shape";
   assert.equal(validateProjectContract(uppercaseSecret).ok, false);
+});
+
+test("semantic diagnostics identify the exact failed rule and JSON path", async () => {
+  const fixture = asRecord(await validFixture("semantic-audit-event"));
+  const cases = [
+    {
+      mutate: (candidate: Record<string, unknown>): void => {
+        candidate["decision"] = "approved";
+      },
+      issue: { code: "PROJECT_AUDIT_DECISION_INVALID", path: "/decision" },
+    },
+    {
+      mutate: (candidate: Record<string, unknown>): void => {
+        candidate["actor"] = "system";
+      },
+      issue: { code: "PROJECT_AUDIT_RESPONSIBILITY_INVALID", path: "/actor" },
+    },
+    {
+      mutate: (candidate: Record<string, unknown>): void => {
+        candidate["after_sha256"] = candidate["before_sha256"];
+      },
+      issue: { code: "PROJECT_AUDIT_HASH_INVALID", path: "/after_sha256" },
+    },
+    {
+      mutate: (candidate: Record<string, unknown>): void => {
+        candidate["occurred_at"] = "2026-02-31T12:00:00.000Z";
+      },
+      issue: { code: "PROJECT_TIMESTAMP_INVALID", path: "/occurred_at" },
+    },
+    {
+      mutate: (candidate: Record<string, unknown>): void => {
+        asRecord(candidate["subject_model_context"])["model"] =
+          "token-production-shape";
+      },
+      issue: {
+        code: "PROJECT_MODEL_IDENTIFIER_INVALID",
+        path: "/subject_model_context/model",
+      },
+    },
+  ] as const;
+
+  for (const entry of cases) {
+    const candidate = structuredClone(fixture);
+    entry.mutate(candidate);
+    const result = validateProjectContract(candidate);
+    assert.equal(result.ok, false, entry.issue.code);
+    if (!result.ok) {
+      assert.ok(
+        result.issues.some(
+          (actual) =>
+            actual.code === entry.issue.code && actual.path === entry.issue.path,
+        ),
+        JSON.stringify(result),
+      );
+    }
+  }
 });
 
 test("only a user can approve a formal version in a complete bundle", async () => {

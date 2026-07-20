@@ -61,13 +61,7 @@
     },
     "RequiredSection": {
       "type": "string",
-      "enum": [
-        "cover",
-        "executive_summary",
-        "table_of_contents",
-        "body",
-        "sources"
-      ]
+      "enum": ["cover", "executive_summary", "table_of_contents", "body", "sources"]
     },
     "Page": {
       "type": "object",
@@ -176,13 +170,21 @@
         "cover_own_page": { "type": "boolean" },
         "toc_start_new_page": { "type": "boolean" },
         "h1_start_new_page": { "type": "boolean" },
-        "heading_keep_with_next_lines": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "heading_keep_with_next_lines": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
         "widows": { "type": "integer", "minimum": 2, "maximum": 5 },
         "orphans": { "type": "integer", "minimum": 2, "maximum": 5 },
         "table_repeat_header": { "type": "boolean" },
         "table_row_break_inside": { "const": "avoid" },
         "figure_keep_with_caption": { "type": "boolean" },
-        "max_consecutive_sparse_pages": { "type": "integer", "minimum": 0, "maximum": 3 }
+        "max_consecutive_sparse_pages": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        }
       }
     },
     "ValidatorName": {

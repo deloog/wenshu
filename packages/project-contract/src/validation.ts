@@ -3,9 +3,7 @@ import { cloneAndFreeze, inspectData } from "@wenshu/contract-runtime";
 import { DOCUMENT_SCHEMA_VERSION } from "@wenshu/document-model";
 import { TEMPLATE_DSL_VERSION } from "@wenshu/template-model";
 
-import contractSchema from "../schema/project-contract.schema.json" with {
-  type: "json",
-};
+import contractSchema from "../schema/project-contract.schema.json" with { type: "json" };
 import type {
   KnowledgePackageManifest,
   ProjectContract,
@@ -20,11 +18,17 @@ export const PROJECT_UPSTREAM_VERSIONS = Object.freeze({
 });
 
 export type ProjectContractIssueCode =
+  | "PROJECT_AUDIT_DECISION_INVALID"
+  | "PROJECT_AUDIT_HASH_INVALID"
+  | "PROJECT_AUDIT_RESPONSIBILITY_INVALID"
   | "PROJECT_BUDGET_EXCEEDED"
+  | "PROJECT_COMPATIBILITY_MISMATCH"
   | "PROJECT_DUPLICATE_ID"
-  | "PROJECT_INTEGRITY"
+  | "PROJECT_MODEL_IDENTIFIER_INVALID"
+  | "PROJECT_PACKAGE_PATH_INVALID"
   | "PROJECT_REFERENCE_MISSING"
   | "PROJECT_SCHEMA"
+  | "PROJECT_TIMESTAMP_INVALID"
   | "PROJECT_TRUTH_DERIVED_MIXED";
 
 export interface ProjectContractIssue {
@@ -39,10 +43,7 @@ export type ProjectContractValidationResult =
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 const validateShape = ajv.compile<ProjectContract>(contractSchema);
 
-function issue(
-  code: ProjectContractIssueCode,
-  path: string,
-): ProjectContractIssue {
+function issue(code: ProjectContractIssueCode, path: string): ProjectContractIssue {
   return Object.freeze({ code, path });
 }
 
@@ -58,11 +59,7 @@ function validateProject(project: ProjectManifest): readonly ProjectContractIssu
   if (duplicates(project.formal_versions.map((entry) => entry.version_id))) {
     issues.push(issue("PROJECT_DUPLICATE_ID", "/formal_versions"));
   }
-  if (
-    duplicates(
-      project.formal_versions.map((entry) => entry.approval_event_id),
-    )
-  ) {
+  if (duplicates(project.formal_versions.map((entry) => entry.approval_event_id))) {
     issues.push(issue("PROJECT_DUPLICATE_ID", "/formal_versions"));
   }
   const auditIds = new Set(project.semantic_audit_event_ids);
@@ -78,7 +75,7 @@ function validateProject(project: ProjectManifest): readonly ProjectContractIssu
   project.formal_versions.forEach((entry, index) => {
     if (!isCanonicalTimestamp(entry.created_at)) {
       issues.push(
-        issue("PROJECT_INTEGRITY", `/formal_versions/${index}/created_at`),
+        issue("PROJECT_TIMESTAMP_INVALID", `/formal_versions/${index}/created_at`),
       );
     }
     if (!auditIds.has(entry.approval_event_id)) {
@@ -92,9 +89,7 @@ function validateProject(project: ProjectManifest): readonly ProjectContractIssu
   });
   project.derived_data.forEach((entry, index) => {
     if (entry.source_sha256s.some((sha256) => !truthHashes.has(sha256))) {
-      issues.push(
-        issue("PROJECT_REFERENCE_MISSING", `/derived_data/${index}`),
-      );
+      issues.push(issue("PROJECT_REFERENCE_MISSING", `/derived_data/${index}`));
     }
   });
   return Object.freeze(issues);
@@ -108,7 +103,7 @@ function validatePackage(
     issues.push(issue("PROJECT_DUPLICATE_ID", "/entries"));
   }
   if (!isCanonicalTimestamp(manifest.created_at)) {
-    issues.push(issue("PROJECT_INTEGRITY", "/created_at"));
+    issues.push(issue("PROJECT_TIMESTAMP_INVALID", "/created_at"));
   }
   const requiredSingletons = ["truth.project", "truth.audit"] as const;
   requiredSingletons.forEach((role) => {
@@ -127,20 +122,14 @@ function validatePackage(
     const expectedPrefix = truthRole ? "truth/" : "derived/";
     if (
       (truthRole &&
-        (entry.classification !== "truth" ||
-          !entry.required ||
-          entry.rebuildable)) ||
+        (entry.classification !== "truth" || !entry.required || entry.rebuildable)) ||
       (!truthRole &&
-        (entry.classification !== "derived" ||
-          entry.required ||
-          !entry.rebuildable))
+        (entry.classification !== "derived" || entry.required || !entry.rebuildable))
     ) {
-      issues.push(
-        issue("PROJECT_TRUTH_DERIVED_MIXED", `/entries/${index}`),
-      );
+      issues.push(issue("PROJECT_TRUTH_DERIVED_MIXED", `/entries/${index}`));
     }
     if (!entry.path.startsWith(expectedPrefix)) {
-      issues.push(issue("PROJECT_INTEGRITY", `/entries/${index}/path`));
+      issues.push(issue("PROJECT_PACKAGE_PATH_INVALID", `/entries/${index}/path`));
     }
   });
   return Object.freeze(issues);
@@ -153,9 +142,7 @@ function validateCompatibility(
     value.readers.document !== PROJECT_UPSTREAM_VERSIONS.document ||
     value.readers.template !== PROJECT_UPSTREAM_VERSIONS.template
   ) {
-    return Object.freeze([
-      issue("PROJECT_INTEGRITY", "/readers"),
-    ]);
+    return Object.freeze([issue("PROJECT_COMPATIBILITY_MISMATCH", "/readers")]);
   }
   return Object.freeze([]);
 }
@@ -182,9 +169,7 @@ export function validateProjectContract(
       ok: false,
       issues: Object.freeze([
         issue(
-          inspection.kind === "budget"
-            ? "PROJECT_BUDGET_EXCEEDED"
-            : "PROJECT_SCHEMA",
+          inspection.kind === "budget" ? "PROJECT_BUDGET_EXCEEDED" : "PROJECT_SCHEMA",
           inspection.path,
         ),
       ]),

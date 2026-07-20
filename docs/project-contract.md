@@ -49,7 +49,7 @@ action、decision、受影响节点和前后哈希具有可执行组合规则：
 
 ## 6. 安全、诊断与证据
 
-输入最多 64 层、100,000 个对象/数组节点；拒绝函数、访问器、循环和非普通对象，成功后返回深复制、深冻结值。稳定问题码为 `PROJECT_SCHEMA`、`PROJECT_BUDGET_EXCEEDED`、`PROJECT_DUPLICATE_ID`、`PROJECT_INTEGRITY`、`PROJECT_REFERENCE_MISSING`、`PROJECT_TRUTH_DERIVED_MIXED`，诊断不回显正文或不可信值。
+输入最多 64 层、100,000 个对象/数组节点；拒绝函数、访问器、循环和非普通对象，成功后返回深复制、深冻结值。稳定问题码包括通用的 `PROJECT_SCHEMA`、`PROJECT_BUDGET_EXCEEDED`、`PROJECT_DUPLICATE_ID`、`PROJECT_REFERENCE_MISSING`、`PROJECT_TRUTH_DERIVED_MIXED`，以及 G1-09 拆分出的 `PROJECT_AUDIT_DECISION_INVALID`、`PROJECT_AUDIT_RESPONSIBILITY_INVALID`、`PROJECT_AUDIT_HASH_INVALID`、`PROJECT_TIMESTAMP_INVALID`、`PROJECT_PACKAGE_PATH_INVALID`、`PROJECT_COMPATIBILITY_MISMATCH`、`PROJECT_MODEL_IDENTIFIER_INVALID`。每个非法 fixture 同时断言问题码与精确 JSON path；诊断不回显正文或不可信值。
 
 权威命令：
 
@@ -61,3 +61,5 @@ pnpm verify
 ```
 
 整改后实施者自检为 21/21，新增覆盖“用户裁决并保留模型出处”、AI/system 不得裁决、接受/拒绝的节点与哈希语义、正式版本只能由用户批准、非法日历时间、结构化 locator、密钥形状标识、path/role 一致性，以及 document/template 跨包版本与 ID 联合契约。Claude 独立复审重跑首审反例后给出 `CONDITIONAL PASS`：首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 的关闭责任登记于 [G1-07 条件通过后续项](audits/G1-07-followups.md)，不得由实施者自行宣称关闭。
+
+G1-09 已实施 m-05/NF-04 的诊断粒度整改，但是否关闭仍须由独立审计确认。Schema 和序列化数据版本未变化；本次只细化尚无消费者依赖的运行时诊断码。

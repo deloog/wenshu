@@ -2,10 +2,7 @@ import type {
   KnowledgePackageManifest,
   SemanticAuditEvent,
 } from "./generated/project-contract.ts";
-import {
-  type ProjectContractIssue,
-  validateProjectContract,
-} from "./validation.ts";
+import { type ProjectContractIssue, validateProjectContract } from "./validation.ts";
 
 export type KnowledgeBundleValidationResult =
   | { readonly ok: true }
@@ -94,22 +91,14 @@ export function validateKnowledgeBundle(
         auditEvents[index]?.sequence === index,
     );
   const truthMatches =
-    hasExactTruthHashes(
-      manifest,
-      "truth.document",
-      [
-        project.document.sha256,
-        ...project.formal_versions.map((entry) => entry.document_sha256),
-      ],
-    ) &&
-    hasExactTruthHashes(
-      manifest,
-      "truth.template",
-      [
-        project.template.sha256,
-        ...project.formal_versions.map((entry) => entry.template_sha256),
-      ],
-    ) &&
+    hasExactTruthHashes(manifest, "truth.document", [
+      project.document.sha256,
+      ...project.formal_versions.map((entry) => entry.document_sha256),
+    ]) &&
+    hasExactTruthHashes(manifest, "truth.template", [
+      project.template.sha256,
+      ...project.formal_versions.map((entry) => entry.template_sha256),
+    ]) &&
     hasExactTruthHashes(
       manifest,
       "truth.material",

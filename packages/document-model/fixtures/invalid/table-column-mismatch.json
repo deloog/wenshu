@@ -1,5 +1,6 @@
 {
   "expectedIssue": "DOCUMENT_TABLE_COLUMN_MISMATCH",
+  "expectedPath": "/blocks/0/rows/0/cells/0/columnId",
   "schemaVersion": "0.1.0",
   "documentId": "doc_50000000000000000000000000000001",
   "revision": 0,

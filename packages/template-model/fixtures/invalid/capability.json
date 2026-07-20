@@ -1,5 +1,6 @@
 {
   "expectedIssue": "TEMPLATE_CAPABILITY_FORBIDDEN",
+  "expectedPath": "/capabilities",
   "injection": {
     "path": ["capabilities"],
     "value": ["network"]

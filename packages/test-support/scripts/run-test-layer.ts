@@ -1,11 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import {
-  discoverLayerTests,
-  displayTestPath,
-  isTestLayer,
-} from "../src/index.ts";
+import { discoverLayerTests, displayTestPath, isTestLayer } from "../src/index.ts";
 
 const requestedLayer = process.argv[2];
 const allowEmpty = process.argv.includes("--allow-empty");

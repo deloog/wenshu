@@ -97,8 +97,7 @@ test("an override cannot silently select a different environment", () => {
   assert.throws(
     () => resolveRuntimeConfig("staging", { WENSHU_ENV: "production" }),
     (error: unknown) =>
-      error instanceof ConfigValidationError &&
-      error.code === "CONFIG_ENV_MISMATCH",
+      error instanceof ConfigValidationError && error.code === "CONFIG_ENV_MISMATCH",
   );
 });
 
