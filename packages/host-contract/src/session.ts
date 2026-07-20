@@ -96,6 +96,10 @@ export function validateHostSession(
       return;
     }
     if (message.kind === "cancel") {
+      if (state.terminal) {
+        issues.push(sessionIssue("HOST_TERMINAL_STATE_DUPLICATE", index));
+        return;
+      }
       if (state.declaration.cancellation === "none") {
         issues.push(sessionIssue("HOST_CANCELLATION_UNDECLARED", index));
       }

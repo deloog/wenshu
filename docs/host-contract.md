@@ -38,7 +38,7 @@ registry → request → progress (0..n) → success | failure | cancelled
 - 错误只有稳定 code、是否可重试和本地化 detail key；原始系统错误、路径、密钥和用户内容不得穿透。
 - 降级是显式枚举，如浏览器下载、人工文件选择、手工复制/分享、系统打印或只读；安全失败不得通过扩大权限自动降级。
 
-单条消息由 `validateHostMessage` 校验；一段完整交互必须再由 `validateHostSession` 结合注册表做有状态校验。后者强制能力必须受支持、请求 ID 归属一致、进度声明且序号递增、错误码属于能力、取消符合声明，并且每个请求恰有一个终态。
+单条消息由 `validateHostContract` 校验；一段完整交互必须再由 `validateHostSession` 结合注册表做有状态校验。后者强制能力必须受支持、请求 ID 归属一致、进度声明且序号递增、错误码属于能力、取消符合声明，并且每个请求恰有一个终态；终态之后到达的取消也稳定返回 `HOST_TERMINAL_STATE_DUPLICATE`。
 
 ## 4. 平台隔离与安全
 
@@ -63,4 +63,4 @@ registry → request → progress (0..n) → success | failure | cancelled
 - `pnpm contracts:check`：运行文档、模板和 Host 契约。
 - `pnpm verify`：运行全部 G1 契约、严格类型检查和生产构建。
 
-修复后 28/28 项 Host 契约测试通过，新增覆盖伪装键名、重复编码与盘符相对路径、深度预算、继承访问器不执行，以及终态缺失/重复、错误码归属、进度序号、取消声明和 unsupported 能力的有状态会话校验。生成漂移反向探针必须失败并可通过重新生成恢复；最终结论仍等待独立复审。
+G1-06 修复后的 28/28 项 Host 契约测试已获 Claude `CONDITIONAL PASS`。G1-08 又增加“终态后 cancel”反测，当前 Host 契约实施者自检为 29/29；文档导出名与该状态机修复是否关闭 NF-01/NF-04，仍等待 G1-08 的 Claude 独立审计。

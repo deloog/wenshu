@@ -155,3 +155,35 @@ test("every accepted request must reach one terminal state", async () => {
     );
   }
 });
+
+test("cancel after a terminal state returns a stable protocol issue", async () => {
+  const registry = await registryFixture();
+  const start = request(
+    "req_00000000000000000000000000000026",
+    "file.export.write",
+  );
+  const success = {
+    protocol_version: HOST_PROTOCOL_VERSION,
+    kind: "success",
+    request_id: start["request_id"],
+    capability: start["capability"],
+    output: { grant_id: "grant_export_complete" },
+  };
+  const cancel = {
+    protocol_version: HOST_PROTOCOL_VERSION,
+    kind: "cancel",
+    request_id: start["request_id"],
+    reason: "user",
+  };
+
+  const result = validateHostSession(registry, [start, success, cancel]);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.deepEqual(result.issues, [
+      {
+        code: "HOST_TERMINAL_STATE_DUPLICATE",
+        path: "/messages/2",
+      },
+    ]);
+  }
+});
