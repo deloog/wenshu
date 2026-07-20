@@ -1,0 +1,16 @@
+{
+  "contract_kind": "compatibility",
+  "policy_version": "0.1.0",
+  "readers": {
+    "project": "0.1.0",
+    "knowledge_package": "0.1.0",
+    "semantic_audit": "0.1.0",
+    "document": "0.1.0",
+    "template": "0.1.0"
+  },
+  "unknown_version": "reject",
+  "same_major_change": "explicit_adapter_required",
+  "destructive_change": "new_major_and_adr",
+  "history_policy": "preserve_schema_and_migrations",
+  "migration_paths": []
+}

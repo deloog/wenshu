@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/project-contract/0.1.0/project-contract.schema.json",
+  "title": "ProjectContract",
+  "description": "Version 0 contracts for project truth, knowledge packages, semantic audit, and compatibility.",
+  "oneOf": [
+    { "$ref": "#/$defs/ProjectManifest" },
+    { "$ref": "#/$defs/KnowledgePackageManifest" },
+    { "$ref": "#/$defs/SemanticAuditEvent" },
+    { "$ref": "#/$defs/CompatibilityManifest" }
+  ],
+  "$defs": {
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{3})?Z$"
+    },
+    "ProjectId": {
+      "type": "string",
+      "pattern": "^prj_[a-f0-9]{32}$"
+    },
+    "AuditEventId": {
+      "type": "string",
+      "pattern": "^audit_[a-f0-9]{32}$"
+    },
+    "MaterialId": {
+      "type": "string",
+      "pattern": "^mat_[a-f0-9]{32}$"
+    },
+    "FormalVersionId": {
+      "type": "string",
+      "pattern": "^ver_[a-f0-9]{32}$"
+    },
+    "DocumentReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "document_id", "revision", "sha256"],
+      "properties": {
+        "schema_version": { "const": "0.1.0" },
+        "document_id": {
+          "type": "string",
+          "pattern": "^doc_[a-f0-9]{32}$"
+        },
+        "revision": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "TemplateReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dsl_version", "template_id", "version", "sha256"],
+      "properties": {
+        "dsl_version": { "const": "0.1.0" },
+        "template_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)+$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$"
+        },
+        "sha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "MaterialReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["material_id", "display_name", "media_type", "sha256"],
+      "properties": {
+        "material_id": { "$ref": "#/$defs/MaterialId" },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "media_type": {
+          "enum": ["text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/png", "image/jpeg", "image/svg+xml", "text/csv"]
+        },
+        "sha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "FormalVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version_id", "created_at", "document_sha256", "template_sha256", "approval_event_id"],
+      "properties": {
+        "version_id": { "$ref": "#/$defs/FormalVersionId" },
+        "created_at": { "$ref": "#/$defs/Timestamp" },
+        "document_sha256": { "$ref": "#/$defs/Sha256" },
+        "template_sha256": { "$ref": "#/$defs/Sha256" },
+        "approval_event_id": { "$ref": "#/$defs/AuditEventId" }
+      }
+    },
+    "DerivedDataDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "rebuildable", "source_sha256s"],
+      "properties": {
+        "kind": { "enum": ["search_index", "vector_index", "render_cache", "thumbnail"] },
+        "rebuildable": { "const": true },
+        "source_sha256s": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/Sha256" }
+        }
+      }
+    },
+    "ProjectManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_kind", "schema_version", "project_id", "revision", "title", "document", "template", "materials", "semantic_audit_event_ids", "formal_versions", "derived_data"],
+      "properties": {
+        "contract_kind": { "const": "project" },
+        "schema_version": { "const": "0.1.0" },
+        "project_id": { "$ref": "#/$defs/ProjectId" },
+        "revision": { "type": "integer", "minimum": 0 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "document": { "$ref": "#/$defs/DocumentReference" },
+        "template": { "$ref": "#/$defs/TemplateReference" },
+        "materials": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MaterialReference" }
+        },
+        "semantic_audit_event_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/AuditEventId" }
+        },
+        "formal_versions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/FormalVersion" }
+        },
+        "derived_data": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DerivedDataDescriptor" }
+        }
+      }
+    },
+    "PackageEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "role", "classification", "required", "sha256", "size_bytes", "rebuildable"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(?:[a-z0-9_-]+/)*[a-z0-9_-]+(?:\\.[a-z0-9_-]+)+$"
+        },
+        "role": {
+          "enum": ["truth.project", "truth.document", "truth.template", "truth.audit", "truth.material", "derived.search_index", "derived.vector_index", "derived.render_cache", "derived.thumbnail"]
+        },
+        "classification": { "enum": ["truth", "derived"] },
+        "required": { "type": "boolean" },
+        "sha256": { "$ref": "#/$defs/Sha256" },
+        "size_bytes": { "type": "integer", "minimum": 0, "maximum": 1073741824 },
+        "rebuildable": { "type": "boolean" }
+      }
+    },
+    "KnowledgePackageManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_kind", "format_version", "package_id", "project_id", "created_at", "entries"],
+      "properties": {
+        "contract_kind": { "const": "knowledge_package" },
+        "format_version": { "const": "0.1.0" },
+        "package_id": {
+          "type": "string",
+          "pattern": "^pkg_[a-f0-9]{32}$"
+        },
+        "project_id": { "$ref": "#/$defs/ProjectId" },
+        "created_at": { "$ref": "#/$defs/Timestamp" },
+        "entries": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 10000,
+          "items": { "$ref": "#/$defs/PackageEntry" }
+        }
+      }
+    },
+    "SourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["material_id", "sha256", "locator"],
+      "properties": {
+        "material_id": { "$ref": "#/$defs/MaterialId" },
+        "sha256": { "$ref": "#/$defs/Sha256" },
+        "locator": { "type": ["string", "null"], "maxLength": 200 }
+      }
+    },
+    "ModelContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "invocation_id"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "invocation_id": { "type": "string", "pattern": "^inv_[a-f0-9]{32}$" }
+      }
+    },
+    "SemanticAuditEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_kind", "schema_version", "event_id", "project_id", "sequence", "occurred_at", "actor", "action", "decision", "affected_node_ids", "before_sha256", "after_sha256", "source_refs", "model_context"],
+      "properties": {
+        "contract_kind": { "const": "semantic_audit_event" },
+        "schema_version": { "const": "0.1.0" },
+        "event_id": { "$ref": "#/$defs/AuditEventId" },
+        "project_id": { "$ref": "#/$defs/ProjectId" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "occurred_at": { "$ref": "#/$defs/Timestamp" },
+        "actor": { "enum": ["user", "ai", "system"] },
+        "action": { "enum": ["ai_change_decided", "user_changed_after_ai", "source_linked", "template_applied", "formal_version_approved"] },
+        "decision": { "enum": ["accepted", "rejected", "applied", "approved"] },
+        "affected_node_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^node_[a-f0-9]{32}$" }
+        },
+        "before_sha256": { "oneOf": [{ "$ref": "#/$defs/Sha256" }, { "type": "null" }] },
+        "after_sha256": { "oneOf": [{ "$ref": "#/$defs/Sha256" }, { "type": "null" }] },
+        "source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SourceReference" }
+        },
+        "model_context": { "oneOf": [{ "$ref": "#/$defs/ModelContext" }, { "type": "null" }] }
+      }
+    },
+    "CompatibilityManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_kind", "policy_version", "readers", "unknown_version", "same_major_change", "destructive_change", "history_policy", "migration_paths"],
+      "properties": {
+        "contract_kind": { "const": "compatibility" },
+        "policy_version": { "const": "0.1.0" },
+        "readers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["project", "knowledge_package", "semantic_audit", "document", "template"],
+          "properties": {
+            "project": { "const": "0.1.0" },
+            "knowledge_package": { "const": "0.1.0" },
+            "semantic_audit": { "const": "0.1.0" },
+            "document": { "const": "0.1.0" },
+            "template": { "const": "0.1.0" }
+          }
+        },
+        "unknown_version": { "const": "reject" },
+        "same_major_change": { "const": "explicit_adapter_required" },
+        "destructive_change": { "const": "new_major_and_adr" },
+        "history_policy": { "const": "preserve_schema_and_migrations" },
+        "migration_paths": { "type": "array", "maxItems": 0 }
+      }
+    }
+  }
+}

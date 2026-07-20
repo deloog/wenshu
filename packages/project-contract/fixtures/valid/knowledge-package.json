@@ -1,0 +1,63 @@
+{
+  "contract_kind": "knowledge_package",
+  "format_version": "0.1.0",
+  "package_id": "pkg_00000000000000000000000000000001",
+  "project_id": "prj_00000000000000000000000000000001",
+  "created_at": "2026-07-20T12:00:00.000Z",
+  "entries": [
+    {
+      "path": "truth/project.json",
+      "role": "truth.project",
+      "classification": "truth",
+      "required": true,
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "size_bytes": 1024,
+      "rebuildable": false
+    },
+    {
+      "path": "truth/document.json",
+      "role": "truth.document",
+      "classification": "truth",
+      "required": true,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size_bytes": 2048,
+      "rebuildable": false
+    },
+    {
+      "path": "truth/template.json",
+      "role": "truth.template",
+      "classification": "truth",
+      "required": true,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size_bytes": 512,
+      "rebuildable": false
+    },
+    {
+      "path": "truth/audit.ndjson",
+      "role": "truth.audit",
+      "classification": "truth",
+      "required": true,
+      "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "size_bytes": 768,
+      "rebuildable": false
+    },
+    {
+      "path": "truth/materials/source.md",
+      "role": "truth.material",
+      "classification": "truth",
+      "required": true,
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "size_bytes": 256,
+      "rebuildable": false
+    },
+    {
+      "path": "derived/search.idx",
+      "role": "derived.search_index",
+      "classification": "derived",
+      "required": false,
+      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "size_bytes": 128,
+      "rebuildable": true
+    }
+  ]
+}

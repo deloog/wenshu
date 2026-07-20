@@ -1,0 +1,40 @@
+{
+  "contract_kind": "project",
+  "schema_version": "0.1.0",
+  "project_id": "prj_00000000000000000000000000000001",
+  "revision": 0,
+  "title": "最小文枢项目",
+  "document": {
+    "schema_version": "0.1.0",
+    "document_id": "doc_00000000000000000000000000000001",
+    "revision": 0,
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "template": {
+    "dsl_version": "0.1.0",
+    "template_id": "wenshu.minimal",
+    "version": "1.0.0",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "materials": [
+    {
+      "material_id": "mat_00000000000000000000000000000001",
+      "display_name": "原始资料.md",
+      "media_type": "text/markdown",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "semantic_audit_event_ids": [
+    "audit_00000000000000000000000000000001"
+  ],
+  "formal_versions": [],
+  "derived_data": [
+    {
+      "kind": "search_index",
+      "rebuildable": true,
+      "source_sha256s": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    }
+  ]
+}

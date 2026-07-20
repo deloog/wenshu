@@ -80,7 +80,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-04 | ✅ 已完成 | [v0 文档对象契约](document-model.md)：路径、预算与测试 typecheck 反例通过；Claude 复审通过，NF-03 已登记到 PA-00 |
 | G1-05 | ✅ 已完成 | [v0 模板 DSL 契约](template-dsl.md)：继承访问器与有效基线注入反例通过；Claude 复审通过 |
 | G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：值级路径、预算和会话状态机反例通过；Claude 复审通过，NF-01/02/04 已登记到 G1-08/09 |
-| G1-07 | ⬜ DoR 已满足，待开始 | G1-04/G1-06 已独立复审通过；允许按原子任务边界启动，不得夹带后续数据库或功能实现 |
+| G1-07 | 🟠 已实现待独立审计 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：15/15 实施者自检通过；不含数据库或文件 IO，消费者等待 [Claude 审计](audits/G1-07-claude-audit-task.md) |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务

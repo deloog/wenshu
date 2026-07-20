@@ -1,0 +1,28 @@
+{
+  "contract_kind": "semantic_audit_event",
+  "schema_version": "0.1.0",
+  "event_id": "audit_00000000000000000000000000000001",
+  "project_id": "prj_00000000000000000000000000000001",
+  "sequence": 0,
+  "occurred_at": "2026-07-20T12:00:00.000Z",
+  "actor": "ai",
+  "action": "ai_change_decided",
+  "decision": "accepted",
+  "affected_node_ids": [
+    "node_00000000000000000000000000000001"
+  ],
+  "before_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "after_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source_refs": [
+    {
+      "material_id": "mat_00000000000000000000000000000001",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "locator": "section-1"
+    }
+  ],
+  "model_context": {
+    "provider": "fixture-provider",
+    "model": "fixture-model",
+    "invocation_id": "inv_00000000000000000000000000000001"
+  }
+}

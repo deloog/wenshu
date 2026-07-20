@@ -57,7 +57,7 @@ docs/adr/                           重大技术决策
 - 审计者只能修改指定审计报告，不得修改被审代码、测试、Schema、配置、lockfile、路线图或验收标准。
 - BLOCKER/MAJOR 由实施者修复，原审计角色复审；实施者不得自行关闭发现。
 - Claude 的短入口是 [CLAUDE.md](CLAUDE.md)，审计任务与报告统一放在 `docs/audits/`。
-- 当前 `G1-03～G1-06` 已实现但补做独立审计；`G1-07` 在审计闭环前暂停。
+- `G1-03～G1-06` 已获 Claude 独立复审 `CONDITIONAL PASS`；`G1-07` 当前已实现待独立审计，其消费者在审计闭环前暂停。
 
 ## 文件与代码规则（进入 G1 后生效）
 
@@ -108,5 +108,7 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 模板规则见 [v0 模板 DSL 契约与安全边界](docs/template-dsl.md)。模板只有声明式白名单数据能力；不得加入函数、脚本、文件路径、网络、系统或自声明 capability，v0 迁移规则必须为空。
 
 平台能力规则见 [v0 Host 能力与生命周期契约](docs/host-contract.md)。Web 核心不得 import 或直调 Electron、Node 文件 API、ArkTS 等平台接口；文件位置只经 Host 的 grant/handle 表达，禁止任意绝对路径穿透。
+
+项目与知识包规则见 [v0 项目、知识包、语义审计与兼容契约](docs/project-contract.md)。真源 entry 必需且不可重建；派生 entry 非必需且必须可重建。语义审计不得承载正文、prompt、密钥、编辑器事务或 CRDT update；数据库表结构不得成为开放交换格式。
 
 测试、渲染、证据和打包命令将在对应原子任务建立后追加；不得从聊天记录猜命令或用临时命令冒充权威入口。

@@ -12,7 +12,7 @@
     "dev": "pnpm --filter @wenshu/web dev",
     "build": "pnpm -r --if-present run build",
     "config:check": "pnpm --filter @wenshu/config test",
-    "contracts:check": "pnpm --filter @wenshu/document-model generate:check && pnpm --filter @wenshu/template-model generate:check && pnpm --filter @wenshu/host-contract generate:check && pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/host-contract test",
+    "contracts:check": "pnpm --filter @wenshu/document-model generate:check && pnpm --filter @wenshu/template-model generate:check && pnpm --filter @wenshu/host-contract generate:check && pnpm --filter @wenshu/project-contract generate:check && pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/host-contract test && pnpm --filter @wenshu/project-contract test",
     "typecheck": "pnpm -r --if-present run typecheck",
     "verify": "pnpm config:check && pnpm contracts:check && pnpm typecheck && pnpm build"
   },
