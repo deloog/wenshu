@@ -20,7 +20,15 @@ export default tseslint.config(
       reportUnusedDisableDirectives: "error",
     },
   },
-  eslint.configs.recommended,
+  {
+    ...eslint.configs.recommended,
+    files: ["**/*.js", "**/*.jsx", "**/*.mjs", "**/*.cjs"],
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
+    },
+  },
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
     files: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],

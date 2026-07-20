@@ -46,6 +46,19 @@ export type ProjectContractValidationResult =
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 const validateShape = ajv.compile<ProjectContract>(contractSchema);
+const schemaReference = contractSchema.$id;
+const validateProjectShape = ajv.compile<ProjectManifest>({
+  $ref: `${schemaReference}#/$defs/ProjectManifest`,
+});
+const validatePackageShape = ajv.compile<
+  Extract<ProjectContract, { contract_kind: "knowledge_package" }>
+>({ $ref: `${schemaReference}#/$defs/KnowledgePackageManifest` });
+const validateAuditShape = ajv.compile<
+  Extract<ProjectContract, { contract_kind: "semantic_audit_event" }>
+>({ $ref: `${schemaReference}#/$defs/SemanticAuditEvent` });
+const validateCompatibilityShape = ajv.compile<
+  Extract<ProjectContract, { contract_kind: "compatibility" }>
+>({ $ref: `${schemaReference}#/$defs/CompatibilityManifest` });
 
 function issue(code: ProjectContractIssueCode, path: string): ProjectContractIssue {
   return Object.freeze({ code, path });
@@ -53,6 +66,41 @@ function issue(code: ProjectContractIssueCode, path: string): ProjectContractIss
 
 function duplicates(values: readonly string[]): boolean {
   return new Set(values).size !== values.length;
+}
+
+function declaredContractKind(
+  input: unknown,
+): ProjectContract["contract_kind"] | undefined {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return undefined;
+  }
+  const kind = (input as Readonly<Record<string, unknown>>)["contract_kind"];
+  switch (kind) {
+    case "project":
+    case "knowledge_package":
+    case "semantic_audit_event":
+    case "compatibility":
+      return kind;
+    default:
+      return undefined;
+  }
+}
+
+function shapeErrors(input: unknown) {
+  switch (declaredContractKind(input)) {
+    case "project":
+      return validateProjectShape(input) ? null : validateProjectShape.errors;
+    case "knowledge_package":
+      return validatePackageShape(input) ? null : validatePackageShape.errors;
+    case "semantic_audit_event":
+      return validateAuditShape(input) ? null : validateAuditShape.errors;
+    case "compatibility":
+      return validateCompatibilityShape(input)
+        ? null
+        : validateCompatibilityShape.errors;
+    default:
+      return validateShape(input) ? null : validateShape.errors;
+  }
 }
 
 function validateProject(project: ProjectManifest): readonly ProjectContractIssue[] {
@@ -183,11 +231,12 @@ export function validateProjectContract(
   if (identifierIssues.length > 0) {
     return Object.freeze({ ok: false, issues: identifierIssues });
   }
-  if (!validateShape(input)) {
+  const validationErrors = shapeErrors(input);
+  if (validationErrors !== null) {
     return Object.freeze({
       ok: false,
       issues: Object.freeze(
-        (validateShape.errors ?? []).map((entry) => {
+        (validationErrors ?? []).map((entry) => {
           const missingProperty = entry.params["missingProperty"];
           const path =
             entry.keyword === "required" && typeof missingProperty === "string"
@@ -195,6 +244,16 @@ export function validateProjectContract(
               : entry.instancePath || "/";
           return issue("PROJECT_SCHEMA", path);
         }),
+      ),
+    });
+  }
+  if (!validateShape(input)) {
+    return Object.freeze({
+      ok: false,
+      issues: Object.freeze(
+        (validateShape.errors ?? []).map((entry) =>
+          issue("PROJECT_SCHEMA", entry.instancePath || "/"),
+        ),
       ),
     });
   }

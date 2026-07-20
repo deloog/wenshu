@@ -40,5 +40,25 @@ test("only manifest-registered generated files receive generated status", async 
   ]);
   assert.equal(invalid.findings.length, 1);
   assert.match(invalid.findings[0]?.message ?? "", /unregistered file/u);
+
+  await write(
+    packageJson,
+    JSON.stringify({
+      scripts: { "generate:check": "node scripts/check-generated.ts" },
+      wenshu: {
+        generatedFiles: [
+          "src/generated/types.ts",
+          "src/generated/TYPES.ts",
+          "src/generated/./types.ts",
+        ],
+      },
+    }),
+  );
+  const duplicate = await inspectGeneratedFileRegistry(root, [packageJson, registered]);
+  assert.equal(duplicate.generatedFiles.length, 1);
+  assert.equal(duplicate.findings.length, 2);
+  assert.ok(
+    duplicate.findings.every((finding) => /duplicate generated/u.test(finding.message)),
+  );
   await rm(root, { recursive: true });
 });

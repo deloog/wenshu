@@ -53,6 +53,7 @@ export async function inspectGeneratedFileRegistry(
     ) as PackageManifest;
     const entries = manifest.wenshu?.generatedFiles ?? [];
     const hasGenerator = manifest.scripts?.["generate:check"] !== undefined;
+    const packageRegistrations = new Set<string>();
 
     if (hasGenerator && entries.length === 0) {
       findings.push({
@@ -71,10 +72,19 @@ export async function inspectGeneratedFileRegistry(
       }
       const normalizedEntry = entry.replaceAll("\\", "/");
       const absolutePath = resolve(packageRoot, entry);
+      const registrationKey = absolutePath.toLowerCase();
+      if (packageRegistrations.has(registrationKey)) {
+        findings.push({
+          packageRoot,
+          message: `duplicate generated file registration: ${entry}`,
+        });
+        continue;
+      }
+      packageRegistrations.add(registrationKey);
       if (
         !normalizedEntry.startsWith("src/generated/") ||
         normalizedEntry.includes("../") ||
-        !repositoryFileSet.has(absolutePath.toLowerCase())
+        !repositoryFileSet.has(registrationKey)
       ) {
         findings.push({
           packageRoot,

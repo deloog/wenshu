@@ -68,6 +68,16 @@ test("invalid fixtures fail with stable issue codes and paths", async () => {
   }
 });
 
+test("a single missing project field has one precise schema path", async () => {
+  const candidate = asRecord(await validFixture("project"));
+  delete candidate["revision"];
+  const result = validateProjectContract(candidate);
+  assert.deepEqual(result, {
+    ok: false,
+    issues: [{ code: "PROJECT_SCHEMA", path: "/revision" }],
+  });
+});
+
 test("future versions are rejected across all contract kinds", async () => {
   const versionFields = [
     ["project", "schema_version"],

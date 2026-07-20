@@ -118,7 +118,7 @@ function isUnsafePathValue(value: string): boolean {
     (!isHttpUrl && /[A-Za-z]:[\\/]/u.test(decoded)) ||
     /(?:^|[^A-Za-z0-9])[A-Za-z]:[A-Za-z0-9._-]/u.test(decoded) ||
     /\\\\[^\\]/u.test(decoded) ||
-    /(?:^|[\s=:'"(])\/(?!\/)/u.test(decoded) ||
+    (!isHttpUrl && /(?:^|[\s=:'"(])[\\/]/u.test(decoded)) ||
     /(?:^|[^A-Za-z0-9])\.\.(?:[\\/]|$)/u.test(decoded)
   );
 }
