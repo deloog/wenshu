@@ -52,16 +52,12 @@ export async function discoverInstalledPackageDirectories(
       continue;
     }
     const nestedNodeModules = join(virtualStore, storeEntry.name, "node_modules");
-    try {
-      for (const directory of await packageDirectories(nestedNodeModules)) {
-        directories.add(directory);
-      }
-    } catch (error: unknown) {
-      const code = isRecord(error) ? error["code"] : undefined;
-      if (code !== "ENOENT") {
-        throw error;
-      }
+    for (const directory of await packageDirectories(nestedNodeModules)) {
+      directories.add(directory);
     }
+  }
+  if (directories.size === 0) {
+    throw new Error("pnpm virtual store contains no installed packages");
   }
   return Object.freeze([...directories].sort());
 }

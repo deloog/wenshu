@@ -26,13 +26,25 @@ test("GitHub workflow delegates every matrix job to the local runner", async () 
     new URL("../../../.github/workflows/verify.yml", import.meta.url),
   );
   const workflow = await readFile(workflowPath, "utf8");
-  for (const jobName of CI_JOB_NAMES) {
-    assert.match(workflow, new RegExp(`^\\s+- ${jobName}$`, "mu"));
-  }
+  const matrix = workflow.match(
+    /\n {6}matrix:\r?\n {8}job:\r?\n((?: {10}- [^\r\n]+\r?\n)+)/u,
+  );
+  assert.notEqual(matrix, null);
+  const matrixJobs = (matrix?.[1] ?? "")
+    .split(/\r?\n/u)
+    .filter(Boolean)
+    .map((line) => line.trim().replace(/^- /u, ""));
+  assert.deepEqual(matrixJobs, [...CI_JOB_NAMES]);
   assert.match(workflow, /pnpm ci:job \$\{\{ matrix\.job \}\}/u);
   assert.match(workflow, /pnpm install --frozen-lockfile/u);
   assert.match(workflow, /permissions:\s+contents: read/u);
-  assert.doesNotMatch(workflow, /uses: [^\n]+@(v\d+|main|master)\s*$/mu);
+  const actionReferences = [...workflow.matchAll(/^\s+uses:\s+(\S+)/gmu)].map(
+    (match) => match[1] ?? "",
+  );
+  assert.equal(actionReferences.length, 3);
+  actionReferences.forEach((reference) => {
+    assert.match(reference, /^[^@\s]+@[0-9a-f]{40}$/u);
+  });
 });
 
 test("local scheduling runs concurrently without exceeding its budget", async () => {

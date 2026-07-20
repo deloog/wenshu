@@ -49,6 +49,17 @@ test("license discovery finds scoped and unscoped packages in the pnpm store", a
   await rm(root, { recursive: true, force: true });
 });
 
+test("license discovery rejects an empty pnpm virtual store", async () => {
+  const root = join("test-results", "g1-11-ci", "empty-license-store");
+  await rm(root, { recursive: true, force: true });
+  await mkdir(join(root, "node_modules", ".pnpm"), { recursive: true });
+  await assert.rejects(
+    discoverInstalledPackageDirectories(root),
+    /contains no installed packages/u,
+  );
+  await rm(root, { recursive: true, force: true });
+});
+
 test("license scanning rejects copyleft blockers and deduplicates package paths", () => {
   assert.match(forbiddenLicenseReason("AGPL-3.0-only") ?? "", /not approved/u);
   assert.match(forbiddenLicenseReason("GPL-2.0-or-later") ?? "", /not approved/u);
