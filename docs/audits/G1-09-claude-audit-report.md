@@ -335,3 +335,174 @@ manifest 中重复登记同一路径（`["src/generated/out.ts", "src/generated/
 **放行与后续**：实施者可据本复审把 `G1-09` 的路线图状态更新为最终完成，并把 `RA-01`～`RA-04` 登记到上述任务；`G1-11` 可以按自身 DoR 启动，且应在建立 CI 前一并消化归属 `G1-09` 的三项。首审 `N-08` 关于 `G1-07 NF-04` 与其 `m-05` 的技术结论，经本轮 `m-03`/`m-01` 复核依然成立，随本结论正式关闭。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本复审由未参与实施与修复的独立审计角色出具。`RA-01`～`RA-04` 同样不得由实施者自行关闭。
+
+---
+---
+
+# 针对性确认（2026-07-20）：`d84f895..9e5531c`
+
+> 确认者：Claude（未参与本轮实施的原审计角色）　实施者：Codex　任务书：[G1-09-claude-targeted-confirmation-task.md](G1-09-claude-targeted-confirmation-task.md)
+>
+> **本章节的结论取代上文复审的 `CONDITIONAL PASS`。** 首审与复审记录原样保留，未删除或改写任何一行。
+>
+> 命名说明：本节新增发现使用 `CF-xx` 前缀。
+
+## 1. 范围与方法
+
+补充整改提交 `9e5531c fix: close G1-09 conditional audit findings`（12 文件 +269/-94），新增 `packages/host-contract/test/host-paths.contract.test.ts`。
+
+按任务书要求，**不采信 [补充整改记录](G1-09-conditional-remediation.md)，也不以 `pnpm verify` 全绿为结论**：逐条重跑 `RA-01`～`RA-04` 的原始反例，并主动寻找本轮引入的同级或更高问题。破坏性探针全部位于 `D:\tmp\g109*`，结束时已删除并核实无残留。未修改代码、Schema、fixture、测试、路线图、锁文件或 Git 历史。
+
+环境按项目锁定基线：`node v24.17.0`（`D:\Applications\Node\node-v24.17.0-win-x64\node.exe`，已确认未命中 C 盘旧 Node）、`pnpm 11.15.1`、`--store-dir D:\DevCaches\pnpm-store`、`CI=true`。
+
+## 2. 逐项确认
+
+### `RA-02`　Host 根路径与 UNC —— **已关闭 ✅**
+
+修复是一处规则重写：`(?:^|[\s=:'"(])\/(?!\/)` 改为 `(!isHttpUrl && /(?:^|[\s=:'"(])[\\/]/u)`——取消了为放行 `https://` 而对连续 `//` 的豁免，改为对 http(s) URL 整体豁免，并把单前导反斜杠一并纳入。
+
+任务书点名的七个值，**全部返回精确的期望 code/path**：
+
+```text
+//server/share/secret            HOST_PLATFORM_FIELD_FORBIDDEN@/output/grant_id
+//10.0.0.1/c$/Windows/win.ini    HOST_PLATFORM_FIELD_FORBIDDEN@/output/grant_id
+///etc/shadow                    HOST_PLATFORM_FIELD_FORBIDDEN@/output/grant_id
+\Windows\win.ini                 HOST_PLATFORM_FIELD_FORBIDDEN@/output/grant_id
+output=//server/share/secret     HOST_PLATFORM_FIELD_FORBIDDEN@/output/grant_id
+output=///etc/shadow             HOST_PLATFORM_FIELD_FORBIDDEN@/output/grant_id
+output=\Windows\win.ini          HOST_PLATFORM_FIELD_FORBIDDEN@/output/grant_id
+```
+
+**判定是结构性修复而非命中特定字符串**：另测 15 种任务书与前两轮均未覆盖的等价形态，**15/15 全部拒绝**——百分号编码 `%2f%2f`、`%5cWindows`、双重编码 `%252f%252f`、空格/制表符/引号/括号/冒号前缀、`=`+反斜杠、四连斜杠、`/\` 与 `\/` 混合分隔、UNC 设备路径 `\\?\C:\x`、无前缀深层 `//a/b/c/d/e`。
+
+**fail-closed 未扩大**：17 项合法对照 **17/17 接受**，含相对文件名、`assets\chart.png` 这类 Windows 风格相对路径、`grant_…`、`https://`/`http://`/大写 `HTTPS://`/带端口路径、`mailto:`、`data:`、`anchor:section-1`、`mode:fast`、`50% complete`、多字节 `报告 2026.pdf`、能力 ID、ISO 时间戳、sha256。
+
+### `RA-03`　生成登记去重 —— **已关闭 ✅**
+
+`inspectGeneratedFileRegistry` 新增 `packageRegistrations` 集合，以 `resolve(packageRoot, entry).toLowerCase()` 为键去重。仓库外假工作区直接调用真实函数：
+
+| 场景 | 结果 | 授予的生成身份数 |
+|---|---|---|
+| 两个不同的合法生成文件 | `ACCEPTED`（无误报） | 2 |
+| 完全重复登记 | `duplicate generated file registration` | **1** |
+| Windows 大小写变体 `A.TS` | `duplicate generated file registration` | **1** |
+| 解析后等价 `src/generated/./a.ts` | `duplicate generated file registration` | **1** |
+| 反斜杠分隔等价 `src\generated\a.ts` | `duplicate generated file registration` | **1** |
+| 三重重复 | 报告两次重复 | **1** |
+
+四种等价写法均被识别为重复，且**同一真实文件只获得一次生成身份**（计数恒为 1），符合任务书要求。既有门禁未回归：未登记的生成目录文件、登记不存在的文件、`../` 逃逸仍分别报错。
+
+### `RA-04`　单一 Schema 分支与精确路径 —— **已关闭 ✅**
+
+修复按 `contract_kind` 预分派到四个分支校验器（`$ref` 指向各 `$defs`），分支通过后仍会再跑顶层 `oneOf`，因此收敛了诊断而未放宽接受集合。fixture 也已改为**只缺 `revision`** 一个字段。
+
+1. **恰好一项**：该 fixture 返回 `1` 条 issue，即 `PROJECT_SCHEMA@/revision`（复审时为 32 组不同 code@path）。
+2. **换成其他路径全部不命中**：`/`、`/title`、`/document`、`/materials`、`/schema_version` 逐一测试，**均不匹配**——这正是复审 `RA-04` 未达成、本轮达成的判据。
+3. **四种 `contract_kind` 各自单字段缺失**，均只报对应分支错误，不混入其他分支或根路径：
+
+   ```text
+   project              缺 /revision         -> 1 条  PROJECT_SCHEMA@/revision
+   knowledge-package    缺 /created_at       -> 1 条  PROJECT_SCHEMA@/created_at
+   semantic-audit-event 缺 /sequence         -> 1 条  PROJECT_SCHEMA@/sequence
+   compatibility        缺 /history_policy   -> 1 条  PROJECT_SCHEMA@/history_policy
+   ```
+
+4. **畸形 `contract_kind` 安全失败**：未知值、缺失、数字、`null`、数组、以及输入为数组/`null`/字符串，共 8 种，**全部不抛异常**，回落到顶层 `oneOf` 路径给出问题码。带 getter 的 `contract_kind` 访问器**调用次数为 0**（受共享 `inspectData` 的原型/访问器守卫拦截），新分派逻辑没有绕开该守卫。
+5. **回归**：四种合法 fixture 全部 `ok`；四种未来版本分别命中各自版本字段路径；敏感模型标识仍返回 `PROJECT_MODEL_IDENTIFIER_INVALID@/subject_model_context/provider`；上游兼容 fixture 仍有效。
+
+### `RA-01`　`.jsx` ESLint 覆盖 —— **目标达成，但修复方式引入 `CF-01`（见下）**
+
+`.jsx` 本身确已修好：
+
+```text
+--print-config       .js / .jsx / .mjs / .cjs  -> 均匹配配置，no-unused-vars 生效
+--print-config       .ts / .tsx / .mts / .cts  -> 均匹配配置，no-explicit-any 生效
+真实 ESLint 运行     bad.jsx  exit=1  FAILS on no-unused-vars
+                     good.jsx exit=0  clean（JSX 语法正常解析）
+                     bad.js / bad.mjs / bad.cjs 均 exit=1 FAILS on no-unused-vars
+```
+
+但实现方式是把 `eslint.configs.recommended` 由**无 `files` 键**改为 `files: ["**/*.js","**/*.jsx","**/*.mjs","**/*.cjs"]`。在 ESLint 扁平配置中，缺省 `files` 意味着该配置块适用于所有被检查的文件；一旦加上 `files`，它就只对 JavaScript 生效。后果见 `CF-01`。因此 `RA-01` 的**目标**达成，但**不能在 `CF-01` 未处理前签署关闭**。
+
+## 3. 本轮引入的新发现
+
+**`CF-01`（MAJOR）　`eslint.configs.recommended` 被限定到 JavaScript，导致全部 45 条实际生效的基础规则从所有 TypeScript 文件上消失**
+
+- **证据**：[`eslint.config.mjs`](../../eslint.config.mjs) 中 `-  eslint.configs.recommended,` → `+  { ...eslint.configs.recommended, files: ["**/*.js","**/*.jsx","**/*.mjs","**/*.cjs"], … }`。
+- **独立复现**：用 ESLint 的 `calculateConfigForFile` 对真实仓库配置求解——
+
+  ```text
+  eslint:recommended 共 64 条
+  当前配置下生效条数：  .js = 64      .jsx = 64      .ts = 0
+  ```
+
+  其中 45 条在 `.ts` 的解析结果中**完全不存在**（静默失效），另 19 条本就由 typescript-eslint 显式关闭（`no-undef`、`no-dupe-keys`、`no-unused-vars` 等，TS 编译器覆盖，属正确设计）。静默失效的 45 条包含 TypeScript 编译器**不会**报错的真实缺陷类规则：
+
+  ```text
+  no-debugger              use-isnan                 valid-typeof
+  no-cond-assign           no-constant-condition     no-constant-binary-expression
+  no-fallthrough           no-dupe-else-if           no-duplicate-case
+  no-invalid-regexp        no-unsafe-finally         no-unsafe-optional-chaining
+  no-self-assign           no-sparse-arrays          no-useless-escape
+  no-async-promise-executor  no-prototype-builtins   no-loss-of-precision
+  …（共 45 条）
+  ```
+
+- **因果关系已隔离验证**：把仓库完整配置在内存中重建，**只切换 `recommended` 上的 `files` 键**，其余块（ignores、linterOptions、tseslint 四扩展名块、三条自定义规则）保持不变：
+
+  ```text
+  OLD shape （recommended 无 files）      .ts=45   .js=64   .jsx=0     <- 补充整改前
+  NEW shape （recommended 限定 JS）       .ts=0    .js=64   .jsx=64    <- 当前
+  FIX shape （不限定 + 单独 jsx 块）      .ts=45   .js=64   .jsx=64    <- 两者兼得
+  ```
+
+  这排除了"本来就没生效"的可能：整改前 TypeScript 确实生效 45 条，整改后归零。第三行说明一个不牺牲任何一侧的写法是存在的。
+
+- **实际/预期**：预期修好 `.jsx`（仓库中当前没有任何 `.jsx` 文件）不应削弱其他语言的检查。实际上以"仓库中不存在的文件类型"换掉了"占全部手写代码绝大多数的 `.ts`"上的 45 条规则。
+- **影响**：`docs/engineering-standards.md:9` 把 ESLint 列为两大静态检查支柱之一，该描述对 TypeScript 已不再成立；`pnpm lint` 仍然全绿，属于典型的"绿色但门禁已收窄"。当前代码没有违反这些规则（`pnpm verify` exit 0 属实），因此**不是已发生的缺陷，而是门禁的静默削弱**。定级 `MAJOR` 的理由：(a) 由本轮整改引入，属回归；(b) 影响面是仓库中几乎全部手写代码；(c) `G1-11` 即将把该配置固化进 CI，一旦固化就会被"CI 全绿"背书；(d) 修复成本极小（保持 `recommended` 不限定，另开一个只含 `ecmaFeatures.jsx` 的 `**/*.jsx` 块即可，已验证可同时满足三种扩展名）。
+- **建议归属**：`G1-09` 本任务修复，**必须在 `G1-11` 之前**，并补一条断言"`.ts` 上 `no-debugger`/`use-isnan` 等基础规则仍然生效"的反测，避免同类回归再次静默发生。
+
+## 4. 共同回归
+
+| 检查 | 结果 |
+|---|---|
+| `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store`（CI=true） | 通过，10 个工作区项目；`node` 解析到 D 盘 24.17.0，未命中 C 盘旧 Node |
+| `pnpm verify` | **exit 0**：质量护栏 58 源码/191 仓库文件 → 层级审计 **14** 个测试文件 → unit 20/20 → config 7/7 → contract-runtime 4/4 → document 15/15 → template 15/15 → host 31/31 → project 24/24（合计 **116**）→ **9** 个包 typecheck → production build 成功 |
+| `pnpm-lock.yaml`、`tsconfig.base.json`、各包冻结 Schema、`src/generated/*` | 本轮范围内**零改动** |
+| 手写 `any` / TS 抑制指令 / ESLint 内联禁用 | 匹配数 **0**（扫描面含 `.ts/.mts/.cts/.mjs/.jsx`） |
+| 体量预警 | `quality:check` 未输出任何 `WARN`；`host.contract.test.ts` 已由 300+ 降至 207 行 |
+| **拆分是否为真**（任务书 §3 专项） | `host-paths.contract.test.ts` 100 行、**含 3 个真实用例**，已被层级审计发现（14 个文件）并登记进 contract 层（9 个文件），实际执行。三个 host 测试文件分别通过 22 / 3 / 6 项，合计 **31**，与 `verify` 中 host-contract 的 31 项一致——是真实迁移而非仅删行 |
+| `git status --short`（确认前 / 后） | 两次均为空；临时探针 `D:\tmp\g109t`、`g109jsx`、`g109tsrec` 已删除并核实无残留 |
+
+## 5. 未执行项与限制
+
+1. **未在仓库内植入探针文件**：`.jsx`/`.js`/`.mjs`/`.cjs` 的真实 ESLint 失败验证在 `D:\tmp` 副本完成；TypeScript 侧因仓库配置启用 `projectService`，仓库外文件会先报 parsing error，故改用 ESLint 官方 `calculateConfigForFile` 求解已生效规则集——这是"哪些规则适用"的权威答案，无需违规文件。
+2. **未运行 format、fix、generate 或任何修改 Git 历史的命令**。
+3. **生成器字节漂移未在本轮重跑**：由 `pnpm verify` 中四次 `generate:check` exit 0 回归覆盖；逐字节证明见首审 `N-06`。
+4. **范围外未审计**：数据库、真实 Host、Electron/ArkWeb、渲染/E2E、CI 服务、`G1-08 RA-01/RA-02` 的实现。
+5. 供应链结论仍由 `G1-15` 签署；本轮仅确认 lockfile 零改动、无新增依赖。
+
+## 6. 汇总与最终结论
+
+| 复审条件项 | 结论 | 依据 |
+|---|---|---|
+| `RA-01` `.jsx` ESLint 覆盖 | **目标达成，但不予签署关闭** | `.jsx` 已被真实 ESLint 检查并能失败；但修复手段引入 `CF-01`，须与之一并处置 |
+| `RA-02` Host 根路径与 UNC | **已关闭 ✅** | 7/7 精确 code@path；15/15 等价形态拒绝（结构性）；17/17 合法值不误杀 |
+| `RA-03` 生成登记去重 | **已关闭 ✅** | 四种等价写法均判重且身份计数恒为 1；两个合法文件不误报；既有门禁未回归 |
+| `RA-04` 单一分支与精确路径 | **已关闭 ✅** | 恰好一条 `PROJECT_SCHEMA@/revision`；五种换路径均不命中；四类各一条；畸形输入不抛异常、访问器 0 次 |
+
+本轮新增：`MAJOR` **1** 项（`CF-01`），`BLOCKER` 0 项，`MINOR` 0 项。
+
+**结论：`FAIL`**
+
+依任务书第 4 节"任一 `BLOCKER` 或 `MAJOR`：`FAIL`，不得把 G1-09 标为最终完成"。**`G1-11` 继续不得启动。**
+
+判定要点：
+
+- 本轮实施在三项上是**干净利落的结构性修复**：`RA-02` 从"为放行 https 而豁免 `//`"改为"对 http(s) URL 整体豁免"，因而 15 种我新构造的等价形态（编码、空白、引号、括号、混合分隔符、UNC 设备路径）一并被覆盖，且 17 项合法值零误杀；`RA-03` 以解析后绝对路径小写为键去重，四种等价写法全中且身份计数恒为 1；`RA-04` 用 `contract_kind` 预分派把 32 组诊断收敛为恰好 1 条，同时保留顶层 `oneOf` 复核、未放宽接受集合、未破坏访问器守卫。三项均无保留意见。
+- 阻断只有一条，且与三项修复的质量无关：**`RA-01` 的修法用错了工具**。为让 `.jsx`（仓库中并不存在的文件类型）获得规则，把 `eslint.configs.recommended` 限定到 JavaScript，结果让 45 条实际生效的基础规则从所有 TypeScript 文件上静默消失。我把仓库配置在内存中重建、只切换那一个 `files` 键，确认整改前 `.ts` 生效 45 条、整改后为 0，且存在同时满足三者的写法——因此这既不是"本来就没生效"，也不是"必须二选一"。
+- **`pnpm verify` 仍然 exit 0，正是问题所在**：门禁收窄不会让绿色变红。这与宪法 18「可信失败优先于虚假通过」直接冲突，也正是任务书要求我"检查本轮整改是否引入同等级或更高的新问题"的意义所在。若在 `G1-11` 之后才发现，这套配置已被 CI 固化并以"必需检查全绿"背书。
+
+**关闭路径**：由 Codex 修复 `CF-01`（保持 `eslint.configs.recommended` 不限定 `files`，另开一个仅提供 `ecmaFeatures.jsx` 的 `**/*.jsx` 块——我已验证该写法可使 `.ts`=45、`.js`=64、`.jsx`=64 同时成立），补一条断言 TypeScript 上基础规则仍生效的反测，复跑 `pnpm verify` 后由 Claude 复核 `CF-01` 与 `RA-01` 并一并签署。`RA-02`、`RA-03`、`RA-04` 本次已确认关闭，复核时无需重跑。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本确认由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁。`CF-01` 与 `RA-01` 不得由实施者自行标记关闭。
