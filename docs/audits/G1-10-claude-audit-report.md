@@ -323,3 +323,202 @@ manifest 自身 1191 字节，SHA-256 `97e05a1c397572521351dc790ed1b0cb8821666b7
 放行附带条件：`FX-01`、`FX-02`、`FX-03` 三项 MINOR 按 §8 归属与最迟关闭点登记并整改，由独立审计角色复核关闭。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具。审计者不修改路线图、不自行标记 G1-10 完成；是否将 G1-10 记为完成前置、PA/G1-13/G1-14 是否可启动，由 Codex 依本报告更新台账后决定。
+
+---
+
+# FX-01～FX-03 定点复核（2026-07-20）：`718bdbd..aa8c856`
+
+> 复核任务书：[G1-10-claude-recheck-task.md](G1-10-claude-recheck-task.md)　整改提交：`aa8c856`「fix: close G1-10 fixture audit minors」
+>
+> 本章由与首审同一独立审计角色出具。不采信 [整改记录](G1-10-remediation.md) 或全绿自述；每项结论都来自我自己重跑的原始反例、仓库外破坏性副本和守卫拆除实验。
+
+## 1. 边界
+
+- 只对本文件严格追加；首审 325 行一字未删、未改写。
+- 未修改代码、测试、manifest、冻结原件、lockfile、路线图、配置、Schema、生成物或其他文档。
+- 仓库外探针只写 `D:\tmp\g110r1`～`g110r6`，结束后已全部删除。未 push、未触发 Actions。
+- 工具链：冻结 D 盘 Node `24.17.0` + pnpm `11.15.1`（同前，命令加 `--config.verify-deps-before-run=false` 抑制 pnpm 跑前自动装依赖，不改变被测脚本、不放宽断言）。
+
+## 2. `FX-01`：文件系统失败的稳定分类与脱敏　**已关闭**
+
+### 2.1 静态失败模式
+
+我对每条错误同时检查四件事：是否为 `FixtureIntegrityError`、分类是否正确、消息是否含探针绝对根/盘符路径/Node 原始诊断（`ENOENT|EACCES|EPERM|EBUSY|no such file|permission denied`）、以及是否回显了 7 个原件正文的任意 24 字符切片。
+
+| 场景 | 分类 | 消息 | 脱敏检查 |
+|---|---|---|---|
+| 根目录不存在 | `FIXTURE_SET_MISMATCH` ✔ | `fixture root cannot be inspected` | clean |
+| 空根（无 manifest） | `FIXTURE_MANIFEST_INVALID` ✔ | `fixture manifest cannot be inspected` | clean |
+| 删除 `manifest.json` | `FIXTURE_MANIFEST_INVALID` ✔ | `fixture manifest cannot be inspected` | clean |
+| 根是普通文件 | `FIXTURE_SET_MISMATCH` ✔ | `fixture root must be a real directory` | clean |
+| manifest 是目录 | `FIXTURE_MANIFEST_INVALID` ✔ | `fixture manifest must be a bounded real file` | clean |
+
+首审 `FX-01` 的原始反例——「删除 `manifest.json` 抛出未分类的 `Error: ENOENT ... 'D:\...'`」——**已不可复现**。
+
+### 2.2 竞态：`lstat` 之后 / 枚举之后消失
+
+任务书要求的两类竞态，我用 8 档定时器（0/0.3/0.6/1/1.5/2/3/5 ms）在校验进行中删除目标，实测确实命中了 `lstat` 之后与枚举之后的窗口：
+
+| 竞态 | 命中拒绝 | 观察到的分类与消息 |
+|---|---|---|
+| manifest 中途消失 | 1/8 | `FIXTURE_SET_MISMATCH :: fixture directory entry cannot be inspected` |
+| 已登记文件中途消失 | 6/8 | `FIXTURE_SET_MISMATCH :: fixture directory entry cannot be inspected` / `fixture directory contents do not match the manifest` |
+| 整个根目录中途消失 | 5/8 | `FIXTURE_SET_MISMATCH :: fixture directory cannot be enumerated` / `... entry cannot be inspected` |
+
+**全部命中都是分类错误，零 `ENOENT` 原文、零绝对路径、零正文**。未命中的样本是校验先跑完（校验只需几毫秒），属正常，不是漏判。
+
+### 2.3 守卫承重（关键实验）
+
+任务书要求：删除或绕过新的异常转换后，新增回归测试必须**因收到原始异常/绝对路径**而失败，且必须确认不是只针对"删除 manifest"的点状修补。
+
+| 拆除方式 | 结果 | 失败原因（实测输出） |
+|---|---|---|
+| 把 `classifyFileSystemFailure` 改成透传（**全部 6 个调用点**同时失效） | **测试失败** ✔ | `missing roots and manifests use stable sanitized error categories`；`actual: Error: ENOENT: no such file or directory, lstat 'D:\tmp\g110r5\wrapper-mad...'` |
+| **点状修补模拟**：只保留 manifest `lstat` 的包装，把根 `lstat` 与文件 `readFile` 还原为裸调用 | **测试失败** ✔ | 同一用例，同样收到 `Error: ENOENT ... 'D:\tmp\g110r5\only-manife...'` |
+
+第二行是本项的决定性证据：**如果整改只是针对"删除 manifest"打点状补丁，这一实验就会通过**。它失败了，说明新增用例同时约束了根目录与文件读取两条路径。代码审阅亦确认转换覆盖全部 6 个文件系统调用点（根 `lstat`、manifest `lstat`、manifest `readFile`、`readdir`、目录项 `lstat`、条目 `readFile`）。
+
+### 2.4 未执行项（本机不可行，非通过）
+
+任务书写的是「枚举或读取权限失败（**平台可行时**）」。我做了两次独立尝试，**都无法在本机制造真实的读取失败**：
+
+1. `icacls <file> /deny <user>:(R)` 报告"成功处理 1 个文件"，但随后 `readFileSync` **仍然成功**——本进程绕过了该 deny ACE。
+2. 用 PowerShell 以 `FileShare::None` 独占打开该文件（子进程确认输出 `LOCKED`），随后 `readFileSync` **仍然成功**读到 30734 字节。
+
+因此"读取/枚举权限失败"这一路径**未获实证**，我按事实记为未执行，**不把它算作已验证通过**。可替代的信心来自 §2.3：`verifyEntry` 的 `readFile` 与 `discoverFiles` 的 `readdir` 都在同一转换包装内，且点状修补实验证明了这一点。
+
+### 2.5 无回归
+
+合法冻结目录仍正常通过（7 条目）；链接、预算与篡改反例见 §5。
+
+## 3. `FX-02`：可移植身份守卫　**已关闭**
+
+直接调用 `parseFixtureManifest`：
+
+| 输入 | 结果 | 命中分支 |
+|---|---|---|
+| `["a.txt","A.txt"]`（**已满足排序**、集合唯一） | 拒绝 | `fixture entries must use unique portable path identity` ✔ |
+| `["report-data.csv","REPORT-DATA.CSV"]` | 拒绝 | 同上 ✔ |
+| `["dir/a.txt","dir/A.txt"]`（嵌套大小写碰撞） | 拒绝 | 同上 ✔ |
+| `["alpha.txt","beta.txt"]`（两个真正不同的合法路径） | **通过** ✔ | —— |
+
+三个碰撞用例都**已按 `localeCompare("en")` 排好序**，因此不会被排序分支提前拦截；精确重复分支也不适用（集合大小为 2）。整改把原先合并的一个 `if` 拆成四个独立分支（排序 / 精确重复 / 可移植身份 / 排除 `manifest.json`），错误消息可区分，这正是让断言能精确锚定分支的前提。
+
+**守卫承重**：在仓库外副本中删除 `if (portable.size !== paths.length)` 分支后，契约测试**失败**，原因为 `AssertionError: Missing expected exception.`——即断言 `/portable path identity/` 期待抛错却没抛，**没有被排序、精确重复或任何其他分支代打**。首审 `FX-02` 的原始反例（删掉该守卫全套测试仍全绿）**已不可复现**。
+
+## 4. `FX-03`：Windows 可移植路径加固　**已关闭**
+
+### 4.1 敌意形态全部拒绝
+
+任务书点名的全部形态，加上我自己补的大小写混合与多重扩展变体，**23/23 全部拒绝**：
+
+`C:foo.txt`、`a:b`、`stream:payload.txt`、`con`、`CON`、`CoN.txt`、`NUL.txt`、`nul.tar.gz`、`nested/COM1.log`、`nested/com1`、`lpt9`、`LPT9.TXT`、`aux`、`prn.doc`、`trailing-dot.`、`trailing-space `、C0 控制字符（` `、``）、DEL（``）、TAB（`	`）、`C:\abs.txt`、`../escape.txt`、`/abs.txt`。
+
+### 4.2 未过度拦截（fail-closed 不得误伤）
+
+| 合法路径 | 结果 |
+|---|---|
+| `资产/图表1.png` | 通过 ✔ |
+| `report.PDF` | 通过 ✔ |
+| `data/report 1.0.txt`（中间空格 + 中间点） | 通过 ✔ |
+| `console.txt`、`conference/notes.md` | 通过 ✔（`con` 前缀未被误伤） |
+| `com10.log` | 通过 ✔（`com1` 前缀未被误伤） |
+| `auxiliary.json`、`printer.cfg`、`nullable.ts` | 通过 ✔ |
+| `a.b.c.txt` | 通过 ✔ |
+
+设备名正则用 `^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)` 的边界写法，因此只拦真正的设备名及其带扩展形态，不会连坐 `console.txt`/`com10.log`。**7 个冻结原件的路径在新谓词下全部仍然合法**（实测 7/7），中文优先边界未被破坏。
+
+### 4.3 守卫逐个承重
+
+| 拆除的守卫 | 结果 | 失败原因 |
+|---|---|---|
+| 冒号拒绝 | **测试失败** ✔ | `Missing expected exception (FixtureIntegrityError)` |
+| 保留设备名拒绝 | **测试失败** ✔ | 同上 |
+| 尾随空格拒绝 | **测试失败** ✔ | 同上 |
+| 尾随点拒绝 | **测试失败** ✔ | 同上 |
+| 控制字符拒绝 | **测试失败** ✔ | 同上，并额外触发 `canonical fixture path predicate allows stable relative Unicode paths` |
+
+五个守卫**各自独立承重**，不存在"一条断言覆盖全部、拆掉任意一条仍全绿"的假覆盖。实现走的是逐段可移植规则（段内禁冒号、禁设备名、禁尾随点/空格、全串禁控制字符），**不是全局 ASCII 白名单**，符合任务书要求。
+
+## 5. 回归与共同检查
+
+### 5.1 首审反例零回归（仓库外重跑）
+
+| 反例族 | 结果 |
+|---|---|
+| 7 个原件 × 首/中/尾字节翻转 | **21/21 拒绝** |
+| 删除/新增/改名已登记文件 | 全部 `FIXTURE_SET_MISMATCH` |
+| `manifest={}`、manifest 多一个换行 | 全部 `FIXTURE_MANIFEST_INVALID` |
+| **原件+manifest 自洽双改** | `FIXTURE_MANIFEST_INVALID`（锚点仍承重） |
+| 目录 junction / 文件 symlink / manifest 是 symlink / **根本身是 junction** | 全部拒绝，无外部内容泄漏 |
+| 嵌套 >8 / 文件数 >128 / manifest >64KB | 全部拒绝 |
+| 合法隔离复制 | 7/7 逐字节一致；冻结目录哈希与 mtime 不变；写入仅 `worker.claim` + `files/` 下 8 项 |
+| 证据卫生与对账 | 无盘符路径、无正文；与磁盘副本路径集合一致 |
+| 同句柄第二次复制 | `EEXIST`，首份完好 |
+| 伪造句柄（结构复制 / 手工补品牌 Symbol / 篡改 claim） | 全部拒绝，**写入增量均为 0** |
+
+### 5.2 命令与计数（冻结工具链实跑）
+
+| 命令 | 退出码 | 计数 |
+|---|---|---|
+| `pnpm fixtures:check` | 0 | `Fixture check passed: 7 frozen files.`；契约 4/4，集成 **14/14**（较首审 +1） |
+| `pnpm --filter @wenshu/fixtures typecheck` | 0 | strict 通过，零错误 |
+| `pnpm test:integration` | 0 | 2 个已登记文件，**14/14** |
+| `pnpm test:layers` | 0 | `Test layer audit passed: 22 files classified.` |
+| `pnpm verify` | 0 | 聚合 **150/150**；`Quality guardrails passed: 82 source/config files, 244 repository files.` |
+
+### 5.3 冻结物与漂移
+
+- **重算确认零改动**：7 个原件全部与 manifest 相符；`manifest.json` 仍为 **1191 字节**、SHA-256 仍为 `97e05a1c…72017`；`FIXTURE_MANIFEST_SHA256` 锚点**未变**且与实测一致。
+- **零漂移**：`git diff --name-only 718bdbd..HEAD` 对 `.github/`、`pnpm-lock.yaml`、`*.schema.json`、`schemas/`、`packages/*/src/generated/`、`docs/poc-a/fixtures/`、`tools/ci/src/jobs.ts` **全部为空**——CI 8 个作业名、workflow、Schema、生成物与第三方依赖版本均未被触碰。
+- **零手写 `any`/抑制指令**：`tools/fixtures/` 全目录命中数为 0。
+- **体量护栏**：最大文件 `src/verify.ts` 174 行、`src/manifest.ts` 159 行、测试最大 155 行，全部远低于生产 300/400、测试 300/500 阈值。
+
+## 6. 新增发现
+
+### MINOR
+
+#### `FX-06`　可移植规则未覆盖 Windows 其余保留字符
+
+**定位**：[tools/fixtures/src/manifest.ts:32-62](../../tools/fixtures/src/manifest.ts#L32-L62)。
+
+本轮整改在 [docs/fixture-integrity.md](../fixture-integrity.md) §1 新增了一条明确承诺：「清单路径必须**同时适用于 Windows 与 POSIX**」。但 Windows 文件名的九个保留字符 `< > : " / \ | ? *` 中，实现只覆盖了 `:`、`\`、`/`：
+
+| 输入 | 结果 |
+|---|---|
+| `a*b.txt`、`a?b.txt`、`a<b.txt`、`a>b.txt`、`a|b.txt`、`a"b.txt` | **全部 ACCEPTED** |
+| `a:b.txt`、`a\b.txt` | 已拒绝 ✔ |
+
+**影响**：若此类路径进入清单，POSIX 上文件可以存在从而校验通过，Win32 上文件根本无法存在从而集合相等失败——**同一份清单在两个平台给出不同结论**，正是这条新文档承诺想要排除的情形。
+
+**可达性（不夸大）**：与首审 `FX-03` 同级——真实 manifest 字节被 `FIXTURE_MANIFEST_SHA256` 锚定，攻击者无法在不改源码锚点的前提下注入这类路径；当前 7 个原件也不含这些字符。因此这是**纵深防御与文档一致性缺口，不是可利用漏洞**，定级 MINOR，不阻塞本轮放行。
+
+**建议**：在段级规则中补齐 `< > " | ? *` 的拒绝并补契约用例；或收窄文档措辞，不要声称已覆盖全部 Windows 可移植性。二者必须一致。
+
+**归属与最迟关闭点**：Codex；最迟 **PoC-A 消费冻结 fixture 之前**（与首审 `FX-03` 同批处理最经济）。
+
+### NOTE
+
+#### `FX-07`　异常转换的捕获面较宽
+
+`classifyFileSystemFailure` 会把**任何**非 `FixtureIntegrityError` 异常转换为固定文案，因此理论上也会吞掉包装区内的编程错误（如 `TypeError`）。由于被包装的只是单个 `readdir`/`lstat`/`readFile` 调用，影响面很小，且方向是 fail-closed，不产生假绿。仅作记录，不要求整改。
+
+## 7. 未执行项与限制
+
+- **读取/枚举权限失败未获实证**：`icacls` deny 与 `FileShare::None` 独占两种手段在本机对本进程均无效（详见 §2.4），按事实记为未执行，不计作已验证。
+- **未在大小写敏感文件系统上复跑**：本机为 NTFS。`FX-02` 的可移植身份守卫与 `FX-06` 在 Linux 上的表现未实测；CI `contracts` 作业跑在 ubuntu-24.04，可作后续补充证据。
+- **未执行 `pnpm install --frozen-lockfile`**：会改写 `node_modules`，超出只读边界；lockfile 漂移改用 `git diff` 核验。
+- **未推送、未创建 PR、未触发 Actions**。
+- 本章只签署事实，不提供也不应用补丁，不修改路线图。
+
+## 8. 复核结论
+
+**`PASS — G1-10 可以标记完成`**
+
+- **`FX-01` 已关闭**：五种静态失败模式全部分类正确且脱敏；两类竞态实测命中且同样干净；**点状修补模拟实验失败**，证明转换覆盖全部 6 个文件系统调用点而非只补 manifest 一处。原始反例不可复现。
+- **`FX-02` 已关闭**：三组已排序的大小写碰撞全部命中 `portable path identity` 分支，两个真正不同的路径正常通过；删除该分支后契约测试以 `Missing expected exception` 失败，**未被其他分支代打**。原始反例不可复现。
+- **`FX-03` 已关闭**：23 个敌意形态全部拒绝，13 个合法路径（含中文、大写扩展名、中间空格、`console.txt`/`com10.log`）全部通过，7 个冻结原件路径仍合法；五个守卫逐个拆除均使测试因正确原因失败；实现为逐段可移植规则而非 ASCII 白名单。原始反例不可复现。
+- **无新增 BLOCKER/MAJOR**：首审全部反例族零回归；`pnpm verify` 退出码 0、150/150 测试通过、82 源码/配置 + 244 仓库文件过护栏、22 个测试文件分层、`@wenshu/fixtures` strict typecheck 通过；7 个原件与 manifest 字节零改动、锚点未变；CI 8 作业名、workflow、Schema、生成物、lockfile 零漂移；零手写 `any`/抑制指令；体量护栏通过。
+- **新增一项 MINOR `FX-06`**（Windows 保留字符 `< > " | ? *` 未覆盖，与新增文档承诺不一致），已按任务书要求给出归属（Codex）与最迟关闭点（PoC-A 消费冻结 fixture 之前）；不可达、不阻塞本轮放行。另有 NOTE `FX-07` 仅作记录。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具。`FX-06` 不得由实施者自行标记关闭；是否更新路线图与台账、PA/G1-13/G1-14 何时启动，由 Codex 依本结论处理。
