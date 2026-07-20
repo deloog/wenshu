@@ -73,7 +73,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | 任务 | 状态 | 完成/阻断证据 |
 |---|---|---|
 | G1-01 | ✅ 已完成 | 本地 `main` 根提交 `dcbddc9`；工作树、ignore 与秘密模式探针通过 |
-| G1-01R | ⬜ 未开始 | 创建私有远程属于外部行为，尚待业主对该项单独批准；不阻塞可隔离的本地 G1 任务 |
+| G1-01R | ✅ 已完成 | 业主已授权创建 [GitHub 私有远程](remote-repository.md)；`deloog/wenshu` 为 PRIVATE、默认分支 `main`、仅业主账号具管理权限，本地与 `origin/main` 首次推送提交一致 |
 | G1-02 | ✅ 已完成 | `toolchain.versions.json`、ADR-0002；官方版本/许可证/来源/完整性证据已冻结，未安装业务依赖 |
 | G1-03 | ✅ 已完成 | D 盘 Node/pnpm、冻结 lockfile、TypeScript strict + Vite 工作区；Claude 复审 `CONDITIONAL PASS`，首审阻断/重大项全部关闭，见 [审计报告](audits/G1-03-to-G1-06-claude-audit-report.md) |
 | G1-03C | ✅ 已完成 | [环境配置基线](configuration.md)：运行时 Schema 与 Vite 配置均进入真实校验；Claude 复审通过 |
@@ -83,6 +83,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md) |
 | G1-08 | ✅ 已完成 | [测试骨架与并行隔离基线](test-infrastructure.md)：Claude 复审 `CONDITIONAL PASS`，首审 3 MAJOR、5 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 [G1-11 硬门禁](audits/G1-08-followups.md) |
 | G1-09 | ✅ 已完成 | [工程质量与本地验证标准](engineering-standards.md)：Claude 最终复核 `CONDITIONAL PASS`；`RA-01～RA-04` 与 `CF-01` 全部关闭，118 项验证通过；新增 CR-01 已登记到 [G1-15](audits/G1-09-followups.md) |
+| G1-11 | 🟡 已启动：先关闭隔离设施硬门禁 | 私有远程与本地质量前置已满足；在编写并行 runner/CI workflow 前，先实现并独立审计 G1-08 RA-01/RA-02 |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务
