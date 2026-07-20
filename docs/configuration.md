@@ -60,7 +60,7 @@ pnpm build
 pnpm verify
 ```
 
-test 与 staging 构建共用 `apps/web/dist` 输出目录，因此本地验收时串行；待 G1-11 CI 建立后，若并行则必须先分配独立输出目录。契约测试不读写共享数据，可由 Node 测试运行器并行调度。
+普通包脚本仍默认共用 `apps/web/dist`，手工连续验收时应串行。G1-11 的并行 runner 为 test、staging、production 显式分配 `dist/ci-test`、`dist/ci-staging`、`dist/ci-production`，因此可并行；新增构建模式必须先取得独立输出目录。契约测试不读写共享数据，可由 Node 测试运行器并行调度。
 
 ## 5. 验收记录
 

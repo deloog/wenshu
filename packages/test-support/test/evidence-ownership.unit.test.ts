@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
@@ -54,11 +54,30 @@ test("evidence rejects unprepared and brand-stripped handles", async () => {
     writeFailureEvidence(brandStripped, evidenceInput()),
     /runtime-issued prepared isolation/u,
   );
-  const brandCopied = { ...prepared } as PreparedTestIsolation;
+  const brandCopied = Object.freeze({ ...prepared }) as PreparedTestIsolation;
   await assert.rejects(
     writeFailureEvidence(brandCopied, evidenceInput()),
     /runtime-issued prepared isolation/u,
   );
+  await cleanupSuccessfulTestIsolation(prepared);
+  await rm(root, { recursive: true });
+});
+
+test("evidence rejects a layer that differs from its worker", async () => {
+  const root = await temporaryRoot();
+  const prepared = await prepareTestIsolation(
+    buildTestIsolation({
+      controlledRoot: root,
+      runId: "layer-proof",
+      workerIndex: 0,
+      layer: "e2e",
+    }),
+  );
+  await assert.rejects(
+    writeFailureEvidence(prepared, { ...evidenceInput(), layer: "unit" }),
+    /layer does not match worker isolation/u,
+  );
+  assert.deepEqual(await readdir(prepared.evidenceDirectory), []);
   await cleanupSuccessfulTestIsolation(prepared);
   await rm(root, { recursive: true });
 });

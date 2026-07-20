@@ -60,6 +60,7 @@ docs/adr/                           重大技术决策
 - `G1-03～G1-06` 与 `G1-07` 均已获 Claude 独立复审 `CONDITIONAL PASS`；首审 BLOCKER/MAJOR 已全部关闭，新增 MINOR 已登记到 `PB-05A`/`G1-09`。各消费者仍须满足自身依赖与 DoR。
 - `G1-08` 已获 Claude 独立复审 `CONDITIONAL PASS`，首审 3 项 MAJOR 与 5 项 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 `G1-11` 并行 runner 开工前硬门禁。
 - `G1-09` 已获 Claude 最终复核 `CONDITIONAL PASS`：`RA-01～RA-04` 与 `CF-01` 全部关闭，现可作为 G1-11 前置。新增 `CR-01`（质量工具包未声明直接使用的 ESLint）已登记到 G1-15，最迟 G1-16 前由独立审计签署。
+- `G1-11` 隔离硬门禁已获 Claude `CONDITIONAL PASS`，RA-01/RA-02 关闭；并行 CI 已在本地实现并补 IA-01 测试，仍待整体独立审计与获授权后的远程首跑，不得提前标记完成。
 
 ## 文件与代码规则（进入 G1 后生效）
 
@@ -102,6 +103,8 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm test:render` / `test:integration` / `test:e2e`：运行对应已登记测试；没有真实用例时报告 `not-registered` 并以非零退出，不代表通过。
 - `pnpm test:foundation`：运行测试层级审计与并行隔离设施单元反测。
 - `pnpm format:check` / `pnpm lint` / `pnpm quality:check`：分别检查格式、静态规则和 any/抑制指令/文件体量/typecheck 覆盖。
+- `pnpm ci:job <name>` / `pnpm ci:verify`：运行单个同构 CI 作业或最多 4 路并行的 8 作业本地矩阵；不替代串行完整 `verify`。
+- `pnpm secrets:check` / `pnpm licenses:check`：扫描已跟踪/暂存秘密与实际安装依赖的许可证快速阻断项。
 - `pnpm generated:check`：动态执行全部工作区包已登记的生成漂移检查。
 - `pnpm typecheck`：严格类型检查。
 - `pnpm verify`：唯一完整入口；串联全部质量、测试、生成、类型和构建门禁。
