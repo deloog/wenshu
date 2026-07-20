@@ -81,7 +81,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-05 | ✅ 已完成 | [v0 模板 DSL 契约](template-dsl.md)：继承访问器与有效基线注入反例通过；Claude 复审通过 |
 | G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：值级路径、预算和会话状态机反例通过；Claude 复审通过，NF-01/02/04 已登记到 G1-08/09 |
 | G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md) |
-| G1-08 | 🟠 首审失败，整改已实现待复审 | [测试骨架与并行隔离基线](test-infrastructure.md)：Host NF-01/NF-04 已由 Claude 确认关闭；全仓发现、大小写绕过和 worker 排他占用等首审整改已实现，消费者等待 [Claude 复审](audits/G1-08-claude-reaudit-task.md) |
+| G1-08 | ✅ 已完成 | [测试骨架与并行隔离基线](test-infrastructure.md)：Claude 复审 `CONDITIONAL PASS`，首审 3 MAJOR、5 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 [G1-11 硬门禁](audits/G1-08-followups.md) |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务
@@ -100,7 +100,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-08 | 建立单元/契约/渲染/集成/E2E 测试骨架和隔离目录。R-TEST | G1-03/04/05/06 → 全实现 | 测试配置、worker 目录/端口构造器、证据目录；不写功能测试冒充通过；处理复审 NF-01/NF-04 | 两 worker 并行写独立目录；失败保留日志/seed；测试层名称审计；Host 文档导出名与代码一致，终态后 cancel 返回稳定协议问题码 | 隔离失败则相关层串行；回滚配置。可与 G1-09 并行；NF-01/NF-04 不得由实施者自行标为已关闭，留待该任务审计确认 |
 | G1-09 | 建立工程标准、格式/lint/typecheck、文件体量与生成漂移护栏。R-TEST | G1-03 → 全任务 | `engineering-standards` 与本地检查；不增加宽泛豁免；处理 Host 复审 NF-02 与 G1-07 m-05/NF-04 | 显式/隐式 `any` 禁用护栏；逐包枚举并证明 `src/test/scripts` 与 TS 配置文件均进入 typecheck；非法 fixture 断言稳定 issue code 与预期 JSON path，覆盖 G1-07 当前归入 `PROJECT_INTEGRITY` 的七类判定；Host 值拒绝 NUL/控制字符及带任意前缀的盘符、POSIX/UNC、`file:` 和穿越片段；300 行预警、生产>400/测试>500失败的正反 fixture；单一 verify 入口 | 工具误报先修规则，不加全局 ignore。第三方/生成声明必须在边界收窄，不得用 `as any` 或 `@ts-ignore`。Host NF-02 必须在 PA-14E/PB-10 等真实 Host 消费协议值前经独立审计关闭；G1-07 m-05/NF-04 须在首个依赖稳定问题码分支的消费者前关闭。独占根工具配置 |
 | G1-10 | 固定 PoC fixture 哈希、只读复制和证据 manifest。R-PDF/R-TEST | G1-04/05/08 → PA 全部 | fixture manifest/校验工具；不修改冻结原件 | 篡改任一字节会失败；运行只写隔离副本 | 原 fixture 不一致即停并审计。可与 G1-09 并行，文件隔离 |
-| G1-11 | 建立并行 CI 骨架与本地同构 verify。R-TEST/R-LICENSE | G1-01R/03C/08/09 → G1 审计/全任务 | 快速 job：format/lint/type/unit/contract/build/secret/license；不创建付费服务 | 本地与私有远程 CI 同构；无依赖 job 并行；缓存键含锁文件/运行时；故意失败能快速定位 | CI 服务需登录时停在人工授权；不启用付费额度。独占流水线配置 |
+| G1-11 | 建立并行 CI 骨架与本地同构 verify。R-TEST/R-LICENSE | G1-01R/03C/08/09 → G1 审计/全任务 | 快速 job：format/lint/type/unit/contract/build/secret/license；不创建付费服务；关闭 G1-08 RA-01/RA-02 后才接并行 runner | 本地与私有远程 CI 同构；无依赖 job 并行；缓存键含锁文件/运行时；故意失败能快速定位；证据写入在运行时验证品牌与磁盘 claim；`evidence/` 非空时成功清理必须拒绝且证据完整 | CI 服务需登录时停在人工授权；不启用付费额度。并行 runner 首次调用证据/清理 API 前必须独立审计 RA-01/RA-02；不得用静默 force 删除失败证据。独占流水线配置 |
 | G1-12 | 从华为官方安装并锁定 DevEco、SDK、缓存到 D 盘。R-COMPAT/R-COST | GR/G1-02 → PA-14H/PB-11 | IDE/SDK/模拟器路径、版本、哈希、环境说明；不写 ArkTS 业务 | D 盘主体/SDK/缓存、命令行版本、空项目官方诊断；记录不可避免 C 盘占用 | 登录/协议/下载源/空间不符即停；用官方卸载回滚。与 G1-04/05/06/07/08/09/10 可并行；不购买账号 |
 | G1-13 | 获取并登记固定中文字体及许可证。R-PDF/R-LICENSE | G1-02/10 → PA-03 | Adobe 官方字体、LICENSE、哈希、最小字重；不从镜像下载 | 干净字体清单、字符覆盖和篡改检测通过 | 授权/哈希不明即停并删除未采纳副本。可与 G1-12 并行；0 元 |
 | G1-14 | 建立参考机器、性能采样与资源预算说明。R-PERF | G1-02/03/10 → PA-13/A-14 | 环境清单、采样协议；不宣布未测阈值通过 | OS/CPU/RAM/DPI/磁盘/版本/fixture 哈希自动记录 | 噪声不可控则增加重复而不改阈值。可与 G1-12/13 并行 |

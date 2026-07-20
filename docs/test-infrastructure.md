@@ -1,6 +1,6 @@
 # G1-08 测试骨架与并行隔离基线
 
-> 状态：首审 `FAIL`，整改已实现待 Claude 独立复审　日期：2026-07-20
+> 状态：已完成（Claude 独立复审 `CONDITIONAL PASS`）　日期：2026-07-20
 
 ## 1. 任务边界
 
@@ -61,4 +61,6 @@ test-results/<run-id>/<layer>/<worker-id>/
 
 ## 6. Host 条件项
 
-本任务按路线图处理 G1-06 复审 NF-01/NF-04：文档已改用真实导出名 `validateHostContract`；`validateHostSession` 对终态后到达的 cancel 返回稳定 `HOST_TERMINAL_STATE_DUPLICATE`，并有精确 issue code/path 反测。是否关闭仍由 Claude 独立审计决定。
+本任务按路线图处理 G1-06 复审 NF-01/NF-04：文档已改用真实导出名 `validateHostContract`；`validateHostSession` 对终态后到达的 cancel 返回稳定 `HOST_TERMINAL_STATE_DUPLICATE`，并有精确 issue code/path 反测。Claude 首审和复审均确认两项关闭且正常取消链路无回归。
+
+Claude 复审已确认 G1-08 首审 3 MAJOR、5 MINOR 全部关闭，并确认 Host NF-01/NF-04 持续关闭。复审新增 RA-01/RA-02 已登记到 [G1-08 条件通过后续项](audits/G1-08-followups.md)：G1-11 在并行 runner 首次调用证据/清理 API 前，必须补运行时 claim 校验，并在失败证据非空时拒绝成功清理。实施者不得自行宣称这两项关闭。
