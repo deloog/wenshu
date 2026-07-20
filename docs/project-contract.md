@@ -1,6 +1,6 @@
 # G1-07 v0 项目、知识包、语义审计与兼容契约
 
-> 状态：首审 `FAIL`，整改已实现待 Claude 独立复审　契约版本：`0.1.0`　日期：2026-07-20
+> 状态：已完成（Claude 独立复审 `CONDITIONAL PASS`）　契约版本：`0.1.0`　日期：2026-07-20
 
 ## 1. 目的与边界
 
@@ -60,4 +60,4 @@ pnpm --filter @wenshu/project-contract typecheck
 pnpm verify
 ```
 
-整改后实施者自检为 21/21，新增覆盖“用户裁决并保留模型出处”、AI/system 不得裁决、接受/拒绝的节点与哈希语义、正式版本只能由用户批准、非法日历时间、结构化 locator、密钥形状标识、path/role 一致性，以及 document/template 跨包版本与 ID 联合契约。全部结果只代表实施者自检，发现是否关闭仍等待 Claude 独立复审。
+整改后实施者自检为 21/21，新增覆盖“用户裁决并保留模型出处”、AI/system 不得裁决、接受/拒绝的节点与哈希语义、正式版本只能由用户批准、非法日历时间、结构化 locator、密钥形状标识、path/role 一致性，以及 document/template 跨包版本与 ID 联合契约。Claude 独立复审重跑首审反例后给出 `CONDITIONAL PASS`：首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 的关闭责任登记于 [G1-07 条件通过后续项](audits/G1-07-followups.md)，不得由实施者自行宣称关闭。

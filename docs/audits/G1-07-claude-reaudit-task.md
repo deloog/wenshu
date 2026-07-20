@@ -1,6 +1,6 @@
 # Claude 独立复审任务书：G1-07
 
-> 状态：待执行　审计者：Claude　实施者：Codex　日期：2026-07-20
+> 状态：已完成（`CONDITIONAL PASS`）　审计者：Claude　实施者：Codex　日期：2026-07-20
 
 请以原 [审计报告](G1-07-claude-audit-report.md) 为发现清单，审计 `bc63ff0..HEAD` 的整改。不要采信 [整改记录](G1-07-remediation.md) 或测试绿色输出；重跑原始反例并另找结构性绕过。
 

@@ -1,6 +1,6 @@
 # 文枢原子化实施路线图
 
-> 版本：1.0　日期：2026-07-20　状态：**GR 已通过**（专项审计 0 项未关闭阻断）  
+> 版本：1.2　日期：2026-07-20　状态：**GR 已通过**（v1.0 专项审计 0 项未关闭阻断；审计后依次依据独立复审新增 PA-00、PB-05A）
 > 权威上游：`CONSTITUTION.md`、冻结版立项纲领、`决策记录.md`、G0 专项规范与 `DEFINITION-OF-READY.md`。  
 > 本文件回答“按什么依赖顺序实施和验证”；它不改变产品范围，也不授权绕过 DoR、审批矩阵或后续闸门。
 
@@ -60,7 +60,7 @@ G1 工程底座
           ↓ G1 审计 → G2-01/G2-02 首个功能变更门禁
 PoC-A：PA-00 → PA-01 → PA-03 → PA-05 → PA-08 → PA-12 → PA-15
           ↓ 排版生死闸
-PoC-B：PB-01 → PB-03 → PB-06 → PB-09 → PB-12
+PoC-B：PB-01 → PB-03 → PB-05 → PB-05A → PB-06 → PB-09 → PB-12
           ↓ 事务/存储闸
 Alpha：A-01 → A-04 → A-08 → A-12 → A-16
           ↓ 封闭 Alpha / G2、G3 专项闸
@@ -80,7 +80,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-04 | ✅ 已完成 | [v0 文档对象契约](document-model.md)：路径、预算与测试 typecheck 反例通过；Claude 复审通过，NF-03 已登记到 PA-00 |
 | G1-05 | ✅ 已完成 | [v0 模板 DSL 契约](template-dsl.md)：继承访问器与有效基线注入反例通过；Claude 复审通过 |
 | G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：值级路径、预算和会话状态机反例通过；Claude 复审通过，NF-01/02/04 已登记到 G1-08/09 |
-| G1-07 | 🟠 首审失败，整改已实现待复审 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 首审 `FAIL`；责任语义与跨包漂移修复后 21/21 自检通过，消费者等待 [Claude 复审](audits/G1-07-claude-reaudit-task.md) |
+| G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md) |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 
 ## 4. G1：工程底座原子任务
@@ -97,7 +97,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-06 | 冻结 v0 host 能力、错误、取消、进度契约。R-HOST/R-UX | G1-02 → G1-09/PB-10/A | schema/类型；浏览器/Electron/ArkWeb 实现不在本任务 | 能力支持/拒绝/取消/超时/降级的契约样例通过 | 平台类型泄漏到核心即停；回滚契约。与 G1-05 并行，契约文件隔离 |
 | G1-07 | 冻结 v0 项目、知识包、语义审计与版本兼容契约。R-DATA/R-RECORDS/R-OUTPUT | G1-04/06 → PB-05/07/08 | schema 与迁移原则；不选择数据库实现 | round-trip fixture、缺字段/未来版本拒绝契约测试 | 真源与派生无法区分即停。权威契约独占；无外部审批 |
 | G1-08 | 建立单元/契约/渲染/集成/E2E 测试骨架和隔离目录。R-TEST | G1-03/04/05/06 → 全实现 | 测试配置、worker 目录/端口构造器、证据目录；不写功能测试冒充通过；处理复审 NF-01/NF-04 | 两 worker 并行写独立目录；失败保留日志/seed；测试层名称审计；Host 文档导出名与代码一致，终态后 cancel 返回稳定协议问题码 | 隔离失败则相关层串行；回滚配置。可与 G1-09 并行；NF-01/NF-04 不得由实施者自行标为已关闭，留待该任务审计确认 |
-| G1-09 | 建立工程标准、格式/lint/typecheck、文件体量与生成漂移护栏。R-TEST | G1-03 → 全任务 | `engineering-standards` 与本地检查；不增加宽泛豁免；处理复审 NF-02 | 显式/隐式 `any` 禁用护栏；逐包枚举并证明 `src/test/scripts` 与 TS 配置文件均进入 typecheck；非法 fixture 断言稳定 issue code 与预期 JSON path；Host 值拒绝 NUL/控制字符及带任意前缀的盘符、POSIX/UNC、`file:` 和穿越片段；300 行预警、生产>400/测试>500失败的正反 fixture；单一 verify 入口 | 工具误报先修规则，不加全局 ignore。第三方/生成声明必须在边界收窄，不得用 `as any` 或 `@ts-ignore`。NF-02 必须在 PA-14E/PB-10 等真实 Host 消费协议值前经独立审计关闭。独占根工具配置 |
+| G1-09 | 建立工程标准、格式/lint/typecheck、文件体量与生成漂移护栏。R-TEST | G1-03 → 全任务 | `engineering-standards` 与本地检查；不增加宽泛豁免；处理 Host 复审 NF-02 与 G1-07 m-05/NF-04 | 显式/隐式 `any` 禁用护栏；逐包枚举并证明 `src/test/scripts` 与 TS 配置文件均进入 typecheck；非法 fixture 断言稳定 issue code 与预期 JSON path，覆盖 G1-07 当前归入 `PROJECT_INTEGRITY` 的七类判定；Host 值拒绝 NUL/控制字符及带任意前缀的盘符、POSIX/UNC、`file:` 和穿越片段；300 行预警、生产>400/测试>500失败的正反 fixture；单一 verify 入口 | 工具误报先修规则，不加全局 ignore。第三方/生成声明必须在边界收窄，不得用 `as any` 或 `@ts-ignore`。Host NF-02 必须在 PA-14E/PB-10 等真实 Host 消费协议值前经独立审计关闭；G1-07 m-05/NF-04 须在首个依赖稳定问题码分支的消费者前关闭。独占根工具配置 |
 | G1-10 | 固定 PoC fixture 哈希、只读复制和证据 manifest。R-PDF/R-TEST | G1-04/05/08 → PA 全部 | fixture manifest/校验工具；不修改冻结原件 | 篡改任一字节会失败；运行只写隔离副本 | 原 fixture 不一致即停并审计。可与 G1-09 并行，文件隔离 |
 | G1-11 | 建立并行 CI 骨架与本地同构 verify。R-TEST/R-LICENSE | G1-01R/03C/08/09 → G1 审计/全任务 | 快速 job：format/lint/type/unit/contract/build/secret/license；不创建付费服务 | 本地与私有远程 CI 同构；无依赖 job 并行；缓存键含锁文件/运行时；故意失败能快速定位 | CI 服务需登录时停在人工授权；不启用付费额度。独占流水线配置 |
 | G1-12 | 从华为官方安装并锁定 DevEco、SDK、缓存到 D 盘。R-COMPAT/R-COST | GR/G1-02 → PA-14H/PB-11 | IDE/SDK/模拟器路径、版本、哈希、环境说明；不写 ArkTS 业务 | D 盘主体/SDK/缓存、命令行版本、空项目官方诊断；记录不可避免 C 盘占用 | 登录/协议/下载源/空间不符即停；用官方卸载回滚。与 G1-04/05/06/07/08/09/10 可并行；不购买账号 |
@@ -139,7 +139,8 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | PB-03 | 建立统一事务、校验、undo/redo 与取消。R-TX | PB-02 → PB-04/05 | 人工/AI共同提交边界；不记录沉重审计到每次按键 | 单元+组件+集成；失败事务原子回滚；undo/redo往返相等 | 半提交或无法取消即阻断。权威事务模块独占 |
 | PB-04 | 实现高层语义工具到事务的编译器。R-TX/R-SEC | PB-03 → PB-05/A-07 | 冻结工具集：重写、插入、提纲、普通表格、引用、移动子树 | 契约测试、权限拒绝、越权参数、prompt injection fixture | 模型不得直接写存储/DOM；越界即停。可与 PB-06 在契约冻结后并行 |
 | PB-05 | 实现可定位 diff、accept/reject 与后续 undo。R-TX/R-UX | PB-03/04 → A-07 | 节点/字段级差异；不做多人合并UI | 组件/E2E：未接受不改真源，部分接受可撤销 | diff丢上下文或错误合并即阻断。独占 diff 契约 |
-| PB-06 | 实现语义审计事件与出处链。R-RECORDS | G1-07,PB-03/04 → A-09 | 重要事件、材料引用、前后哈希、裁决；不记录每次按键 | 能回答来源/AI修改/人工后改/材料存在；隐私字段审计 | 日志含密钥/全文泄漏即阻断。可与 PB-07 并行，schema隔离 |
+| PB-05A | 冻结语义审计哈希指称、模型标识与 system 权限，关闭 G1-07 NF-01/02/03。R-RECORDS/R-SEC | G1-07,PB-05 → PB-06 | 基于真实 diff 语义裁定每类 action 的 hash subject；用结构化注册标识和明确的“凭证不得进入契约”边界替代敏感子串黑名单；列出 system 唯一允许 action；必要时升级 Schema/ADR，不实现审计存储 | `template_applied` 无需伪造文档哈希；合法 `keystone`/`monkey`/`tokenizer` 标识不被误杀且凭证字段无入口；system 权限正反矩阵；Schema 变更按 `0.x` 规则并通过独立审计 | 未裁定不得开始 PB-06；不得让同一哈希字段在不同 action 间隐式变义，也不得以高熵猜测冒充密钥防护。契约文件串行 |
+| PB-06 | 实现语义审计事件与出处链。R-RECORDS | G1-07,PB-03/04,PB-05A → A-09 | 重要事件、材料引用、前后哈希、裁决；不记录每次按键 | 能回答来源/AI修改/人工后改/材料存在；隐私字段审计 | 日志含密钥/全文泄漏即阻断。可与 PB-07 并行，schema隔离 |
 | PB-07 | 验证可合并操作模型并隔离三层记录。R-RECORDS/R-DATA | PB-02/03,G1-07 → PB-08 | CRDT候选最小探针；Alpha不做自动同步 | 两副本离线编辑后合并；编辑历史/CRDT/语义审计不混用 | 无法稳定映射ID/事务则更换候选并重审 ADR。与 PB-06 并行 |
 | PB-08 | 选择 SQLite/OPFS 与桌面同格式存储并写 ADR。R-DATA/R-TEST | G1-07/08,PB-07 → PB-09/10 | 真实候选数据库、Worker/多标签探针；不做云同步 | 真实引擎、真实迁移、并发/锁/大文档探针；非 Map/JSON 替代 | 三端同格式不可行则记录适配边界，不伪称同库。独占存储 ADR |
 | PB-09 | 建立版本化迁移、隔离真库集成与恢复。R-DATA/R-TEST | PB-08 → PB-10/11 | schema v0→v1、seed、备份/恢复；不手改数据库 | 每 worker 独立真实库；迁移、重复运行、中断、损坏、磁盘/权限失败 | 数据丢失即阻断；恢复副本优先，迁移历史不可改。可分片并行但库/目录隔离 |
@@ -201,7 +202,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | R-PDF/R-PA-METRIC | PA-00/01/02/03/04/05/06/07/08/09/10/11、A-04/05/08/10P | PA-12/13/14U/15、A-12/14 |
 | R-TEMPLATE | G1-05、PA-02/04 | G1-08/15/16、PA-12/15 |
 | R-ID/R-TX | G1-04、PB-02/03/04/05、A-03/07 | PB-12、A-12 |
-| R-RECORDS | G1-07、PB-06/07、A-06/09 | PB-12、A-12/15 |
+| R-RECORDS | G1-07、PB-05A/06/07、A-06/09 | PB-12、A-12/15 |
 | R-DATA/R-OUTPUT | G1-07、PB-08/09/10/11、A-02/09/10P/10X/11 | PB-12、A-12/15 |
 | R-HOST | G1-06、PB-10、A-02/10P/10X | PA-14E/14H、PB-12、A-12/15 |
 | R-TEST | G1-08/10/11、各任务测试 | G1-16、PA-12/13/15、PB-12、A-12 |
