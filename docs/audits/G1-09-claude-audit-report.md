@@ -506,3 +506,142 @@ output=\Windows\win.ini          HOST_PLATFORM_FIELD_FORBIDDEN@/output/grant_id
 **关闭路径**：由 Codex 修复 `CF-01`（保持 `eslint.configs.recommended` 不限定 `files`，另开一个仅提供 `ecmaFeatures.jsx` 的 `**/*.jsx` 块——我已验证该写法可使 `.ts`=45、`.js`=64、`.jsx`=64 同时成立），补一条断言 TypeScript 上基础规则仍生效的反测，复跑 `pnpm verify` 后由 Claude 复核 `CF-01` 与 `RA-01` 并一并签署。`RA-02`、`RA-03`、`RA-04` 本次已确认关闭，复核时无需重跑。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本确认由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁。`CF-01` 与 `RA-01` 不得由实施者自行标记关闭。
+
+---
+---
+
+# 最终复核（2026-07-20）：`3dc79cc..96a5a44`
+
+> 复核者：Claude（发现 `CF-01` 的原审计角色）　实施者：Codex　任务书：[G1-09-claude-cf01-recheck-task.md](G1-09-claude-cf01-recheck-task.md)
+>
+> **本章节的结论取代上文针对性确认的 `FAIL`。** 首审、复审、针对性确认三段记录原样保留，未删除或改写任何一行。
+>
+> 本轮只复核 `CF-01` 与 `RA-01`；`RA-02`/`RA-03`/`RA-04` 已于上一轮确认关闭，按任务书未重跑。
+
+## 1. 范围与方法
+
+整改提交 `96a5a44 fix: restore TypeScript ESLint recommendations`：5 文件 +62/-4，其中实质代码改动只有 `eslint.config.mjs` 的 4 行，外加新增回归测试 `tools/quality/test/eslint-config.unit.test.ts`（32 行）。
+
+不采信 [CF-01 整改记录](G1-09-cf01-remediation.md) 与 `pnpm verify` 自述；全部结论来自独立复现。破坏性探针位于 `D:\tmp\g109*`，结束时已删除（含为解析依赖临时创建的 `D:\tmp\node_modules` 联接），并核实无残留。未修改代码、配置、测试、路线图、锁文件或 Git 历史。
+
+环境：`D:\Applications\Node\node-v24.17.0-win-x64\node.exe` v24.17.0、pnpm 11.15.1、`--store-dir D:\DevCaches\pnpm-store`、`CI=true`——已确认 `node` 未命中 C 盘旧版本。
+
+## 2. `CF-01` —— **已关闭 ✅**
+
+修复正是我在上一轮验证过可行的那种写法：把 `eslint.configs.recommended` 恢复为**不带 `files` 键**，另开一个只提供 `ecmaFeatures.jsx` 的 `**/*.jsx` 块（[`eslint.config.mjs:23-31`](../../eslint.config.mjs#L23-L31)）。
+
+### 2.1 规则计数（用 ESLint 官方配置求解，对真实仓库配置独立统计）
+
+| 扩展名 | 64 条中生效 | `no-debugger` | `use-isnan` | `valid-typeof` | `@typescript-eslint/no-explicit-any` |
+|---|---:|---|---|---|---|
+| `.ts` | **45** | 2 | 2 | 2 | 2 |
+| `.tsx` | **45** | 2 | 2 | 2 | 2 |
+| `.mts` | **45** | 2 | 2 | 2 | 2 |
+| `.cts` | **45** | 2 | 2 | 2 | 2 |
+| `.js` | **64** | 2 | 2 | 2 | — |
+| `.jsx` | **64** | 2 | 2 | 2 | — |
+| `.mjs` | **64** | 2 | 2 | 2 | — |
+| `.cjs` | **64** | 2 | 2 | 2 | — |
+
+任务书要求的 `.ts=45 / .js=64 / .jsx=64` **完全吻合**（上一轮 `.ts` 为 0）。四种 TypeScript 扩展名全部保有三条基础探针规则与 `no-explicit-any`，且 severity 均为 `2`（error）而非 warn。
+
+补充核对两点：
+
+- **不是"静默缺失"而是"正确关闭"**：`.ts` 上未生效的 19 条全部以显式值出现在解析结果中（`constructor-super`、`getter-return`、`no-const-assign`、`no-undef`、`no-unused-vars` 等由 typescript-eslint 的 `eslint-recommended` 关闭，TS 编译器覆盖），**绝对缺失数为 0**。上一轮的 45 条静默缺失已归零。
+- **JavaScript 未被错误套用需类型信息的规则**：`.js`/`.jsx`/`.mjs`/`.cjs` 上生效的 `@typescript-eslint/*` 规则数均为 **0**。
+
+### 2.2 没有后续块再次关闭这些规则
+
+`eslint.configs.recommended` 之后只有三个块：`**/*.jsx` 解析块（无 `rules`）、tseslint 的四扩展名块、自定义 TS 规则块。全文检索确认 `no-debugger`、`use-isnan`、`valid-typeof` 在 recommended 之后**均未再出现**，其后仅有 1 个 `rules:` 块（自定义三条 `@typescript-eslint/*`）。计数结果与静态阅读一致。
+
+### 2.3 真实 ESLint 运行（非仅检查配置对象）
+
+按任务书要求，不止于配置求解。在仓库外副本中放置 `eslint.config.mjs` 的完整拷贝加本地 `tsconfig.json`（使 `import.meta.dirname` 与 `tsconfigRootDir` 指向副本，`projectService` 可正常工作），运行真实 `eslint`：
+
+```text
+src/bad-debugger.ts   exit=1   命中 no-debugger
+src/bad-isnan.ts      exit=1   命中 use-isnan
+src/good.ts           exit=0   clean          （无解析冲突误报）
+src/bad-unused.jsx    exit=1   命中 no-unused-vars
+src/good.jsx          exit=0   clean          （合法 JSX 正常解析通过）
+```
+
+四项必测全部命中预期规则，两项合法对照零误报。
+
+## 3. `RA-01` —— **已关闭 ✅**
+
+`.jsx` 的目标在上一轮已达成（真实 ESLint 对含未使用变量的 `.jsx` 失败、合法 JSX 通过），当时不予签署的唯一原因是实现手段引发 `CF-01`。本轮 `CF-01` 关闭，且 `.jsx` 能力经 §2.1 与 §2.3 复测依旧成立（64/64 条 recommended 生效、`no-unused-vars` 命中、合法 JSX 解析通过），因此 `RA-01` 现予签署关闭。
+
+## 4. 回归测试有效性审查
+
+新增 [`tools/quality/test/eslint-config.unit.test.ts`](../../tools/quality/test/eslint-config.unit.test.ts)（32 行，2 个用例）。
+
+- **被发现、被登记、被执行**：层级审计文件数由 14 → **15**；unit 层登记文件由 5 → **6**，清单中确有该文件；`verify` 中 unit 测试数由 20 → **22**。单独运行该文件：2 个用例、2 通过。
+- **断言强度合格**：断言形如 `assert.equal(rules["no-debugger"]?.[0], 2, extension)`——检查的是 ESLint 解析后**实际生效规则的 severity 值**（`2`），不是"键是否存在"，也不是把配置常量与自身比较。第一个用例覆盖 `ts/tsx/mts/cts/js/mjs/cjs` 七种扩展名 × 三条规则；第二个用例交叉验证 `.jsx` 的 `no-unused-vars`/`no-debugger` 与 `.ts` 的 `no-explicit-any`/`no-debugger` 同时成立，正对应"JSX 不得挤掉 TypeScript 规则"。
+- **破坏性验证（三组对照，仓库外副本）**：
+
+  ```text
+  基线    配置原样                                  exit=0  通过
+  负向    把 recommended 重新限定为 JavaScript      exit=1  失败
+          失败原因：AssertionError: ts  actual: undefined  expected: 2
+  正向对照 仅改无关项（多加一条 ignore）             exit=0  通过（无误报）
+  ```
+
+  负向用例**因正确的原因失败**——`.ts` 上 `no-debugger` 的 severity 变为 `undefined`，正是 `CF-01` 的特征；不是配置加载失败之类的假阳性。这证明该测试确实能挡住同类回归，而不是恒真断言。
+
+- **测试自身受门禁约束**：位于 `tools/quality/test/`，进入该包 `tsc -p tsconfig.json`（`include` 含 `test`）、受 ESLint 检查、受禁止 `any`/抑制指令扫描；32 行，远低于体量阈值。
+
+## 5. 本轮新发现
+
+**`CR-01`（MINOR）　`tools/quality` 使用了未在自身 manifest 声明的 `eslint` 依赖**
+
+新增测试第 5 行 `import { ESLint } from "eslint";`，而 [`tools/quality/package.json`](../../tools/quality/package.json) 只声明了 `@wenshu/test-support`（dependencies）与 `@types/node`、`typescript`（devDependencies），**未声明 `eslint`**。它之所以能解析，是因为 `eslint` 是根 `package.json` 的 devDependency，Node 从 `tools/quality/test/` 逐级上溯时在根 `node_modules` 命中——典型的 phantom dependency。
+
+对照可知这是本轮新引入的：同包 `src/guardrails.ts` 使用 `typescript`、`scripts/check-repository.ts` 使用 `@wenshu/test-support`，两者**都已在 manifest 中声明**；`eslint` 是该包唯一的未声明外部依赖。
+
+- **影响**：当前可用，`verify` 不受影响，不削弱任何门禁。风险在于：根 devDependency 一旦调整或该包被迁移/抽离，导入即断裂；且这正是 `G1-15` 供应链与 SBOM 基线要处理的依赖声明完整性问题。现有 `checkTypecheckCoverage` 只校验 typecheck 命令与文件集合，不校验依赖声明，因此不会自动发现同类情况。
+- **不阻断的理由**：不影响 `CF-01`/`RA-01` 的结论，不影响任何质量门禁的有效性，不改变 `pnpm verify` 的可信度，`G1-11` 建立 CI 也不依赖它。
+- **归属与最迟关闭点**：`G1-15`（供应链与 SBOM 基线），最迟 `G1-16` 签署 G1 之前。建议在 `tools/quality/package.json` 的 devDependencies 中显式声明 `eslint`（版本与根一致、经 catalog 或精确固定），并考虑在 `G1-15` 增加一条"工作区包不得使用未声明依赖"的检查。
+
+## 6. 共同检查
+
+| 检查 | 结果 |
+|---|---|
+| `pnpm install --frozen-lockfile --store-dir D:\DevCaches\pnpm-store`（CI=true） | 通过，10 个工作区项目；node 解析到 D 盘 24.17.0 |
+| `pnpm verify` | **exit 0**：质量护栏 **59** 源码/**194** 仓库文件 → 层级审计 **15** 个测试文件 → unit 22/22 → config 7/7 → contract-runtime 4/4 → document 15/15 → template 15/15 → host 31/31 → project 24/24（合计 **118**）→ **9** 个包 typecheck → production build 成功 |
+| `pnpm-lock.yaml`、`tsconfig.base.json`、各包冻结 Schema、`src/generated/*`、各 `tools/*/package.json` | 本轮**零改动**（`CR-01` 即由此得出：manifest 未随新导入更新） |
+| `.prettierignore` / ESLint `ignores` | **零改动**，未新增宽泛忽略项 |
+| 手写 `any` / TS 抑制指令 / ESLint 内联禁用 | 匹配数 **0**（扫描面含 `.ts/.mts/.cts/.mjs/.jsx`） |
+| 体量预警 | `quality:check` 未输出任何 `WARN` |
+| `git status --short`（复核前 / 后） | 两次均为空；`D:\tmp\g109cf`、`g109base`、`g109neg`、`g109pos` 与 `D:\tmp\node_modules` 联接均已删除并核实无残留 |
+
+## 7. 未执行项与限制
+
+1. **未在仓库内植入探针文件**：真实 ESLint 运行使用 `eslint.config.mjs` 的完整拷贝加本地 `tsconfig.json`，使 `import.meta.dirname`/`tsconfigRootDir` 指向副本以满足 `projectService`；配置内容与仓库逐字一致，但项目根不同。
+2. **`RA-02`/`RA-03`/`RA-04` 未重跑**（任务书明示无需）。
+3. **未运行 format、fix、generate 或任何修改 Git 历史的命令**。
+4. **未逐条验证全部 64 条规则的运行时行为**：对 `no-debugger`、`use-isnan`、`no-unused-vars` 做了真实运行验证，其余以 ESLint 官方配置求解的 severity 为准。
+5. **范围外未审计**：数据库、真实 Host、Electron/ArkWeb、渲染/E2E、CI 服务、`G1-08 RA-01/RA-02` 的实现。
+6. 供应链结论仍由 `G1-15` 签署；本轮仅确认 lockfile 零改动、无新增依赖条目（`CR-01` 是声明缺失而非新增依赖）。
+
+## 8. 逐项签署与最终结论
+
+| 发现 | 状态 | 依据 |
+|---|---|---|
+| `CF-01` TypeScript 失去 45 条基础规则 | **已关闭 ✅** | 计数恢复为 `.ts/.tsx/.mts/.cts = 45`、`.js/.jsx/.mjs/.cjs = 64`，绝对缺失数由 45 归零；真实 ESLint 在 `.ts` 上命中 `no-debugger` 与 `use-isnan`；无后续块再次关闭；新增回归测试经破坏性验证确能挡住同类回归 |
+| `RA-01` `.jsx` ESLint 覆盖 | **已关闭 ✅** | `.jsx` 取得全部 64 条 recommended，真实运行命中 `no-unused-vars`、合法 JSX 通过；且不再以牺牲 TypeScript 为代价 |
+
+本轮新增：`MINOR` **1** 项（`CR-01`），`BLOCKER`/`MAJOR` **0** 项。
+
+**结论：`CONDITIONAL PASS`　——　`G1-09` 可标记完成，`G1-11` 可以启动**
+
+判定依据：
+
+- `CF-01` 的原始反例已不成立：上一轮我测得 `.ts` 上 64 条 recommended 生效 0 条，本轮独立复测为 45 条，与任务书要求的数字精确吻合，且 19 条未生效项全部是 typescript-eslint 有意关闭、绝对缺失为 0。四种 TypeScript 扩展名同时保有三条探针规则与 `no-explicit-any`，JavaScript 侧未被错误套用类型规则。
+- 修复方式正是我在上一轮验证过的"两者兼得"写法，**没有在 `.jsx` 与 `.ts` 之间做取舍**，因此 `RA-01` 得以一并关闭。
+- 最有说服力的是回归测试的**破坏性验证**：把 recommended 重新限定回 JavaScript，新增测试立即以 `actual: undefined / expected: 2` 失败；仅改无关配置则通过。这说明它是一条真正的门禁，而不是恒真断言——同类回归今后会在 `verify` 中当场暴露。
+- 不判 `PASS` 而判 `CONDITIONAL PASS`，唯一原因是 `CR-01`：新增测试导入了 `eslint` 而 `tools/quality/package.json` 未声明它。该项不影响 `CF-01`/`RA-01` 的结论、不削弱任何门禁、不影响 `G1-11`，已按任务书要求写明归属（`G1-15`）与最迟关闭点（`G1-16` 签署 G1 之前）。
+
+**放行**：实施者可据本复核把 `G1-09` 的路线图状态更新为最终完成，并把 `CR-01` 登记到 `G1-15`；`G1-11` 可按自身 DoR 启动。上一轮已关闭的 `RA-02`、`RA-03`、`RA-04` 与本轮的 `CF-01`、`RA-01` 至此全部签署完毕。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁。`CR-01` 不得由实施者自行标记关闭。
