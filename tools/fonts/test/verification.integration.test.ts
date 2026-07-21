@@ -119,6 +119,15 @@ test("manifest changes and unregistered directory entries fail closed", async ()
       (await expectIntegrityFailure(() => verifyFontSet(copyRoot))).code,
       "FONT_SET_MISMATCH",
     );
+    await rm(join(copyRoot, "unregistered"), { recursive: true });
+
+    // An extra regular file passes the per-entry non-file guard, so only the
+    // exact file set equality guard can reject it.
+    await writeFile(join(copyRoot, "EXTRA-UNREGISTERED.bin"), Buffer.from([0]));
+    assert.equal(
+      (await expectIntegrityFailure(() => verifyFontSet(copyRoot))).code,
+      "FONT_SET_MISMATCH",
+    );
   } finally {
     await cleanupSuccessfulTestIsolation(isolation);
     await rm(isolation.controlledRoot, { recursive: true });

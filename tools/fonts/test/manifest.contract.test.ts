@@ -111,3 +111,21 @@ test("font entries, source, license, and coverage fail closed", () => {
     );
   }
 });
+
+test("font weights must be unique across the three files", () => {
+  // Duplicating one style entry keeps the canonical sorted order intact, so
+  // only the weight uniqueness guard can reject this manifest.
+  const duplicated = validManifest();
+  const files = duplicated["files"] as Record<string, unknown>[];
+  const bold = files.find((file) => file["style"] === "Bold");
+  const regular = files.find((file) => file["style"] === "Regular");
+  assert.ok(bold && regular);
+  duplicated["files"] = [bold, bold, regular];
+  assert.throws(
+    () => parseFontManifest(duplicated),
+    (error: unknown) =>
+      error instanceof FontIntegrityError &&
+      error.code === "FONT_MANIFEST_INVALID" &&
+      error.message === "font weights must be unique",
+  );
+});
