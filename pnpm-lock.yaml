@@ -188,9 +188,6 @@ importers:
       '@wenshu/fonts':
         specifier: workspace:*
         version: link:../fonts
-      '@wenshu/test-support':
-        specifier: workspace:*
-        version: link:../../packages/test-support
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

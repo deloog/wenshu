@@ -17,8 +17,7 @@
   },
   "dependencies": {
     "@wenshu/fixtures": "workspace:*",
-    "@wenshu/fonts": "workspace:*",
-    "@wenshu/test-support": "workspace:*"
+    "@wenshu/fonts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
