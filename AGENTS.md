@@ -34,6 +34,7 @@ DEFINITION-OF-READY.md             任务是否允许开始
 docs/technical-baseline.md         技术边界与选型基线
 docs/testing-strategy.md           测试真实性、分层与并行
 docs/adr/                           重大技术决策
+docs/requirements-pool.md            需求池（不入冻结范围的新想法归口）
 ```
 
 ## AI 工作规则
