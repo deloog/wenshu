@@ -1,6 +1,6 @@
 # G1-15 供应链初审与 SBOM/许可证基线独立审计任务书（交给 Claude）
 
-> 日期：2026-07-21　实施基线：G1-15 实施提交（见 git log 中 `feat: record G1-15 supply chain baseline`）　报告目标：`docs/audits/G1-15-claude-audit-report.md`
+> 日期：2026-07-21　实施基线：`2744df4`（feat: record G1-15 supply chain baseline）　报告目标：`docs/audits/G1-15-claude-audit-report.md`
 
 ## 1. 角色与写入边界
 
