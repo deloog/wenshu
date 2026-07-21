@@ -1,6 +1,6 @@
 # G1-14 参考机器、性能采样与资源预算说明独立审计任务书（交给 Claude）
 
-> 日期：2026-07-21　实施基线：G1-14 实施提交（见 git log 中 `feat: record G1-14 reference machine baseline`）　报告目标：`docs/audits/G1-14-claude-audit-report.md`
+> 日期：2026-07-21　实施基线：`921a31e`（feat: record G1-14 reference machine baseline）　报告目标：`docs/audits/G1-14-claude-audit-report.md`
 
 ## 1. 角色与写入边界
 
