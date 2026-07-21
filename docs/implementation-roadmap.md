@@ -88,7 +88,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 | G1-13 | ✅ 已完成 | [固定字体基线](font-baseline.md)：Adobe 官方 Source Han Sans CN 2.005R、OFL-1.1、400/500/700 三字重、哈希锚点及 884 个 fixture 必需码点覆盖；Claude 最终复核 `PASS`，FT-01/FT-02 已关闭；FT-01 多余文件在大小写敏感 Linux CI 上的表现留作补充证据点 |
 | G1-14 | ✅ 已完成 | [参考机器、采样协议与资源预算说明](reference-machine.md)：Claude 独立审计 `CONDITIONAL PASS` 后复审 EN-01～EN-03 全部关闭（`PASS`），无未关闭发现；可作为 PA-13/A-14 基线 |
-| G1-15 | 🟡 已实现，待独立复审 | [供应链基线](supply-chain.md)：Claude 首审 `FAIL`（SM-01 MAJOR：安装树平台依赖）；SM-01 已改为冻结 lockfile 真源（147 包、跨平台字节一致、33 条受审许可覆盖）、SM-02 已收紧 `@types/*` 豁免至 type-only，见 [整改记录](audits/G1-15-sm01-sm02-remediation.md)；待 Claude 复审并连同签署 CR-01；实施者不得自行关闭 |
+| G1-15 | ✅ 已完成 | [供应链基线](supply-chain.md)：Claude 首审 `FAIL`（SM-01 MAJOR：安装树平台依赖）后复审 `PASS`，SM-01/SM-02 全部关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条受审许可覆盖经 npm 核验）；已知限制：首个 ubuntu 远程 CI run 未观测（栈未推送），随推送以远程矩阵成功作最终确证 |
 
 ## 4. G1：工程底座原子任务
 

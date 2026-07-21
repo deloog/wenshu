@@ -31,7 +31,7 @@
 
 政策：宽松许可（0BSD/MIT/ISC/Apache-2.0/BSD-2-Clause/BSD-3-Clause）直接接受；GPL/AGPL/未知许可一律阻断（`licenses:check` 与 `supply:check` 双门禁 fail-closed）。0BSD 为 OSI 批准的宽松许可，因 `tslib@2.8.1`（wasm32 链，各平台均不安装）进入白名单。当前树中三个非宽松许可逐项结论如下：
 
-- **MPL-2.0 — `lightningcss@1.32.0` 与 `lightningcss-win32-x64-msvc@1.32.0`（Vite 的 CSS 处理器，传递）**：MPL-2.0 为文件级弱 copyleft，义务仅及于 MPL 许可文件本身。项目以其发布的二进制/库形式经 Vite 调用，不修改其任何源文件，故无开源项目代码的义务。**结论：可接受**，约束：禁止原地修改或 patch 该包（确需修改时走 fork 公开对应文件或更换方案）；其 LICENSE 随 `node_modules` 保留。
+- **MPL-2.0 — `lightningcss@1.32.0` 及其全部平台二进制变体（共 12 个包，Vite 的 CSS 处理器，传递）**：MPL-2.0 为文件级弱 copyleft，义务仅及于 MPL 许可文件本身。项目以其发布的二进制/库形式经 Vite 调用，不修改其任何源文件，故无开源项目代码的义务。**结论：可接受**，约束：禁止原地修改或 patch 这些包（确需修改时走 fork 公开对应文件或更换方案）；其 LICENSE 随 `node_modules` 保留。
 - **Python-2.0 — `argparse@2.0.1`（ESLint 链传递）**：该包是 Python argparse 的 JS 移植；Python-2.0 为宽松许可（无 copyleft，含背书/商标限制）。项目不分发 Python 解释器，仅作为构建工具链传递依赖存在于开发环境，不进入产品运行时。**结论：可接受**。
 - **BlueOak-1.0.0 — `minimatch@10.2.5`（传递）**：宽松许可（MIT 等价）。**结论：可接受**。
 

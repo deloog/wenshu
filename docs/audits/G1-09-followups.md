@@ -9,3 +9,5 @@ G1-09 已获 `CONDITIONAL PASS`，`RA-01～RA-04` 与 `CF-01` 全部由独立审
 | CR-01：`tools/quality` 的测试直接导入 `eslint`，但自身 manifest 未声明该依赖 | G1-15 | G1-16 签署前 | `tools/quality/package.json` 显式声明与根版本一致的 ESLint；冻结安装与独立包解析通过；增加工作区 phantom dependency 检查，避免只修单点 |
 
 本文件只登记归属，不代表 CR-01 已关闭；关闭权属于 G1-15 的独立审计者。
+
+> 2026-07-21：CR-01 已由 G1-15 独立审计者随复审 `PASS` 签署关闭（见 [G1-15 审计报告](G1-15-claude-audit-report.md)）：`tools/quality` 已声明 `eslint@10.7.0`，phantom-dependency 系统守卫接入 `quality:check` 与 CI `static` 作业。

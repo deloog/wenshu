@@ -182,3 +182,114 @@ lockfile 全部 146 个 resolution 均指向 `registry.npmjs.org`，无镜像/�
 - **CR-01** 修复本体成立但依规则暂不签署关闭，待 SM-01 修复后连同签署。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具。发现阻断问题（`SM-01`）后停止签署通过；由 Codex 依本报告修复，再由本审计角色复审关闭 SM-01/SM-02 并签署 CR-01。审计者不修改路线图、不自行标记 G1-15 完成。
+
+---
+
+# SM-01～SM-02 定点复核（2026-07-21）：`715a78b`
+
+> 复核提交：`715a78b`（fix: rebuild G1-15 sbom from platform-independent lockfile）　整改记录：[G1-15-sm01-sm02-remediation.md](G1-15-sm01-sm02-remediation.md)
+>
+> 本章由与首审同一独立审计角色出具。不采信整改自述：独立重建 SBOM、把 33 条覆盖表逐条向 npm 官方核验、对新增 fail-closed 守卫做承重变异、对 SM-02 做值/类型导入决定性验证。
+
+## 1. 边界
+
+- 本轮只对本文件严格追加；首审 184 行未删改。未修改代码、测试、SBOM、manifest、lockfile、路线图、配置、Schema、`.prettierignore`。
+- 仓库外探针只写 `D:\tmp\g115rv*`，结束已删除；`sbom/sbom.json` 未改。冻结 D 盘 Node `24.17.0` / pnpm `11.15.1`。
+
+## 2. SM-01（MAJOR）　**已关闭**
+
+整改把 SBOM 真源从平台专属安装树改为**平台无关的 `pnpm-lock.yaml`**（`source` 字段现为 `"pnpm-lock.yaml"`），并以 `yaml@2.9.0` 解析、`lockfileVersion` 非 `9.0` fail-closed。独立核验：
+
+### 2.1 平台无关性（逐环节证明）
+
+| 检查 | 结果 |
+|---|---|
+| 本机重建 == 已提交 SBOM（字节） | **true**（147 包：10 直接 / 137 传递） |
+| SBOM 现含**全部平台二进制**（不再只 win32） | `@rolldown/binding-linux-x64-gnu`（MIT）、`lightningcss-linux-x64-gnu`（MPL-2.0）、`fsevents`（MIT）等本机**未安装**包均在 SBOM |
+| lockfile 中 27 个 os/cpu/libc 门控包**均有覆盖** | 门控 27，缺覆盖 **0** |
+| 33 条覆盖值 == SBOM 许可值 | 不符 **0** |
+| 本机已安装 win32 包 store 许可 == 覆盖值 | `lightningcss-win32-x64-msvc`=MPL-2.0、`@rolldown/binding-win32-x64-msvc`=MIT，均一致（冲突守卫据此通过） |
+
+**证明**：SBOM 每个包的许可 = 已安装则读 store、否则读覆盖表；门控包在其原生平台由冲突守卫强制 store==override，在非原生平台读覆盖值——两者相等；非门控包在所有平台均安装、许可相同。故 SBOM 在 Windows/Linux/macOS **字节一致**，ubuntu CI 的 `supply:check` 不再漂移。首审 SM-01 的"CI 必然 `SBOM_DRIFT`"**已消除**。
+
+### 2.2 覆盖表逐条向 npm 官方核验
+
+对全部 **33 条**覆盖运行 `npm view <pkg>@<ver> license`：**33/33 与覆盖值一致**——11 个 `lightningcss-*` 平台变体=MPL-2.0、13 个 `@rolldown/binding-*`=MIT、`fsevents`=MIT、`@emnapi/*`/`@napi-rs/wasm-runtime`/`@tybys/wasm-util`=MIT、`tslib@2.8.1`=0BSD。覆盖表非凭空，全部经官方元数据背书。
+
+### 2.3 新增守卫承重（仓库外决定性）
+
+| 变异 | 结果 |
+|---|---|
+| `lockfileVersion: '8.0'` | `SBOM_INVALID` "lockfile version is unsupported" ✔ |
+| 门控/未知包无覆盖且未安装 | `SBOM_INVALID` "license is unavailable…no reviewed override" ✔ |
+| 覆盖冲突（`tslib` 装为 MIT，覆盖 0BSD） | `SBOM_INVALID` "installed license disagrees with the reviewed override" ✔ |
+| 合法：已安装 MIT 包、无覆盖 | 正常构建 ✔ |
+| 已提交 SBOM 改一字节 | 漂移检出 ✔ |
+
+"缺覆盖即 fail-closed"是平台无关性的关键护栏：任何平台上出现无覆盖又不可读许可的门控包都会显式失败，而非静默产出不同 SBOM。冲突守卫保证覆盖值一旦与真实 store 不符即在该包原生平台失败，故覆盖表不可能长期偏离事实。
+
+### 2.4 依赖与许可回归
+
+- `yaml@2.9.0`：如实登记为**第 10 个直接依赖**（`requested_by=[@wenshu/supply-chain]`），许可 ISC，**无传递依赖**（leaf 包）。为解析 lockfile 的开发工具依赖，非产品运行时依赖，文档 §2 已公开。
+- 全 147 包许可分布：MIT=102、Apache-2.0=14、ISC=7、BSD-2=6、MPL-2.0=12、BSD-3=3、BlueOak-1.0.0=1、Python-2.0=1、0BSD=1；**无 GPL/AGPL/未知/组合表达式**，政策命中 0。
+- `0BSD` 入宽松白名单（`tslib`），OSI 批准的宽松许可，判定正确。
+- 直接/传递改用 lockfile `importers` 解析；`ajv@8` direct / `ajv@6` 传递仍正确。
+- `pnpm audit` 仍 **0/0/0/0/0**（加入 yaml 无新漏洞）。
+
+## 3. SM-02（MINOR）　**已关闭**
+
+`collectModuleImports` 现返回 `{specifier, typeOnly}`；`@types/*` 豁免仅在 `typeOnly` 时生效。决定性验证：
+
+| 场景 | 结果 |
+|---|---|
+| **值导入** `import { x } from "foo"`，仅声明 `@types/foo` | **报错**（phantom）✔ |
+| `import type { X } from "foo"`，声明 `@types/foo` | 干净 ✔ |
+| 动态 `import("foo")`（值导入），仅 `@types/foo` | **报错** ✔ |
+| 顶部三斜线 `/// <reference types="node" />`，声明 `@types/node` | 干净 ✔ |
+| 值导入已声明的运行时包 | 干净 ✔ |
+
+`typeOnly` 标记实测：值导入=false、`import type`/`export type`=true、动态 import=false、三斜线=true。首审 SM-02 的"值导入被 @types 豁免放过"**已不可复现**。
+
+## 4. 门禁、范围与命令
+
+- `supply:check` 接入根 `verify` 与 CI `security` 两侧互锁不变；CI 仍 8 作业，workflow 零改动；`.prettierignore` 仍仅 `sbom/`。
+- 零漂移：G1-14 审计基线（`tools/environment`、`artifacts/reference-machine`、`.gitignore` 放行段、`docs/reference-machine.md`）、冻结 fixture/字体/Schema/生成物/workflow 在 `d145ed2..715a78b` 全空。
+- 零手写 `any`/抑制；`inventory.ts` 241、`license-overrides.ts` 38、`phantom-dependencies.ts` 178，均 < 护栏。
+- lockfile 仅新增 `yaml` importer/包（+ vite 的 yaml 可选边），无其他第三方漂移。
+
+| 命令 | 退出码 | 计数 |
+|---|---|---|
+| `pnpm supply:check` | 0 | `Supply chain check passed: 147 packages (10 direct), license policy clean, no drift.` |
+| `pnpm --filter @wenshu/supply-chain test` | 0 | 单测/契约/集成 9/9 |
+| `pnpm audit` | — | 0/0/0/0/0 |
+| `pnpm verify` | 0 | 聚合 **181/181**；`Quality guardrails passed: 115 source/config files, 305 repository files.` |
+
+## 5. CR-01　**签署关闭**
+
+- `tools/quality` 声明 `eslint@10.7.0`（与根一致）；`phantom-dependency` 守卫用 TS 编译器 API 遍历全部工作区包，SM-02 修复后更精确（区分值/类型导入），系统性、决定性（删声明即报错）。
+- CR-01 的关闭条件（显式声明 + 系统性守卫、非单点修复）已完全满足且经两轮独立核验。依任务书授权，**本审计签署 CR-01 关闭**。
+
+## 6. 新增发现与未执行项
+
+### NOTE
+- **`SM-03`**：`supply-chain.md` §3 的 MPL-2.0 书面结论仍只列 `lightningcss@1.32.0` 与 `lightningcss-win32-x64-msvc@1.32.0`，而平台无关 SBOM 现含 **12 个** MPL-2.0 包（全部 `lightningcss-*` 变体）。政策按**许可字符串**（非逐包）要求书面结论，故 12 个包均被同一 MPL 结论覆盖、无许可风险；但书面枚举与实际树不完全对应，建议将该结论措辞泛化为"`lightningcss@1.32.0` 及其全部平台二进制变体"。归属 Codex，随文档维护关闭。
+- **`SM-N1`/`SM-N2`**（首审）：phantom 守卫不认 `peer/optionalDependencies`（当前无工作区包使用）、三斜线仅顶部识别（TS 语义）——仍为 NOTE，无实发。
+- **yaml 新增开发依赖**：ISC、无传递、已声明并入 SBOM，为 lockfile 解析所需，合理且已公开，非缺陷。
+
+### 未执行项
+- **未在真实 ubuntu CI 运行**：SM-01 已消除由**静态证明**（lockfile 真源 + 27 门控全覆盖 + 33 覆盖 npm 核验 + 缺覆盖/冲突/版本三重 fail-closed + 本机字节确定）确立，逻辑完整；但因 G1-13/14/15 仍未推送（`origin/main`=`baff4ef`），首个 ubuntu CI run 的最终绿灯尚未观测。此限制对整个未推送栈通用；建议推送后以首个远程 run 作最终确证。
+- 未执行 `pnpm install`（会改写 `node_modules`）；`pnpm audit` 为 2026-07-21 时点。
+
+## 7. 复核结论
+
+**`PASS — G1-15 可以完成；CR-01 关闭已签署`**
+
+- **SM-01（MAJOR）已关闭**：SBOM 改用平台无关 lockfile 真源，27 门控包全覆盖、33 覆盖值经 npm 官方核验、缺覆盖/冲突/版本三重 fail-closed 且承重、本机字节确定；ubuntu CI 漂移已消除（静态证明完整）。
+- **SM-02（MINOR）已关闭**：`@types/*` 豁免收紧为仅 type-only，值导入/动态 import 决定性被拦。
+- **无新增 BLOCKER/MAJOR/MINOR**：唯一新登记项 `SM-03` 为文档枚举 NOTE（无许可风险，政策按许可字符串覆盖）。
+- **CR-01 签署关闭**。
+- 首审其余全部结论（清单无虚报/漏报、无 GPL/AGPL/未知、三项书面结论上游核验、`pnpm audit` 0、守卫决定性、门禁两侧互锁、零漂移）在本轮保持成立。
+
+依独立审计立场，G1-15 供应链基线在源真性、平台无关可重建、许可政策、phantom 守卫与 CR-01 上**已满足，无未关闭发现**；`SM-03` 文档 NOTE 随维护处理。**唯一实证缺口**是首个 ubuntu 远程 run 尚未观测（未推送所致，全栈通用）——建议 G1-16 签署前，随 G1-13/14/15 推送后的首个远程矩阵成功一并确证。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁；不修改路线图、不自行标记 G1-15 完成或启动 G1-16。
