@@ -11,7 +11,7 @@ test("sbom contract accepts only the frozen shape", () => {
   const valid = {
     schema_version: "0.1.0",
     sbom_id: "wenshu.supply-chain",
-    source: "pnpm-lock.yaml + node_modules/.pnpm",
+    source: "pnpm-lock.yaml",
     packages: [
       {
         name: "example",

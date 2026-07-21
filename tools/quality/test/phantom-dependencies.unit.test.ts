@@ -6,7 +6,7 @@ import test from "node:test";
 
 import {
   checkPhantomDependencies,
-  collectModuleSpecifiers,
+  collectModuleImports,
   packageNameOfSpecifier,
 } from "../src/index.ts";
 
@@ -33,16 +33,19 @@ test("specifier collection covers static, dynamic, re-export, and type reference
     'import "vite/client";',
     '// from "commented-out"',
   ].join("\n");
-  const specifiers = collectModuleSpecifiers("sample.ts", text);
-  assert.deepEqual(specifiers, [
-    "eslint",
-    "ajv",
-    "./local.ts",
-    "prettier",
-    "typescript",
-    "vite/client",
-    "node",
-  ]);
+  const imports = collectModuleImports("sample.ts", text);
+  assert.deepEqual(
+    imports.map(({ specifier, typeOnly }) => ({ specifier, typeOnly })),
+    [
+      { specifier: "eslint", typeOnly: false },
+      { specifier: "ajv", typeOnly: true },
+      { specifier: "./local.ts", typeOnly: false },
+      { specifier: "prettier", typeOnly: false },
+      { specifier: "typescript", typeOnly: false },
+      { specifier: "vite/client", typeOnly: false },
+      { specifier: "node", typeOnly: true },
+    ],
+  );
 });
 
 test("phantom dependency check flags only undeclared external imports", async () => {
@@ -80,6 +83,42 @@ test("phantom dependency check flags only undeclared external imports", async ()
     assert.equal(findings.length, 1);
     assert.equal(findings[0]?.rule, "phantom-dependency");
     assert.match(findings[0]?.message ?? "", /undeclared-pkg/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a declared @types package never satisfies a value import", async () => {
+  const root = await mkdtemp(join(tmpdir(), "wenshu-phantom-types-"));
+  try {
+    const packageDirectory = join(root, "packages", "demo");
+    await mkdir(join(packageDirectory, "src"), { recursive: true });
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({ name: "root", private: true }),
+    );
+    await writeFile(
+      join(packageDirectory, "package.json"),
+      JSON.stringify({
+        name: "@demo/pkg",
+        devDependencies: { "@types/some-lib": "1.0.0" },
+      }),
+    );
+    await writeFile(
+      join(packageDirectory, "src", "index.ts"),
+      [
+        'import type { Config } from "some-lib";',
+        'import { create } from "some-lib";',
+      ].join("\n"),
+    );
+    const files = [
+      join(root, "package.json"),
+      join(packageDirectory, "package.json"),
+      join(packageDirectory, "src", "index.ts"),
+    ];
+    const findings = await checkPhantomDependencies(root, files);
+    assert.equal(findings.length, 1);
+    assert.match(findings[0]?.message ?? "", /some-lib/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

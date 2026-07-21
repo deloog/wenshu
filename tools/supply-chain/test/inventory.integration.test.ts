@@ -27,10 +27,27 @@ test("the installed dependency tree rebuilds the committed sbom byte-for-byte", 
   }
   assert.deepEqual(inUse.get("MPL-2.0"), [
     "lightningcss@1.32.0",
+    "lightningcss-android-arm64@1.32.0",
+    "lightningcss-darwin-arm64@1.32.0",
+    "lightningcss-darwin-x64@1.32.0",
+    "lightningcss-freebsd-x64@1.32.0",
+    "lightningcss-linux-arm-gnueabihf@1.32.0",
+    "lightningcss-linux-arm64-gnu@1.32.0",
+    "lightningcss-linux-arm64-musl@1.32.0",
+    "lightningcss-linux-x64-gnu@1.32.0",
+    "lightningcss-linux-x64-musl@1.32.0",
+    "lightningcss-win32-arm64-msvc@1.32.0",
     "lightningcss-win32-x64-msvc@1.32.0",
   ]);
   assert.deepEqual(inUse.get("Python-2.0"), ["argparse@2.0.1"]);
   assert.deepEqual(inUse.get("BlueOak-1.0.0"), ["minimatch@10.2.5"]);
+
+  // Platform-specific binaries from other OSes are covered by the lockfile
+  // source even though they are not installed on this machine.
+  const linuxBinding = rebuilt.packages.find(
+    ({ name }) => name === "@rolldown/binding-linux-x64-gnu",
+  );
+  assert.equal(linuxBinding?.license, "MIT");
 });
 
 test("policy violation detection is decisive against license tampering", async () => {

@@ -9,6 +9,6 @@ export interface SbomPackage {
 export interface SupplyChainSbom {
   readonly schema_version: "0.1.0";
   readonly sbom_id: "wenshu.supply-chain";
-  readonly source: "pnpm-lock.yaml + node_modules/.pnpm";
+  readonly source: "pnpm-lock.yaml";
   readonly packages: readonly SbomPackage[];
 }

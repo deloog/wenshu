@@ -30,7 +30,7 @@ export async function buildSbom(workspaceRoot: string): Promise<SupplyChainSbom>
   return Object.freeze({
     schema_version: "0.1.0",
     sbom_id: "wenshu.supply-chain",
-    source: "pnpm-lock.yaml + node_modules/.pnpm",
+    source: "pnpm-lock.yaml",
     packages,
   });
 }
@@ -77,7 +77,7 @@ export function parseSbom(value: unknown): SupplyChainSbom {
   if (
     value["schema_version"] !== "0.1.0" ||
     value["sbom_id"] !== "wenshu.supply-chain" ||
-    value["source"] !== "pnpm-lock.yaml + node_modules/.pnpm" ||
+    value["source"] !== "pnpm-lock.yaml" ||
     !Array.isArray(value["packages"]) ||
     value["packages"].length === 0
   ) {
@@ -86,7 +86,7 @@ export function parseSbom(value: unknown): SupplyChainSbom {
   return Object.freeze({
     schema_version: "0.1.0",
     sbom_id: "wenshu.supply-chain",
-    source: "pnpm-lock.yaml + node_modules/.pnpm",
+    source: "pnpm-lock.yaml",
     packages: Object.freeze(value["packages"].map(parseSbomPackage)),
   });
 }

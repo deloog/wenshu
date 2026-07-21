@@ -42,10 +42,15 @@ function scriptKindOf(fileName: string): ts.ScriptKind {
   return ts.ScriptKind.TS;
 }
 
-export function collectModuleSpecifiers(
+export interface ModuleImport {
+  readonly specifier: string;
+  readonly typeOnly: boolean;
+}
+
+export function collectModuleImports(
   fileName: string,
   text: string,
-): readonly string[] {
+): readonly ModuleImport[] {
   const source = ts.createSourceFile(
     fileName,
     text,
@@ -53,17 +58,27 @@ export function collectModuleSpecifiers(
     true,
     scriptKindOf(fileName),
   );
-  const specifiers: string[] = [];
+  const imports: ModuleImport[] = [];
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      specifiers.push(node.moduleSpecifier.text);
+      imports.push(
+        Object.freeze({
+          specifier: node.moduleSpecifier.text,
+          typeOnly: node.importClause?.isTypeOnly ?? false,
+        }),
+      );
     }
     if (
       ts.isExportDeclaration(node) &&
       node.moduleSpecifier !== undefined &&
       ts.isStringLiteral(node.moduleSpecifier)
     ) {
-      specifiers.push(node.moduleSpecifier.text);
+      imports.push(
+        Object.freeze({
+          specifier: node.moduleSpecifier.text,
+          typeOnly: node.isTypeOnly,
+        }),
+      );
     }
     if (
       ts.isCallExpression(node) &&
@@ -72,16 +87,16 @@ export function collectModuleSpecifiers(
     ) {
       const [argument] = node.arguments;
       if (argument !== undefined && ts.isStringLiteral(argument)) {
-        specifiers.push(argument.text);
+        imports.push(Object.freeze({ specifier: argument.text, typeOnly: false }));
       }
     }
     ts.forEachChild(node, visit);
   };
   visit(source);
   for (const reference of source.typeReferenceDirectives) {
-    specifiers.push(reference.fileName);
+    imports.push(Object.freeze({ specifier: reference.fileName, typeOnly: true }));
   }
-  return Object.freeze(specifiers);
+  return Object.freeze(imports);
 }
 
 interface WorkspacePackage {
@@ -140,13 +155,14 @@ export async function checkPhantomDependencies(
       continue;
     }
     const text = await readFile(file, "utf8");
-    for (const specifier of collectModuleSpecifiers(file, text)) {
-      const dependency = packageNameOfSpecifier(specifier);
-      if (
-        dependency === undefined ||
-        owner.declared.has(dependency) ||
-        owner.declared.has(`@types/${dependency}`)
-      ) {
+    for (const moduleImport of collectModuleImports(file, text)) {
+      const dependency = packageNameOfSpecifier(moduleImport.specifier);
+      if (dependency === undefined || owner.declared.has(dependency)) {
+        continue;
+      }
+      // A type-only import may be satisfied by a declared @types/* package;
+      // a value import always needs the runtime package itself (SM-02).
+      if (moduleImport.typeOnly && owner.declared.has(`@types/${dependency}`)) {
         continue;
       }
       findings.push({

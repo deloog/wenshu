@@ -16,6 +16,9 @@
     "check": "pnpm check:committed && pnpm test",
     "typecheck": "tsc -p tsconfig.json"
   },
+  "dependencies": {
+    "yaml": "2.9.0"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:"

@@ -1,10 +1,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { parse } from "yaml";
 
 import { SupplyChainError } from "./errors.ts";
+import { LICENSE_OVERRIDES } from "./license-overrides.ts";
 import type { SbomPackage } from "./types.ts";
-
-const WORKSPACE_SECTIONS = ["apps", "packages", "tools"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -20,35 +20,39 @@ function normalizeLicense(value: unknown): string {
   return "UNKNOWN";
 }
 
-async function readManifest(
-  manifestPath: string,
-): Promise<Record<string, unknown> | undefined> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(await readFile(manifestPath, "utf8"));
-  } catch {
-    return undefined;
+function splitPackageKey(key: string): { name: string; version: string } {
+  const at = key.lastIndexOf("@");
+  if (at < 1 || at === key.length - 1) {
+    throw new SupplyChainError("SBOM_INVALID", "lockfile package key is invalid");
   }
-  return isRecord(parsed) ? parsed : undefined;
+  return { name: key.slice(0, at), version: key.slice(at + 1) };
 }
 
-interface InstalledPackage {
+function stripPeerSuffix(version: string): string {
+  return version.replace(/\(.*\)$/u, "");
+}
+
+interface InstalledLicense {
   readonly name: string;
   readonly version: string;
   readonly license: string;
 }
 
-async function collectStorePackages(
+async function collectInstalledLicenses(
   storeRoot: string,
-): Promise<readonly InstalledPackage[]> {
-  const storeEntries = await readdir(storeRoot, { withFileTypes: true });
-  const packages = new Map<string, InstalledPackage>();
+): Promise<ReadonlyMap<string, string>> {
+  const licenses = new Map<string, string>();
+  let storeEntries;
+  try {
+    storeEntries = await readdir(storeRoot, { withFileTypes: true });
+  } catch {
+    return licenses;
+  }
   for (const storeEntry of storeEntries) {
     if (!storeEntry.isDirectory() || storeEntry.name === "node_modules") {
       continue;
     }
-    const nested = join(storeRoot, storeEntry.name, "node_modules");
-    const queue: string[] = [nested];
+    const queue: string[] = [join(storeRoot, storeEntry.name, "node_modules")];
     while (queue.length > 0) {
       const current = queue.pop();
       if (current === undefined) {
@@ -68,32 +72,30 @@ async function collectStorePackages(
           queue.push(join(current, entry.name));
           continue;
         }
-        const manifest = await readManifest(join(current, entry.name, "package.json"));
-        if (manifest === undefined) {
-          continue;
-        }
-        const { name, version } = manifest;
-        if (typeof name !== "string" || typeof version !== "string") {
-          continue;
-        }
-        const key = `${name}@${version}`;
-        if (!packages.has(key)) {
-          packages.set(
-            key,
-            Object.freeze({
-              name,
-              version,
-              license: normalizeLicense(manifest["license"] ?? manifest["licenses"]),
-            }),
+        try {
+          const manifest: unknown = JSON.parse(
+            await readFile(join(current, entry.name, "package.json"), "utf8"),
           );
+          if (!isRecord(manifest)) {
+            continue;
+          }
+          const { name, version } = manifest;
+          if (typeof name !== "string" || typeof version !== "string") {
+            continue;
+          }
+          const installed: InstalledLicense = {
+            name,
+            version,
+            license: normalizeLicense(manifest["license"] ?? manifest["licenses"]),
+          };
+          licenses.set(`${installed.name}@${installed.version}`, installed.license);
+        } catch {
+          continue;
         }
       }
     }
   }
-  if (packages.size === 0) {
-    throw new SupplyChainError("SBOM_INVALID", "installed package store is empty");
-  }
-  return Object.freeze([...packages.values()]);
+  return licenses;
 }
 
 interface DirectRequest {
@@ -102,88 +104,107 @@ interface DirectRequest {
   readonly workspace: string;
 }
 
-async function readCatalogVersions(
+async function workspaceName(
   workspaceRoot: string,
-): Promise<ReadonlyMap<string, string>> {
-  const catalog = new Map<string, string>();
-  let text: string;
+  importerPath: string,
+): Promise<string> {
   try {
-    text = await readFile(join(workspaceRoot, "pnpm-workspace.yaml"), "utf8");
-  } catch {
-    throw new SupplyChainError("SBOM_INVALID", "workspace catalog cannot be read");
-  }
-  const catalogSection = /\ncatalog:\r?\n((?: {2}[^\r\n]+\r?\n)+)/u.exec(`\n${text}`);
-  if (catalogSection?.[1] !== undefined) {
-    for (const line of catalogSection[1].split(/\r?\n/u)) {
-      const entry = /^ {2}"?(@?[^"\s]+)"?: "?([^"\s]+)"?\s*$/u.exec(line);
-      if (entry?.[1] !== undefined && entry[2] !== undefined) {
-        catalog.set(entry[1], entry[2]);
-      }
+    const manifest: unknown = JSON.parse(
+      await readFile(
+        importerPath === "."
+          ? join(workspaceRoot, "package.json")
+          : join(workspaceRoot, importerPath, "package.json"),
+        "utf8",
+      ),
+    );
+    if (isRecord(manifest) && typeof manifest["name"] === "string") {
+      return manifest["name"];
     }
+  } catch {
+    // fall through to the stable importer path label
   }
-  return catalog;
+  return importerPath;
 }
 
 async function collectDirectRequests(
   workspaceRoot: string,
+  importers: Record<string, unknown>,
 ): Promise<readonly DirectRequest[]> {
-  const manifestPaths: string[] = [join(workspaceRoot, "package.json")];
-  for (const section of WORKSPACE_SECTIONS) {
-    let directories;
-    try {
-      directories = await readdir(join(workspaceRoot, section), {
-        withFileTypes: true,
-      });
-    } catch {
-      continue;
-    }
-    for (const directory of directories) {
-      if (directory.isDirectory()) {
-        manifestPaths.push(
-          join(workspaceRoot, section, directory.name, "package.json"),
-        );
-      }
-    }
-  }
-  const catalog = await readCatalogVersions(workspaceRoot);
   const requests: DirectRequest[] = [];
-  for (const manifestPath of manifestPaths) {
-    const manifest = await readManifest(manifestPath);
-    if (manifest === undefined) {
+  for (const [importerPath, importer] of Object.entries(importers)) {
+    if (!isRecord(importer)) {
       continue;
     }
-    const workspace =
-      typeof manifest["name"] === "string" ? manifest["name"] : "(unknown)";
-    for (const key of ["dependencies", "devDependencies"] as const) {
-      const section = manifest[key];
-      if (!isRecord(section)) {
+    const workspace = await workspaceName(workspaceRoot, importerPath);
+    for (const section of ["dependencies", "devDependencies"] as const) {
+      const declared = importer[section];
+      if (!isRecord(declared)) {
         continue;
       }
-      for (const [dependency, specifier] of Object.entries(section)) {
-        if (dependency.startsWith("@wenshu/")) {
+      for (const [dependency, entry] of Object.entries(declared)) {
+        if (dependency.startsWith("@wenshu/") || !isRecord(entry)) {
           continue;
         }
-        const version = specifier === "catalog:" ? catalog.get(dependency) : specifier;
-        if (typeof version !== "string" || version.length === 0) {
-          throw new SupplyChainError(
-            "SBOM_INVALID",
-            "workspace dependency specifier cannot be resolved",
-          );
+        const version = entry["version"];
+        if (typeof version !== "string" || version.startsWith("link:")) {
+          continue;
         }
-        requests.push(Object.freeze({ dependency, version, workspace }));
+        requests.push(
+          Object.freeze({
+            dependency,
+            version: stripPeerSuffix(version),
+            workspace,
+          }),
+        );
       }
     }
   }
   return Object.freeze(requests);
 }
 
+function resolveLicense(key: string, installed: ReadonlyMap<string, string>): string {
+  const storeLicense = installed.get(key);
+  const override = LICENSE_OVERRIDES.get(key);
+  if (
+    storeLicense !== undefined &&
+    override !== undefined &&
+    storeLicense !== override
+  ) {
+    throw new SupplyChainError(
+      "SBOM_INVALID",
+      "installed license disagrees with the reviewed override",
+    );
+  }
+  const license = storeLicense ?? override;
+  if (license === undefined) {
+    throw new SupplyChainError(
+      "SBOM_INVALID",
+      "package license is unavailable on this platform and has no reviewed override",
+    );
+  }
+  return license;
+}
+
 export async function buildPackageInventory(
   workspaceRoot: string,
 ): Promise<readonly SbomPackage[]> {
-  const [installed, requests] = await Promise.all([
-    collectStorePackages(join(workspaceRoot, "node_modules", ".pnpm")),
-    collectDirectRequests(workspaceRoot),
-  ]);
+  const document: unknown = parse(
+    await readFile(join(workspaceRoot, "pnpm-lock.yaml"), "utf8"),
+  );
+  if (!isRecord(document) || document["lockfileVersion"] !== "9.0") {
+    throw new SupplyChainError("SBOM_INVALID", "lockfile version is unsupported");
+  }
+  const packages = document["packages"];
+  if (!isRecord(packages) || Object.keys(packages).length === 0) {
+    throw new SupplyChainError("SBOM_INVALID", "lockfile packages section is invalid");
+  }
+  const requests = await collectDirectRequests(
+    workspaceRoot,
+    isRecord(document["importers"]) ? document["importers"] : {},
+  );
+  const installed = await collectInstalledLicenses(
+    join(workspaceRoot, "node_modules", ".pnpm"),
+  );
   const requestedBy = new Map<string, string[]>();
   for (const { dependency, version, workspace } of requests) {
     const key = `${dependency}@${version}`;
@@ -191,28 +212,25 @@ export async function buildPackageInventory(
     list.push(workspace);
     requestedBy.set(key, list);
   }
-  const installedKeys = new Set(
-    installed.map((entry) => `${entry.name}@${entry.version}`),
-  );
+  const lockfileKeys = Object.keys(packages);
   for (const key of requestedBy.keys()) {
-    if (!installedKeys.has(key)) {
+    if (!lockfileKeys.includes(key)) {
       throw new SupplyChainError(
         "SBOM_INVALID",
-        "declared dependency is not installed at the resolved version",
+        "declared dependency cannot be resolved in the lockfile",
       );
     }
   }
-  const entries = installed.map((entry) =>
-    Object.freeze({
-      name: entry.name,
-      version: entry.version,
-      license: entry.license,
-      direct: requestedBy.has(`${entry.name}@${entry.version}`),
-      requested_by: Object.freeze(
-        (requestedBy.get(`${entry.name}@${entry.version}`) ?? []).toSorted(),
-      ),
-    }),
-  );
+  const entries = lockfileKeys.map((key) => {
+    const { name, version } = splitPackageKey(key);
+    return Object.freeze({
+      name,
+      version,
+      license: resolveLicense(key, installed),
+      direct: requestedBy.has(key),
+      requested_by: Object.freeze((requestedBy.get(key) ?? []).toSorted()),
+    });
+  });
   return Object.freeze(
     entries.sort(
       (left, right) =>

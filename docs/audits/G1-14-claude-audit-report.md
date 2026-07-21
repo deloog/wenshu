@@ -215,3 +215,68 @@ Node/pnpm 与 `toolchain.versions.json`（node 24.17.0 / pnpm 11.15.1）、根 `
 放行附带条件：`EN-01`、`EN-02`、`EN-03` 三项 MINOR 按 §8 归属与最迟关闭点整改，由独立审计角色复核关闭；`EN-N1`/`EN-N2` 为 NOTE。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具。审计者不修改路线图、不自行标记 G1-14 完成、不自行关闭发现；是否将 G1-14 记为完成、PA-13/A-14 是否可以其为基线，由 Codex 依本报告更新台账后决定。
+
+---
+
+# EN-01～EN-03 定点复核（2026-07-21）：`737ef71`
+
+> 复核提交：`737ef71`（fix: close G1-14 environment audit minors）　整改记录：[G1-14-en01-en03-remediation.md](G1-14-en01-en03-remediation.md)
+>
+> 本章由与首审同一独立审计角色出具。不采信整改自述，自行重跑接线变异、`.gitignore` 探针与依赖核查。
+
+## 1. 边界
+
+- 本轮只对本文件严格追加；首审 217 行未删改。未修改代码、测试、证据、`.gitignore`、lockfile、路线图或其他文档。
+- 仓库外探针只写 `D:\tmp\g114en1`，结束已删除。命令在冻结 D 盘 Node `24.17.0` / pnpm `11.15.1` 下执行。
+
+## 2. EN-01（verify 链接线无测试）　**已关闭**
+
+新增 `tools/environment/test/wiring.contract.test.ts`：`the complete verify entry point cannot omit machine evidence checks`，断言 `verify` 匹配 `/pnpm environment:check/` 且 `environment:check` 脚本精确等于 `pnpm --filter @wenshu/environment check`，与 fixtures/fonts 先例一致。
+
+**决定性变异**（仓库外，正确 `<dir>/package.json` + `<dir>/tools/environment/test` 布局）：
+
+| 变异 | 结果 |
+|---|---|
+| 无变异（对照） | GREEN ✔ |
+| 从 `verify` 删 `pnpm environment:check` | **RED** ✔ |
+| 删除 `environment:check` 脚本 | **RED** ✔ |
+| 把 `environment:check` 指向别的包 | **RED** ✔ |
+
+首审 §7.2 的原始缺口——"删除 verify 侧命令全套仍绿"——**已不可复现**。现三处接线（root verify、CI 作业命令、CI 作业枚举测试）均承重。
+
+## 3. EN-02（`.gitignore` 放行过宽）　**已关闭**
+
+`.gitignore` 补入 `artifacts/reference-machine/*` 再 `!.../environment.json`。`git check-ignore` 实测：
+
+- `artifacts/reference-machine/environment.json` → **跟踪** ✔
+- `artifacts/reference-machine/other.json` → **忽略** ✔（首审为可提交）
+- `artifacts/reference-machine/subdir/x.json` → **忽略** ✔
+- `artifacts/reference-machine/secret.key`、`artifacts/manual-baseline/x.json`、`tmp/x`、`test-results/x` → 均忽略 ✔
+
+放行范围已收窄为**仅** `environment.json`，与声明一致；G1-01 秘密/产物忽略保护不受影响。
+
+## 4. EN-03（未使用依赖）　**已关闭**
+
+`tools/environment/package.json` 移除 `@wenshu/test-support`；全目录（src/scripts/test）grep 该名**零命中**。`pnpm-lock.yaml` 仅减少该 importer 的 3 行依赖条目，无其他漂移。`@wenshu/fixtures`/`@wenshu/fonts` 仍被 import 且保留，依赖声明现与实际使用精确一致。
+
+## 5. 回归与命令
+
+| 命令 | 退出码 | 计数 |
+|---|---|---|
+| `pnpm --filter @wenshu/environment test` | 0 | 契约 **6/6**（含新接线测试）、集成 1/1 |
+| `pnpm verify` | 0 | 聚合 180/180；`Environment check passed`；layers 32、typecheck 通过 |
+
+（`verify` 计数含并行提交的 G1-15，本章只就 environment 与接线判定；G1-15 另行独立审计。）冻结证据 `environment.json`、`tools/environment/src` 语义、`reference-machine.md`、workflow 在本轮零改动。
+
+## 6. 复核结论
+
+**`PASS — G1-14 三项 MINOR 已关闭`**
+
+- **EN-01 已关闭**：新增接线测试经变异证明决定性，删命令/删脚本/改指向均变红；首审缺口不可复现。
+- **EN-02 已关闭**：放行收窄为仅 `environment.json`，其他文件（含子目录）恢复忽略，秘密保护无损。
+- **EN-03 已关闭**：未使用依赖移除，lockfile 干净，声明与使用一致。
+- **无新增 BLOCKER/MAJOR/MINOR**：整改限于 `.gitignore` 一行、`package.json` 一处、新增一个测试文件；`pnpm verify` 退出 0。`EN-N1`/`EN-N2` 仍为 NOTE。
+
+综合首审 `CONDITIONAL PASS` 与本轮三项 MINOR 关闭，从独立审计角度 **G1-14 无未关闭发现**。是否标记 G1-14 完成、PA-13/A-14 是否以其为基线、以及 G1-14W 的 Win11 环境批准，由业主/Codex 依本结论决定；审计者不代为标记路线图完成。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁。
