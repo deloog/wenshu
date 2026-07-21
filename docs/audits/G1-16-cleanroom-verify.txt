@@ -1,0 +1,458 @@
+Scope: all 15 workspace projects
+✓ Lockfile passes supply-chain policies (verified 8h ago)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +116
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 116, reused 8, downloaded 0, added 0
+Progress: resolved 116, reused 48, downloaded 0, added 0
+Progress: resolved 116, reused 116, downloaded 0, added 66
+Progress: resolved 116, reused 116, downloaded 0, added 110
+Progress: resolved 116, reused 116, downloaded 0, added 116, done
+
+devDependencies:
++ @eslint/js 10.0.1
++ eslint 10.7.0
++ prettier 3.9.5
++ typescript 6.0.3
++ typescript-eslint 8.64.0
+
+Done in 8.1s using pnpm v11.15.1
+$ pnpm format:check && pnpm lint && pnpm quality:check && pnpm test:foundation && pnpm config:check && pnpm contracts:check && pnpm fixtures:check && pnpm fonts:check && pnpm environment:check && pnpm supply:check && pnpm typecheck && pnpm build
+$ prettier . --check
+Checking formatting...
+All matched files use Prettier code style!
+$ eslint .
+$ pnpm --filter @wenshu/quality check
+$ node scripts/check-repository.ts
+Quality guardrails passed: 119 source/config files, 313 repository files.
+$ pnpm test:layers && pnpm test:unit
+$ pnpm --filter @wenshu/test-support layers:check
+$ node scripts/check-test-layers.ts
+Test layer audit passed: 34 files classified.
+$ node packages/test-support/scripts/run-test-layer.ts unit
+unit: 12 registered test file(s)
+- packages/test-support/test/discovery.unit.test.ts
+- packages/test-support/test/evidence-ownership.unit.test.ts
+- packages/test-support/test/isolation.unit.test.ts
+- tools/ci/test/ci-runner.unit.test.ts
+- tools/ci/test/security-scans.unit.test.ts
+- tools/environment/test/record-args.unit.test.ts
+- tools/quality/test/eslint-config.unit.test.ts
+- tools/quality/test/generated-files.unit.test.ts
+- tools/quality/test/guardrails.unit.test.ts
+- tools/quality/test/phantom-dependencies.unit.test.ts
+- tools/quality/test/typecheck-coverage.unit.test.ts
+- tools/supply-chain/test/policy.unit.test.ts
+✔ canonical test file names declare their layer (0.9266ms)
+✔ discovery covers the whole workspace and rejects case variants (66.2015ms)
+✔ a skipped-name directory link is rejected before exclusion (3.7627ms)
+✔ evidence rejects unprepared and brand-stripped handles (89.94ms)
+✔ evidence rejects a layer that differs from its worker (38.9864ms)
+✔ evidence rejects a tampered disk claim without writing (30.1077ms)
+✔ non-empty evidence blocks cleanup and remains byte-identical (31.8805ms)
+✔ cleanup queued behind evidence writing cannot erase the result (21.343ms)
+✔ cleanup preserves arbitrary screenshot or trace evidence (22.5306ms)
+✔ two workers receive distinct directories, projects, and ports (47.5899ms)
+✔ the same worker index can be claimed only once (19.3291ms)
+✔ unsafe identities and overflowing port ranges fail closed (0.7232ms)
+✔ pre-existing non-directories cannot redirect isolation writes (3.3134ms)
+✔ pre-existing directory links cannot escape the controlled root (4.9304ms)
+✔ cleanup refuses a tampered worker claim (32.6953ms)
+✔ failure evidence retains the layer, seed, and diagnostic log (84.201ms)
+✔ CI jobs cover independent gates and isolated build outputs (4.0208ms)
+✔ the root verification entry includes the frozen font gate (44.3888ms)
+✔ GitHub workflow delegates every matrix job to the local runner (2.0507ms)
+✔ local scheduling runs concurrently without exceeding its budget (1.2639ms)
+✔ secret signatures reject credentials without matching documentation examples (10.3267ms)
+✔ secret scanning inspects NUL-bearing tracked files (31.8792ms)
+✔ license discovery finds scoped and unscoped packages in the pnpm store (8.9647ms)
+✔ license discovery rejects an empty pnpm virtual store (5.0692ms)
+✔ license scanning rejects copyleft blockers and deduplicates package paths (0.6875ms)
+✔ recorder defaults to the audited win10 baseline target (1.491ms)
+✔ recorder accepts an explicit label and output file (0.2447ms)
+✔ recorder rejects unknown flags, missing values, and unsafe targets (0.5825ms)
+✔ recommended defect rules remain active for TypeScript and JavaScript (1082.1293ms)
+✔ JSX receives recommended rules without displacing TypeScript rules (1.7231ms)
+✔ only manifest-registered generated files receive generated status (45.8523ms)
+✔ line counting handles empty, final-newline, and CRLF input (0.8588ms)
+✔ production size guard warns at 300 and fails above 400 (1.4905ms)
+✔ test size guard warns at 300 and fails above 500 (0.4843ms)
+✔ generated declarations do not trigger handwritten size limits (0.3231ms)
+✔ explicit any and suppression directives fail without false positives (8.2544ms)
+✔ module TypeScript extensions receive the same syntax and size guards (1.2992ms)
+✔ specifier classification keeps only external package names (1.1746ms)
+✔ specifier collection covers static, dynamic, re-export, and type references (9.9675ms)
+✔ phantom dependency check flags only undeclared external imports (25.9876ms)
+✔ a declared @types package never satisfies a value import (25.7555ms)
+✔ coverage reports package TypeScript omitted by tsconfig (41.6955ms)
+✔ coverage rejects a misleading package typecheck command (14.1565ms)
+✔ strict base options are executable requirements (14.092ms)
+✔ permissive and reviewed licenses pass, everything else fails closed (1.0849ms)
+✔ policy findings identify every violating package (1.307ms)
+✔ reviewed licenses in use are reported for documentation cross-check (0.2854ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 47
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1810.9645
+$ pnpm --filter @wenshu/config test
+$ node --test test/*.test.ts
+✔ all four named environment profiles satisfy the runtime contract (1.5033ms)
+✔ missing required configuration fails before startup (0.5233ms)
+✔ unknown namespaced keys fail without echoing their values (0.196ms)
+✔ unrelated operating-system variables are ignored (0.3574ms)
+✔ invalid values fail with field names but never raw values (0.2448ms)
+✔ an override cannot silently select a different environment (0.2098ms)
+✔ the committed example and JSON schema remain executable contracts (10.4543ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 411.0198
+$ pnpm generated:check && pnpm contracts:test
+$ pnpm -r --if-present run generate:check
+Scope: 14 of 15 workspace projects
+packages/document-model generate:check$ node scripts/check-generated.ts
+packages/host-contract generate:check$ node scripts/check-generated.ts
+packages/template-model generate:check$ node scripts/check-generated.ts
+packages/template-model generate:check: Done
+packages/document-model generate:check: Done
+packages/host-contract generate:check: Done
+packages/project-contract generate:check$ node scripts/check-generated.ts
+packages/project-contract generate:check: Done
+$ pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/host-contract test && pnpm --filter @wenshu/project-contract test
+$ node --test test/*.test.ts
+✔ inherited accessors are rejected without invocation (1.5365ms)
+✔ depth and node budgets fail deterministically (0.2915ms)
+✔ custom key and string classifiers return stable paths (0.2186ms)
+✔ cloneAndFreeze creates an immutable detached graph (0.2963ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 136.5854
+$ node --test test/*.test.ts
+✔ v0 schema version is frozen (0.8727ms)
+▶ all valid document fixtures pass
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/valid/full.json (6.3336ms)
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/valid/minimal.json (3.4125ms)
+✔ all valid document fixtures pass (14.4276ms)
+▶ all invalid document fixtures fail with stable issue codes
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/invalid/duplicate-id.json (1.1208ms)
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/invalid/future-version.json (1.2811ms)
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/invalid/missing-asset.json (0.925ms)
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/invalid/remote-asset-url.json (0.9272ms)
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/invalid/table-column-mismatch.json (0.9605ms)
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/invalid/unsafe-asset-path.json (1.2309ms)
+  ✔ /D:/tmp/g116-clean/packages/document-model/fixtures/invalid/windows-absolute-asset.json (0.9203ms)
+✔ all invalid document fixtures fail with stable issue codes (9.5405ms)
+✔ deeply nested documents fail with a stable budget issue (0.5779ms)
+✔ validation diagnostics never echo document content (0.2096ms)
+✔ generated declarations avoid the forbidden type and identify their source (1.6838ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 273.4089
+$ node --test test/*.test.ts
+✔ v0 template DSL version is frozen (0.9348ms)
+▶ all valid template fixtures pass
+  ✔ /D:/tmp/g116-clean/packages/template-model/fixtures/valid/minimal.json (6.3391ms)
+  ✔ /D:/tmp/g116-clean/docs/poc-a/fixtures/formal-business.template.json (1.3847ms)
+✔ all valid template fixtures pass (13.2809ms)
+▶ all invalid fixtures fail with stable issue codes
+  ✔ /D:/tmp/g116-clean/packages/template-model/fixtures/invalid/capability.json (0.9367ms)
+  ✔ /D:/tmp/g116-clean/packages/template-model/fixtures/invalid/file-path.json (0.9644ms)
+  ✔ /D:/tmp/g116-clean/packages/template-model/fixtures/invalid/network-url.json (0.8213ms)
+  ✔ /D:/tmp/g116-clean/packages/template-model/fixtures/invalid/script.json (0.7268ms)
+✔ all invalid fixtures fail with stable issue codes (5.6074ms)
+✔ future versions, migration instructions, and unknown rules are rejected (1.8314ms)
+✔ function values are rejected before schema interpretation (0.3135ms)
+✔ property accessors are rejected without invocation (0.1407ms)
+✔ inherited accessors are rejected without invocation (0.1114ms)
+✔ security diagnostics never echo untrusted values (0.1078ms)
+✔ generated declarations identify their source and avoid forbidden types (1.5493ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 268.3217
+$ node --test test/*.test.ts
+✔ encoded and drive-relative paths cannot bypass value checks (10.6197ms)
+✔ absolute, prefixed, and control-bearing paths are rejected (3.4953ms)
+✔ ordinary identifiers, percentages, and web values remain valid (5.4727ms)
+✔ a supported request reaches exactly one success terminal (21.9582ms)
+✔ failures must use error codes declared by the capability (3.2958ms)
+✔ progress sequence and cancellation follow the registry declaration (3.7605ms)
+✔ unsupported capabilities cannot start a session request (7.6753ms)
+✔ every accepted request must reach one terminal state (2.5597ms)
+✔ cancel after a terminal state returns a stable protocol issue (2.6755ms)
+✔ v0 host protocol and capability allowlist are frozen (1.0864ms)
+▶ supported, denied, cancelled, timed out, progress, and degraded fixtures pass
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/valid/browser-registry.json (10.3978ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/valid/cancel-request.json (1.1772ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/valid/cancelled.json (0.8065ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/valid/permission-denied.json (1.0473ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/valid/progress.json (0.9243ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/valid/success.json (1.4214ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/valid/timeout-degraded.json (0.9111ms)
+✔ supported, denied, cancelled, timed out, progress, and degraded fixtures pass (23.6231ms)
+▶ invalid host fixtures fail with stable issue codes
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/invalid/disguised-absolute-path.json (1.0415ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/invalid/future-version.json (0.9827ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/invalid/platform-field.json (1.3466ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/invalid/raw-path.json (0.797ms)
+  ✔ /D:/tmp/g116-clean/packages/host-contract/fixtures/invalid/unknown-capability.json (0.8868ms)
+✔ invalid host fixtures fail with stable issue codes (6.6527ms)
+✔ registry must declare every capability exactly once (2.2399ms)
+✔ registry schema identities and progress totals remain consistent (1.9407ms)
+✔ property accessors are rejected without invocation (0.1993ms)
+✔ inherited accessors are rejected without invocation (0.1382ms)
+✔ deep host payloads fail with a stable budget issue (0.2665ms)
+✔ diagnostics never echo host payload values (0.1246ms)
+✔ generated declarations identify their source and avoid forbidden types (2.0168ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 359.601
+$ node --test test/*.test.ts
+✔ semantic audit records metadata, not prompts or document content (6.6474ms)
+✔ a human decision retains the subject model without granting AI authority (6.229ms)
+✔ AI decisions bind decision, nodes, and before/after hashes (2.8538ms)
+✔ source and formal-version actions have explicit responsibility rules (1.424ms)
+✔ timestamps, locators, and model identifiers reject ambiguous content (2.6728ms)
+✔ semantic diagnostics identify the exact failed rule and JSON path (1.8386ms)
+✔ only a user can approve a formal version in a complete bundle (5.4352ms)
+✔ v0 project contract version is frozen (0.9693ms)
+▶ all valid contract kinds survive a JSON round trip
+  ✔ compatibility.json (6.6342ms)
+  ✔ knowledge-package.json (3.3806ms)
+  ✔ project.json (2.7319ms)
+  ✔ semantic-audit-event.json (2.6759ms)
+✔ all valid contract kinds survive a JSON round trip (19.9955ms)
+✔ knowledge bundle closes project, audit, material, and hash references (4.2551ms)
+✔ invalid fixtures fail with stable issue codes and paths (1.8491ms)
+✔ a single missing project field has one precise schema path (0.9108ms)
+✔ future versions are rejected across all contract kinds (1.8315ms)
+✔ truth and derived package entries cannot exchange guarantees (0.9504ms)
+✔ package paths agree with their truth or derived roles (0.9659ms)
+✔ upstream versions and ID rules are executable cross-package contracts (6.8415ms)
+✔ bundle rejects missing audit events and mismatched project identity (2.7281ms)
+✔ bundle rejects duplicate audit inputs and orphan truth entries (2.8599ms)
+✔ deep and accessor-bearing values fail without executing code (0.4423ms)
+✔ generated declarations identify their source and avoid forbidden types (0.9961ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 426.5508
+$ pnpm --filter @wenshu/fixtures check
+$ pnpm check:committed && pnpm test
+$ node scripts/check-fixtures.ts
+Fixture check passed: 7 frozen files.
+$ pnpm test:contract && pnpm test:integration
+$ node --test test/*.contract.test.ts
+✔ fixture manifest accepts only the frozen identity and exact shape (1.7488ms)
+✔ entry paths, hashes, sizes, ordering, and portable identity fail closed (11.8535ms)
+✔ canonical fixture path predicate allows stable relative Unicode paths (0.2501ms)
+✔ the complete verify entry point cannot omit frozen fixture checks (3.7701ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 170.1957
+$ node --test test/*.integration.test.ts
+✔ verified fixtures copy byte-for-byte only into an isolated worker (142.8917ms)
+✔ a frozen structural copy of an isolation handle cannot authorize writes (13.2253ms)
+✔ the committed PoC-A fixture set matches its frozen manifest (20.1186ms)
+▶ changing one byte in any frozen fixture is rejected
+  ✔ chart-overview.svg (44.9452ms)
+  ✔ chart-process.svg (22.5265ms)
+  ✔ fault-cases.json (24.686ms)
+  ✔ formal-business.template.json (22.5547ms)
+  ✔ golden-report.md (33.441ms)
+  ✔ manual-baseline.csv (25.9626ms)
+  ✔ report-data.csv (21.3974ms)
+✔ changing one byte in any frozen fixture is rejected (200.9708ms)
+✔ manifest tampering, missing files, and unregistered files are rejected (64.6224ms)
+✔ missing roots and manifests use stable sanitized error categories (14.6521ms)
+✔ filesystem links inside the fixture root are rejected without traversal (14.8864ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 500.3235
+$ pnpm --filter @wenshu/fonts check
+$ pnpm check:committed && pnpm test
+$ node scripts/check-fonts.ts
+Font check passed: 3 frozen OTF files.
+$ pnpm test:contract && pnpm test:integration
+$ node --test test/*.contract.test.ts
+✔ font manifest accepts only the frozen family, release, and three weights (14.4862ms)
+✔ font entries, source, license, and coverage fail closed (0.4945ms)
+✔ font weights must be unique across the three files (0.2523ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 165.7482
+$ node --test test/*.integration.test.ts
+✔ committed font set and every frozen payload byte are integrity checked (838.8115ms)
+✔ manifest changes and unregistered directory entries fail closed (125.3489ms)
+✔ a linked root is rejected without exposing its absolute target (11.7371ms)
+✔ missing roots fail closed without leaking absolute paths (3.0807ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1159.4442
+$ pnpm --filter @wenshu/environment check
+$ pnpm check:committed && pnpm test
+$ node scripts/check-environment.ts
+Environment check passed: 2 evidence file(s) (wenshu-dev-primary, wenshu-poc-a-win11) match frozen anchors.
+$ pnpm test:contract && pnpm test:integration
+$ node --test test/*.contract.test.ts
+✔ machine evidence accepts the frozen contract shape (1.3754ms)
+✔ machine evidence identity fields fail closed (0.725ms)
+✔ machine os, cpu, memory, and runtime fields fail closed (0.5144ms)
+✔ display and disk invariants fail closed (0.2601ms)
+✔ frozen input anchors fail closed (0.2447ms)
+✔ the complete verify entry point cannot omit machine evidence checks (6.2824ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.7042
+$ node --test test/*.integration.test.ts
+✔ every committed evidence file is validated, not just the first (62.9227ms)
+✔ real collection on the Windows reference machine matches the contract (1409.1673ms)
+ℹ collected 10.0.19045 / 6 cores / 100% scale
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1584.7155
+$ pnpm --filter @wenshu/supply-chain check
+$ pnpm check:committed && pnpm test
+$ node scripts/check-sbom.ts
+Supply chain check passed: 147 packages (10 direct), license policy clean, no drift.
+$ pnpm test:unit && pnpm test:contract && pnpm test:integration
+$ node --test test/*.unit.test.ts
+✔ permissive and reviewed licenses pass, everything else fails closed (1.0134ms)
+✔ policy findings identify every violating package (1.3508ms)
+✔ reviewed licenses in use are reported for documentation cross-check (0.3816ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 166.1705
+$ node --test test/*.contract.test.ts
+✔ sbom contract accepts only the frozen shape (1.5087ms)
+✔ committed sbom satisfies the contract and is canonical (15.0191ms)
+✔ the complete verify entry point cannot omit supply chain checks (5.0683ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 213.5645
+$ node --test test/*.integration.test.ts
+✔ the installed dependency tree rebuilds the committed sbom byte-for-byte (133.5677ms)
+✔ policy violation detection is decisive against license tampering (99.4036ms)
+✔ every external dependency declared by a workspace is installed and direct (101.1722ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 506.2637
+$ pnpm -r --if-present run typecheck
+Scope: 14 of 15 workspace projects
+packages/config typecheck$ tsc -p tsconfig.json
+packages/contract-runtime typecheck$ tsc -p tsconfig.json
+packages/test-support typecheck$ tsc -p tsconfig.json
+tools/ci typecheck$ tsc -p tsconfig.json
+packages/contract-runtime typecheck: Done
+tools/supply-chain typecheck$ tsc -p tsconfig.json
+packages/test-support typecheck: Done
+tools/ci typecheck: Done
+packages/config typecheck: Done
+tools/supply-chain typecheck: Done
+apps/web typecheck$ tsc -p tsconfig.json
+packages/document-model typecheck$ tsc -p tsconfig.json
+packages/host-contract typecheck$ tsc -p tsconfig.json
+packages/template-model typecheck$ tsc -p tsconfig.json
+packages/template-model typecheck: Done
+tools/fixtures typecheck$ tsc -p tsconfig.json
+packages/document-model typecheck: Done
+tools/fonts typecheck$ tsc -p tsconfig.json
+packages/host-contract typecheck: Done
+tools/quality typecheck$ tsc -p tsconfig.json
+apps/web typecheck: Done
+tools/fixtures typecheck: Done
+tools/fonts typecheck: Done
+tools/quality typecheck: Done
+packages/project-contract typecheck$ tsc -p tsconfig.json
+tools/environment typecheck$ tsc -p tsconfig.json
+tools/environment typecheck: Done
+packages/project-contract typecheck: Done
+$ pnpm -r --if-present run build
+Scope: 14 of 15 workspace projects
+apps/web build$ vite build --mode production
+apps/web build: [36mvite v8.1.5 [32mbuilding client environment for production...[36m[39m
+apps/web build: [2K
+apps/web build: transforming...✓ 4 modules transformed.
+apps/web build: rendering chunks...
+apps/web build: computing gzip size...
+apps/web build: dist/index.html                0.33 kB │ gzip: 0.26 kB
+apps/web build: dist/assets/index-B9esG2uT.js  0.82 kB │ gzip: 0.48 kB
+apps/web build: [32m✓ built in 64ms[39m
+apps/web build: Done
