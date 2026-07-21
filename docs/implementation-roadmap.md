@@ -86,7 +86,8 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-10 | ✅ 已完成 | [fixture 完整性基线](fixture-integrity.md)：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；150/150 验证通过，7 个原件与 manifest 锚点零漂移；FX-06 已登记到 [PA-00](audits/G1-10-followups.md) |
 | G1-11 | ✅ 已完成 | [并行 CI 基线](ci.md)本地验证通过；Claude 已关闭 CI-01～CI-05；[首次与最终 GitHub 运行](audits/G1-11-first-remote-run.md)均 8/8 成功，最终运行覆盖提交 `baff4ef` |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
-| G1-13 | 🟡 已实现，待独立审计 | [固定字体基线](font-baseline.md)：Adobe 官方 Source Han Sans CN 2.005R、OFL-1.1、400/500/700 三字重、哈希锚点及 884 个 fixture 必需码点覆盖；实施者不得自行关闭 |
+| G1-13 | ✅ 已完成 | [固定字体基线](font-baseline.md)：Adobe 官方 Source Han Sans CN 2.005R、OFL-1.1、400/500/700 三字重、哈希锚点及 884 个 fixture 必需码点覆盖；Claude 最终复核 `PASS`，FT-01/FT-02 已关闭；FT-01 多余文件在大小写敏感 Linux CI 上的表现留作补充证据点 |
+| G1-14 | 🟡 已实现，待独立审计 | [参考机器、采样协议与资源预算说明](reference-machine.md)：`artifacts/reference-machine/environment.json` 自动登记 OS/CPU/RAM/96DPI/100%缩放/磁盘/Node/pnpm 与 fixture+font 锚点；契约 5/5、真实采集集成 1/1、`pnpm verify` 全绿；不宣布任何未实测阈值通过；实施者不得自行关闭 |
 
 ## 4. G1：工程底座原子任务
 

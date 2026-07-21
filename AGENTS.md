@@ -63,6 +63,7 @@ docs/adr/                           重大技术决策
 - `G1-11` 已完成：Claude 已关闭 RA-01/RA-02、IA-01 与 CI-01～CI-05；本地完整验证及首次、最终私有远程矩阵均 8/8 成功。`cancel-in-progress` 因两次运行未重叠而保留为证据限制。
 - `G1-10` 已完成：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；7 个 PoC-A 原件、manifest 锚点、隔离复制与证据门禁可作为后续前置。新增 `FX-06` 已登记到 PA-00，最迟 PA-01 消费冻结 fixture 前由独立审计签署。
 - `G1-13` 已完成：Claude 独立审计 `CONDITIONAL PASS`（无 BLOCKER/MAJOR，六条否决线均不成立），两项 MINOR（FT-01 集合相等守卫、FT-02 字重唯一性守卫的测试决定性缺口）经 Codex 补决定性测试修复后由 Claude 独立重跑变异测试复核 `PASS` 关闭；FT-03/FT-04 为 NOTE 无需整改。字体身份、OFL-1.1 许可证、884 码点覆盖与篡改门禁可作为后续前置；已知限制：FT-01“多余文件”在大小写敏感 Linux CI 上的表现未实测，留作补充证据点。
+- `G1-14` 参考机器与性能采样基线已实现、待 Claude 独立审计：`tools/environment`（@wenshu/environment）自动登记机器证据（OS/CPU/RAM/DPI/磁盘/运行时/fixture+font 锚点）到 `artifacts/reference-machine/environment.json`，契约 fail-closed、证据不记主机名/用户名；[参考机器说明](docs/reference-machine.md) 规定采样协议与预算引用，不宣布未实测阈值通过；审计签署前不得视为完成或启动 PA-13/A-14。
 
 ## 文件与代码规则（进入 G1 后生效）
 
@@ -102,6 +103,8 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm contracts:check`：检查文档/模板/Host schema 与生成类型漂移，并运行共享输入安全运行时及合法、非法、安全和生命周期 fixture 契约测试。
 - `pnpm fixtures:check`：校验 PoC-A 冻结清单、7 个原件字节及隔离复制/证据契约；原件不一致立即失败。
 - `pnpm fonts:check`：校验 PoC-A 固定中文字体的官方清单锚点、OFL 许可证、三个 OTF 字节身份，并运行真实文件系统篡改/链接反测。
+- `pnpm environment:check`：校验已提交参考机器证据符合契约且冻结输入锚点与当前 fixture/字体锚点一致。
+- `pnpm env:record`：在 Windows 参考机器上重新采集机器证据并写入 `artifacts/reference-machine/environment.json`；非 Windows 平台 fail-closed。
 - `pnpm test:layers`：审计所有测试文件是否显式标注 unit/contract/render/integration/e2e 层级。
 - `pnpm test:unit` / `test:contract`：运行已登记的单元/契约测试。
 - `pnpm test:render` / `test:integration` / `test:e2e`：运行对应已登记测试；没有真实用例时报告 `not-registered` 并以非零退出，不代表通过。
