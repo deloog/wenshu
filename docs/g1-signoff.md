@@ -14,9 +14,9 @@
 
 | 任务 | 状态 | 证据 |
 |---|---|---|
-| G1-01 本地 Git 基线 | ✅ | 根提交 dcbddc9；ignore/秘密探针 |
-| G1-01R 私有远程 | ✅ | [remote-repository.md](remote-repository.md)；权限留证 |
-| G1-02 工具链锁定 | ✅ | toolchain.versions.json、ADR-0002 |
+| G1-01 本地 Git 基线 | ✅（文档证据，未经独立审计） | 根提交 dcbddc9；ignore/秘密探针 |
+| G1-01R 私有远程 | ✅（文档证据，未经独立审计） | [remote-repository.md](remote-repository.md)；权限留证 |
+| G1-02 工具链锁定 | ✅（文档证据，未经独立审计） | toolchain.versions.json、ADR-0002 |
 | G1-03 TS strict + Vite 工作区 | ✅ | Claude 复审 CONDITIONAL PASS，阻断全关闭 |
 | G1-03C 配置契约 | ✅ | [configuration.md](configuration.md)；Claude 复审通过 |
 | G1-04 文档对象契约 | ✅ | [document-model.md](document-model.md)；NF-03→PA-00 |
@@ -27,13 +27,13 @@
 | G1-09 工程质量与本地验证 | ✅ | [engineering-standards.md](engineering-standards.md)；RA-01～04+CF-01 关闭，CR-01→G1-15 已签署关闭 |
 | G1-10 fixture 完整性 | ✅ | [fixture-integrity.md](fixture-integrity.md)；FX-01～03 关闭；FX-06→PA-00 |
 | G1-11 并行 CI | ✅ | [ci.md](ci.md)；CI-01～05 关闭；远程矩阵 8/8 |
-| G1-12 DevEco 环境 | ✅ | [deveco-environment.md](deveco-environment.md)；模拟器后置 |
+| G1-12 DevEco 环境 | ✅（文档证据，未经独立审计） | [deveco-environment.md](deveco-environment.md)；模拟器后置 |
 | G1-13 固定字体基线 | ✅ | [font-baseline.md](font-baseline.md)；FT-01/02 关闭 |
 | G1-14 参考机器与采样协议 | ✅ | [reference-machine.md](reference-machine.md)；EN-01～03 关闭 |
 | G1-14W Win11 参考环境 | ✅ | 决策 #4+补充；`environment.win11.json`；W14W-01 关闭 |
 | G1-15 供应链与 SBOM | ✅ | [supply-chain.md](supply-chain.md)；SM-01/02 关闭、CR-01 签署 |
 
-审计报告与整改记录全部在 `docs/audits/`；全部 BLOCKER/MAJOR 均已由独立审计者签署关闭。
+审计报告与整改记录全部在 `docs/audits/`；已审计任务的全部 BLOCKER/MAJOR 均已由独立审计者签署关闭。G1-01/G1-01R/G1-02/G1-12 成于独立审计机制建立之前（首份审计任务书为 G1-03～06），以文档证据完成、未经独立审计；其中 G1-01/01R/02 已获 G1-16 审计者旁证（根提交、忽略探针、private:true、工具链版本一致），G1-12 的处置见决策记录。
 
 ## 3. 未完成项与限制索引（如实声明）
 

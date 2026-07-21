@@ -89,7 +89,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-13 | ✅ 已完成 | [固定字体基线](font-baseline.md)：Adobe 官方 Source Han Sans CN 2.005R、OFL-1.1、400/500/700 三字重、哈希锚点及 884 个 fixture 必需码点覆盖；Claude 最终复核 `PASS`，FT-01/FT-02 已关闭；FT-01 多余文件在大小写敏感 Linux CI 上的表现留作补充证据点 |
 | G1-14 | ✅ 已完成 | [参考机器、采样协议与资源预算说明](reference-machine.md)：Claude 独立审计 `CONDITIONAL PASS` 后复审 EN-01～EN-03 全部关闭（`PASS`），无未关闭发现；可作为 PA-13/A-14 基线 |
 | G1-14W | ✅ 已完成 | [决策 #4](../决策记录.md) + 补充：微软官方 Win11 Enterprise Evaluation（22621）Hyper-V VM，`environment.win11.json` 已登记（96DPI/100%、运行时与冻结锚点同基线）；Claude 审计 `CONDITIONAL PASS` 后复审 W14W-01 `PASS` 关闭（离线 VHDX 取证证真、反伪造三链、全链转录 7/7）；无未关闭发现，NOTE 均为 PA-05 书面跟进项 |
-| G1-16 | 🟡 已汇总，待独立审计签署 | [G1 签署报告](g1-signoff.md)：干净树（远程锚定 `f278335`）install+verify 退出 0（[日志](audits/G1-16-cleanroom-verify.log)，185 项 ✔）；18 项任务证据索引、开放项与限制索引、命令索引；tarball 替代与共享 store 已如实披露，待 Claude 裁定 |
+| G1-16 | 🟡 待复审后签署 | [G1 签署报告](g1-signoff.md)：Claude 审计 `CONDITIONAL PASS`——干净树可复现性获更强证据（空 store 冷装 116 包全下载、verify 185/185）、tarball 替代与共享 store 裁定不削弱；SG-01（四项任务表述隐含审计背书）已由 Codex 修复（加注文档证据、修正表述、[决策 #6](../决策记录.md) 处置 G1-12，见 [整改记录](audits/G1-16-sg01-remediation.md)），待 Claude 复审后签署 G1 |
 | G1-15 | ✅ 已完成 | [供应链基线](supply-chain.md)：Claude 首审 `FAIL`（SM-01 MAJOR：安装树平台依赖）后复审 `PASS`，SM-01/SM-02 全部关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条受审许可覆盖经 npm 核验）；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成 |
 
 ## 4. G1：工程底座原子任务
