@@ -64,6 +64,7 @@ docs/adr/                           重大技术决策
 - `G1-10` 已完成：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；7 个 PoC-A 原件、manifest 锚点、隔离复制与证据门禁可作为后续前置。新增 `FX-06` 已登记到 PA-00，最迟 PA-01 消费冻结 fixture 前由独立审计签署。
 - `G1-13` 已完成：Claude 独立审计 `CONDITIONAL PASS`（无 BLOCKER/MAJOR，六条否决线均不成立），两项 MINOR（FT-01 集合相等守卫、FT-02 字重唯一性守卫的测试决定性缺口）经 Codex 补决定性测试修复后由 Claude 独立重跑变异测试复核 `PASS` 关闭；FT-03/FT-04 为 NOTE 无需整改。字体身份、OFL-1.1 许可证、884 码点覆盖与篡改门禁可作为后续前置；已知限制：FT-01“多余文件”在大小写敏感 Linux CI 上的表现未实测，留作补充证据点。
 - `G1-14` 已获 Claude 独立审计 `CONDITIONAL PASS`（无 BLOCKER/MAJOR）：机器证据经独立 CIM/注册表路径逐项对账一致、无硬编码、采集器真读系统、契约 31 组边界与守卫变异全部承重、G0 预算原文继承未冒充通过。三项 MINOR（EN-01 verify 接线测试、EN-02 `.gitignore` 放行过宽、EN-03 未使用依赖声明）已由 Codex 修复（见 [整改记录](docs/audits/G1-14-en01-en03-remediation.md)），待 Claude 复审关闭；复审签署前不得标记 G1-14 完成或以其为 PA-13/A-14 基线。
+- `G1-15` 供应链基线已实现、待 Claude 独立审计：`tools/supply-chain` 生成字节级可重建 SBOM（115 包、9 直接），许可政策门禁阻断 GPL/AGPL/未知并登记 MPL-2.0/Python-2.0/BlueOak-1.0.0 书面结论（[supply-chain](docs/supply-chain.md)）；`pnpm audit` 全零（2026-07-21）；CR-01 修复 + phantom-dependency 守卫；审计签署前不得视为完成或启动 G1-16。
 
 ## 文件与代码规则（进入 G1 后生效）
 
@@ -104,6 +105,8 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm fixtures:check`：校验 PoC-A 冻结清单、7 个原件字节及隔离复制/证据契约；原件不一致立即失败。
 - `pnpm fonts:check`：校验 PoC-A 固定中文字体的官方清单锚点、OFL 许可证、三个 OTF 字节身份，并运行真实文件系统篡改/链接反测。
 - `pnpm environment:check`：校验已提交参考机器证据符合契约且冻结输入锚点与当前 fixture/字体锚点一致。
+- `pnpm supply:check`：重建 SBOM 并与已提交清单字节比对、执行许可政策门禁、校验声明依赖与已安装版本一致。
+- `pnpm sbom:build`：重建 `sbom/sbom.json`（确定性输出；仅在依赖树变更后运行并提交）。
 - `pnpm env:record`：在 Windows 参考机器上重新采集机器证据并写入 `artifacts/reference-machine/environment.json`；非 Windows 平台 fail-closed。
 - `pnpm test:layers`：审计所有测试文件是否显式标注 unit/contract/render/integration/e2e 层级。
 - `pnpm test:unit` / `test:contract`：运行已登记的单元/契约测试。

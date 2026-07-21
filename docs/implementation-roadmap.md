@@ -88,6 +88,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 | G1-13 | ✅ 已完成 | [固定字体基线](font-baseline.md)：Adobe 官方 Source Han Sans CN 2.005R、OFL-1.1、400/500/700 三字重、哈希锚点及 884 个 fixture 必需码点覆盖；Claude 最终复核 `PASS`，FT-01/FT-02 已关闭；FT-01 多余文件在大小写敏感 Linux CI 上的表现留作补充证据点 |
 | G1-14 | 🟡 已实现，待独立复审 | [参考机器、采样协议与资源预算说明](reference-machine.md)：Claude 独立审计 `CONDITIONAL PASS`（无 BLOCKER/MAJOR，机器证据独立对账一致、无硬编码、预算诚实）；EN-01～EN-03 已由 Codex 修复（[整改记录](audits/G1-14-en01-en03-remediation.md)），待 Claude 复审关闭；实施者不得自行关闭 |
+| G1-15 | 🟡 已实现，待独立审计 | [供应链基线](supply-chain.md)：`sbom/sbom.json` 115 包（9 直接/106 传递）字节级可重建；许可政策门禁（GPL/AGPL/未知阻断）与 MPL/Python/BlueOak 书面结论；`pnpm audit` 全零；CR-01 修复 + phantom-dependency 系统守卫；实施者不得自行关闭 |
 
 ## 4. G1：工程底座原子任务
 
