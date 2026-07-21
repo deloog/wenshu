@@ -13,6 +13,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "eslint": "10.7.0",
     "typescript": "catalog:"
   }
 }

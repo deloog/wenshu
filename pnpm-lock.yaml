@@ -231,6 +231,18 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
+      eslint:
+        specifier: 10.7.0
+        version: 10.7.0
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  tools/supply-chain:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

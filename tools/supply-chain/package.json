@@ -1,0 +1,23 @@
+{
+  "name": "@wenshu/supply-chain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build:sbom": "node scripts/build-sbom.ts",
+    "check:committed": "node scripts/check-sbom.ts",
+    "test:unit": "node --test test/*.unit.test.ts",
+    "test:contract": "node --test test/*.contract.test.ts",
+    "test:integration": "node --test test/*.integration.test.ts",
+    "test": "pnpm test:unit && pnpm test:contract && pnpm test:integration",
+    "check": "pnpm check:committed && pnpm test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

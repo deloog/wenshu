@@ -83,6 +83,7 @@ export const CI_JOBS: Readonly<Record<CiJobName, readonly CiCommand[]>> = Object
       command("secrets", "secrets:check"),
       command("licenses", "licenses:check"),
       command("fonts", "fonts:check"),
+      command("supply-chain", "supply:check"),
     ]),
   },
 );

@@ -17,7 +17,7 @@ test("CI jobs cover independent gates and isolated build outputs", () => {
   assert.equal(new Set(outputDirectories).size, 3);
   assert.deepEqual(
     CI_JOBS.security.map(({ label }) => label),
-    ["secrets", "licenses", "fonts"],
+    ["secrets", "licenses", "fonts", "supply-chain"],
   );
   assert.deepEqual(
     CI_JOBS.contracts.map(({ label }) => label),

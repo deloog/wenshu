@@ -8,3 +8,4 @@
 **/tmp/**
 **/*.md
 pnpm-lock.yaml
+sbom/

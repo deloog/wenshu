@@ -6,6 +6,7 @@ import { discoverWorkspaceFiles } from "@wenshu/test-support";
 import {
   checkFileSize,
   checkForbiddenSyntax,
+  checkPhantomDependencies,
   checkStrictBaseConfig,
   checkTypecheckCoverage,
   CODE_EXTENSIONS,
@@ -42,6 +43,7 @@ for (const file of sourceFiles) {
 
 const coverage = await checkTypecheckCoverage(workspaceRoot, files);
 const strictConfig = await checkStrictBaseConfig(workspaceRoot);
+const phantomDependencies = await checkPhantomDependencies(workspaceRoot, files);
 findings
   .filter((finding) => finding.severity === "warning")
   .forEach((finding) => {
@@ -62,6 +64,11 @@ coverage.forEach((finding) => {
   );
 });
 strictConfig.forEach((message) => console.error(`ERROR strict-config ${message}`));
+phantomDependencies.forEach((finding) => {
+  console.error(
+    `ERROR phantom-dependency ${relative(workspaceRoot, finding.filePath)} ${finding.message}`,
+  );
+});
 generatedRegistry.findings.forEach((finding) => {
   console.error(
     `ERROR generated-registry ${relative(workspaceRoot, finding.packageRoot)} ${finding.message}`,
@@ -72,6 +79,7 @@ if (
   errors.length > 0 ||
   coverage.length > 0 ||
   strictConfig.length > 0 ||
+  phantomDependencies.length > 0 ||
   generatedRegistry.findings.length > 0
 ) {
   process.exitCode = 1;
