@@ -63,8 +63,8 @@ docs/adr/                           重大技术决策
 - `G1-11` 已完成：Claude 已关闭 RA-01/RA-02、IA-01 与 CI-01～CI-05；本地完整验证及首次、最终私有远程矩阵均 8/8 成功。`cancel-in-progress` 因两次运行未重叠而保留为证据限制。
 - `G1-10` 已完成：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；7 个 PoC-A 原件、manifest 锚点、隔离复制与证据门禁可作为后续前置。新增 `FX-06` 已登记到 PA-00，最迟 PA-01 消费冻结 fixture 前由独立审计签署。
 - `G1-13` 已完成：Claude 独立审计 `CONDITIONAL PASS`（无 BLOCKER/MAJOR，六条否决线均不成立），两项 MINOR（FT-01 集合相等守卫、FT-02 字重唯一性守卫的测试决定性缺口）经 Codex 补决定性测试修复后由 Claude 独立重跑变异测试复核 `PASS` 关闭；FT-03/FT-04 为 NOTE 无需整改。字体身份、OFL-1.1 许可证、884 码点覆盖与篡改门禁可作为后续前置；已知限制：FT-01“多余文件”在大小写敏感 Linux CI 上的表现未实测，留作补充证据点。
-- `G1-14` 已获 Claude 独立审计 `CONDITIONAL PASS`（无 BLOCKER/MAJOR）：机器证据经独立 CIM/注册表路径逐项对账一致、无硬编码、采集器真读系统、契约 31 组边界与守卫变异全部承重、G0 预算原文继承未冒充通过。三项 MINOR（EN-01 verify 接线测试、EN-02 `.gitignore` 放行过宽、EN-03 未使用依赖声明）已由 Codex 修复（见 [整改记录](docs/audits/G1-14-en01-en03-remediation.md)），待 Claude 复审关闭；复审签署前不得标记 G1-14 完成或以其为 PA-13/A-14 基线。
-- `G1-15` 供应链基线已实现、待 Claude 独立审计：`tools/supply-chain` 生成字节级可重建 SBOM（115 包、9 直接），许可政策门禁阻断 GPL/AGPL/未知并登记 MPL-2.0/Python-2.0/BlueOak-1.0.0 书面结论（[supply-chain](docs/supply-chain.md)）；`pnpm audit` 全零（2026-07-21）；CR-01 修复 + phantom-dependency 守卫；审计签署前不得视为完成或启动 G1-16。
+- `G1-14` 已完成：Claude 独立审计 `CONDITIONAL PASS`（机器证据独立对账一致、无硬编码、预算诚实），三项 MINOR（EN-01～EN-03）经 Codex 修复后由 Claude 复审 `PASS` 全部关闭，无未关闭发现；可作为 PA-13/A-14 基线。
+- `G1-15` 供应链基线已按 Claude 首审 `FAIL`（SM-01）整改、待复审：SBOM 改从冻结 lockfile 重建（147 包、跨平台字节一致、33 条受审许可覆盖），SM-02 已收紧 `@types/*` 豁免至 type-only；许可政策门禁阻断 GPL/AGPL/未知并登记 MPL-2.0/Python-2.0/BlueOak-1.0.0/0BSD 书面结论（[supply-chain](docs/supply-chain.md)）；`pnpm audit` 全零（2026-07-21）；CR-01 修复 + phantom-dependency 守卫；复审签署前不得视为完成或启动 G1-16。
 
 ## 文件与代码规则（进入 G1 后生效）
 
