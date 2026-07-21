@@ -37,11 +37,23 @@
 | 文件 | 机器标签 | 环境 | 状态 |
 |---|---|---|---|
 | `environment.json` | `wenshu-dev-primary` | Windows 10 Pro 19045 开发基线机 | ✅ 已登记（G1-14） |
-| `environment.win11.json` | `wenshu-poc-a-win11` | Windows 11 64 位参考环境（决策 #4，Hyper-V 隔离 VM） | ⏳ 待采集（G1-14W） |
+| `environment.win11.json` | `wenshu-poc-a-win11` | Windows 11 Enterprise Evaluation 22H2（22621）Hyper-V 隔离 VM（决策 #4） | ✅ 已采集（G1-14W，待独立审计） |
 
-Win11 采集命令（在 Win11 参考环境内、清洁克隆后执行）：`pnpm env:record -- --label wenshu-poc-a-win11 --out environment.win11.json`。**在 Win10 上不得使用该参数组合**——那会伪造 Win11 证据。
+Win11 采集命令（在 Win11 参考环境内、清洁克隆后执行）：`pnpm env:record --label wenshu-poc-a-win11 --out environment.win11.json`。**在 Win10 上不得使用该参数组合**——那会伪造 Win11 证据。
 
-**Win10 ↔ Win11 差异记录**：待 `environment.win11.json` 采集后在此逐项填写（OS build、DPI/分辨率、CPU/内存、Chromium 候选版本、与 Win10 基线的实测差异）。当前状态：未采集，不代表 Windows 11 环境已就绪。
+**Win10 ↔ Win11 差异记录**（2026-07-21 实测）：
+
+| 维度 | Win10 基线（物理机） | Win11 参考环境（VM） | 说明 |
+|---|---|---|---|
+| OS | Windows 10 Pro 10.0.19045 | Windows 11 Enterprise Evaluation 10.0.22621（22H2） | 官方 90 天评估版，2026-07-21 起算 |
+| CPU | i5-9400F 6 核（全核） | 同一物理 CPU，4 vCPU | VM 分配上限；性能测量需注意核数差 |
+| 内存 | ≈16GB | 4GB（动态 4–8GB） | VM 动态内存 |
+| 显示 | 1920×1080，96DPI，100% | 1024×768，96DPI，100% | 缩放/DPI 一致满足 G1-14W；分辨率受 Hyper-V 控制台限制，PA-05 打印测量前如需 1920×1080 须调整并重新采集 |
+| 磁盘 | D:\ 997GB | C:\ 133GB（VHDX 动态） | — |
+| 运行时 | Node v24.17.0 / pnpm 11.15.1 | Node v24.17.0 / pnpm 11.15.1 | 完全一致 |
+| 冻结锚点 | fixture/font 双锚点 | 同一锚点 | 完全一致 |
+
+VM 内实测：`pnpm install --frozen-lockfile`、`environment:check`（双证据）、`supply:check`、`pnpm verify` 全部通过（exit 0）。已知限制：Chromium 候选尚未在 VM 内安装/登记（属 PA-05 前置时再补）；VM 为 en-US 镜像，字体由项目固定资产供给，不影响渲染测量。
 
 ## 3. 性能采样协议
 

@@ -1,0 +1,39 @@
+{
+  "schema_version": "0.1.0",
+  "evidence_id": "wenshu.reference-machine",
+  "recorded_at": "2026-07-21T08:41:33.136Z",
+  "machine_label": "wenshu-poc-a-win11",
+  "os": {
+    "platform": "win32",
+    "release": "10.0.22621",
+    "version": "Windows 11 Enterprise Evaluation",
+    "arch": "x64"
+  },
+  "cpu": {
+    "model": "Intel(R) Core(TM) i5-9400F CPU @ 2.90GHz",
+    "logical_cores": 4,
+    "speed_mhz": 2904
+  },
+  "memory": {
+    "total_bytes": 4293750784
+  },
+  "display": {
+    "width_px": 1024,
+    "height_px": 768,
+    "scale_percent": 100,
+    "dpi": 96
+  },
+  "disk": {
+    "mount": "C:\\",
+    "total_bytes": 133661978624,
+    "free_bytes": 88025063424
+  },
+  "runtime": {
+    "node": "v24.17.0",
+    "pnpm": "11.15.1"
+  },
+  "frozen_inputs": {
+    "fixture_manifest_sha256": "97e05a1c397572521351dc790ed1b0cb8821666b7d2d747477d20b9a0de72017",
+    "font_manifest_sha256": "2952b96f2d74300a26382349816020a21731b06cd811ce37ed60dafbdc684721"
+  }
+}
