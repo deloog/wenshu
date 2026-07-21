@@ -127,3 +127,46 @@
 从独立审计立场，**G1-14W 的 Win11 参考环境身份已真实登记、经离线取证独立证真，无 BLOCKER/MAJOR**。放行附带 `W14W-01` 整改与 `W14W-N1～N3` 跟进；G1-14W 关闭后，**G1-16（G1 签署）前置即齐**——G1-16 仍须按其自身任务书（私有远程干净克隆一键 install/verify + 签署）执行。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本报告由未参与实施的独立审计角色出具，只签署事实、不提供也不应用补丁；不修改路线图、不自行标记 G1-14W 完成或启动 G1-16。VM 全程 Off，仅离线只读取证，读毕已卸载。
+
+---
+
+# W14W-01 定点复核（2026-07-21）：`5ab0970`
+
+> 复核提交：`5ab0970`（fix: close G1-14W transcript minor with full-chain recollect）　整改记录：[G1-14W-w14w01-remediation.md](G1-14W-w14w01-remediation.md)
+>
+> 本章由与首审同一独立审计角色出具。仍以**离线只读挂载 VHDX** 独立取证 VM 内新日志，不采信整改自述。VM 全程 Off，读毕 `Dismount-VHD`，无残留 hive。
+
+## 1. 审计报告完整性
+`5ab0970` 以 `new file` 方式提交了我的首审报告（129 行，逐字未改，非追加实施方回应）；已提交证据 `environment.win11.json` 与 Win10 基线 `environment.json` 自 `60dc31d` 起 **diff 均为 0**——整改未触碰审计报告结论、未触碰任一已审计证据。
+
+## 2. W14W-01（VM 全链转录不完整）　**已关闭**
+整改选择"重采全链转录"（较收敛措辞更强）。离线挂载 VHDX 读 `C:\wenshu-out2\`（新一轮独立日志目录）独立核实：
+
+| 产物 | 独立核验 |
+|---|---|
+| `results.txt` | **7/7 exit 0**：node-version / pnpm-version / install / env-record / environment-check / supply-check / verify |
+| `supply-check.log` | 含 `Supply chain check passed: 147 packages (10 direct), license policy clean, no drift.`（此前缺失的 supply 全链现已转录） |
+| `verify.log` | **23,698 字节**完整转录：`typecheck: Done` 14 处、production build（`apps/web build: ✓ built in 147ms / Done`）3 处、失败标记（`ℹ fail [1-9]`/`✖`/`Error:`）**0**；尾部止于 build 成功 |
+| `env-record.log` | `... wenshu-poc-a-win11 -> environment.win11.json (win32 10.0.22621, 4 cores, 100% scale)` |
+
+首审 W14W-01 的缺口——"`supply:check`/`verify` 全绿仅见退出码台账、未进转录"——**已消除**：VM 内现有 147 包无漂移的 supply 转录与含 typecheck+build 的 23KB 完整 verify 转录，且 7 步退出码 7/7。（`supply-check.log` 里的 `NativeCommandError` 是 PowerShell 对 pnpm 写 stderr 的捕获伪影，退出码为 0、结果行为"passed"，非真失败。）
+
+## 3. 过程诚实性与守卫承重（旁证）
+整改记录如实披露：第 2、3 轮重跑曾因 VM 内残留第一轮证据 + 临时 recheck 文件造成同标签证据并存，被**标签互异守卫** `machine labels must be unique` fail-closed 拦下，清理后第 4 轮全绿。这既是诚实留痕，也在真实环境中**旁证了多环境门禁的标签互异守卫承重**（与我在 `793b423` 复核中的决定性变异结论一致）。重采只写 VM 内部副本（`wenshu-out2` + VM 内仓库），宿主已审计文件零改动（§1 git 佐证）。
+
+## 4. 回归
+- 宿主 `pnpm environment:check`：`2 evidence file(s) (wenshu-dev-primary, wenshu-poc-a-win11) match frozen anchors` ✔。
+- 宿主 `pnpm verify`：退出 0、**185/185**。
+- VM 保持 Off、VHDX 未挂载、无残留 hive；工作树仅本报告一处审计者修改。
+
+## 5. 复核结论
+
+**`PASS — G1-14W 可以完成`**
+
+- **W14W-01（MINOR）已关闭**：VM 内全链转录经离线 VHDX 独立核实完整（supply 147 无漂移 + 23KB 完整 verify 含 typecheck/build，7 步 7/7 exit 0）；已审计证据与审计报告零改动。
+- **无新增 BLOCKER/MAJOR/MINOR**。
+- 三条 NOTE（`W14W-N1` zip 已删改由构建串佐证 / `W14W-N2` VM 内 Startup 载荷留作重采集入口 / `W14W-N3` 90 天评估期·1024×768·Chromium 未装）均为已书面化的**跟进项/PA-05 前置**，非未关闭发现；随 PA-05 处理。
+
+综合首审 `CONDITIONAL PASS` 与本轮 W14W-01 关闭，从独立审计立场 **G1-14W 的 Win11 参考环境已真实登记、离线取证证真、无未关闭发现**。至此 G1-13 / G1-14 / G1-14W / G1-15 独立审计全部关闭、CR-01 已签署；**G1-16（G1 签署）前置即齐**——G1-16 仍须按其自身任务书执行并交独立审计。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁；不修改路线图、不自行标记 G1-14W 完成或启动 G1-16。
