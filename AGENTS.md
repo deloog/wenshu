@@ -64,6 +64,7 @@ docs/adr/                           重大技术决策
 - `G1-10` 已完成：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；7 个 PoC-A 原件、manifest 锚点、隔离复制与证据门禁可作为后续前置。新增 `FX-06` 已登记到 PA-00，最迟 PA-01 消费冻结 fixture 前由独立审计签署。
 - `G1-13` 已完成：Claude 独立审计 `CONDITIONAL PASS`（无 BLOCKER/MAJOR，六条否决线均不成立），两项 MINOR（FT-01 集合相等守卫、FT-02 字重唯一性守卫的测试决定性缺口）经 Codex 补决定性测试修复后由 Claude 独立重跑变异测试复核 `PASS` 关闭；FT-03/FT-04 为 NOTE 无需整改。字体身份、OFL-1.1 许可证、884 码点覆盖与篡改门禁可作为后续前置；已知限制：FT-01“多余文件”在大小写敏感 Linux CI 上的表现未实测，留作补充证据点。
 - `G1-14` 已完成：Claude 独立审计 `CONDITIONAL PASS`（机器证据独立对账一致、无硬编码、预算诚实），三项 MINOR（EN-01～EN-03）经 Codex 修复后由 Claude 复审 `PASS` 全部关闭，无未关闭发现；可作为 PA-13/A-14 基线。
+- `G1-14W` 进行中：业主已批准创建隔离 Win11 参考环境（决策 #4）；Hyper-V 已启用待重启生效、ISO 待业主从微软官方页面下载（评估中心注册或 software-download 免注册多版本），之后建 VM 采集 100% 缩放/96DPI 证据并与 Win10 基线对账。
 - `G1-15` 已完成：Claude 首审 `FAIL`（SM-01 MAJOR）整改后复审 `PASS`，SM-01/SM-02 关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条覆盖经 npm 核验）；许可政策门禁与 MPL/Python/BlueOak/0BSD 书面结论见 [supply-chain](docs/supply-chain.md)；SM-03（MPL 措辞泛化）已随文档维护修复；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成。
 
 ## 文件与代码规则（进入 G1 后生效）
