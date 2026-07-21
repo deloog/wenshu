@@ -21,7 +21,7 @@ test("CI jobs cover independent gates and isolated build outputs", () => {
   );
   assert.deepEqual(
     CI_JOBS.contracts.map(({ label }) => label),
-    ["contracts", "fixtures"],
+    ["contracts", "fixtures", "environment"],
   );
 });
 

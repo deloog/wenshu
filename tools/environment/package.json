@@ -1,0 +1,27 @@
+{
+  "name": "@wenshu/environment",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "record": "node scripts/record-environment.ts",
+    "check:committed": "node scripts/check-environment.ts",
+    "test:contract": "node --test test/*.contract.test.ts",
+    "test:integration": "node --test test/*.integration.test.ts",
+    "test": "pnpm test:contract && pnpm test:integration",
+    "check": "pnpm check:committed && pnpm test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wenshu/fixtures": "workspace:*",
+    "@wenshu/fonts": "workspace:*",
+    "@wenshu/test-support": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

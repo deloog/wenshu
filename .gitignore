@@ -23,7 +23,9 @@ coverage/
 .turbo/
 test-results/
 playwright-report/
-artifacts/
+artifacts/*
+!artifacts/reference-machine/
+!artifacts/reference-machine/environment.json
 tmp/
 
 # Local databases, journals, and runtime state

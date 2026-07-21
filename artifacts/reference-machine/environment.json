@@ -1,0 +1,39 @@
+{
+  "schema_version": "0.1.0",
+  "evidence_id": "wenshu.reference-machine",
+  "recorded_at": "2026-07-21T01:02:23.012Z",
+  "machine_label": "wenshu-dev-primary",
+  "os": {
+    "platform": "win32",
+    "release": "10.0.19045",
+    "version": "Windows 10 Pro",
+    "arch": "x64"
+  },
+  "cpu": {
+    "model": "Intel(R) Core(TM) i5-9400F CPU @ 2.90GHz",
+    "logical_cores": 6,
+    "speed_mhz": 2904
+  },
+  "memory": {
+    "total_bytes": 17119330304
+  },
+  "display": {
+    "width_px": 1920,
+    "height_px": 1080,
+    "scale_percent": 100,
+    "dpi": 96
+  },
+  "disk": {
+    "mount": "D:\\",
+    "total_bytes": 997047988224,
+    "free_bytes": 726036467712
+  },
+  "runtime": {
+    "node": "v24.17.0",
+    "pnpm": "11.15.1"
+  },
+  "frozen_inputs": {
+    "fixture_manifest_sha256": "97e05a1c397572521351dc790ed1b0cb8821666b7d2d747477d20b9a0de72017",
+    "font_manifest_sha256": "2952b96f2d74300a26382349816020a21731b06cd811ce37ed60dafbdc684721"
+  }
+}
