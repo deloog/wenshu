@@ -88,7 +88,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
 | G1-13 | ✅ 已完成 | [固定字体基线](font-baseline.md)：Adobe 官方 Source Han Sans CN 2.005R、OFL-1.1、400/500/700 三字重、哈希锚点及 884 个 fixture 必需码点覆盖；Claude 最终复核 `PASS`，FT-01/FT-02 已关闭；FT-01 多余文件在大小写敏感 Linux CI 上的表现留作补充证据点 |
 | G1-14 | ✅ 已完成 | [参考机器、采样协议与资源预算说明](reference-machine.md)：Claude 独立审计 `CONDITIONAL PASS` 后复审 EN-01～EN-03 全部关闭（`PASS`），无未关闭发现；可作为 PA-13/A-14 基线 |
-| G1-14W | 🟡 进行中，待业主两项操作 + Claude 复审 B 批 | [决策 #4](../决策记录.md) 已批准创建隔离 Win11 VM；采集器已参数化（`--label/--out`，多证据逐份校验防覆盖）；Hyper-V 已启用待重启、ISO 待业主官方下载；之后建 VM 采集 `environment.win11.json` 并由 Claude 审计关闭 |
+| G1-14W | 🟡 已实现，待独立审计 | [决策 #4](../决策记录.md) + 补充：微软官方 Win11 Enterprise Evaluation（22621）Hyper-V VM 已建，`environment.win11.json` 已采集（96DPI/100%、运行时与冻结锚点同基线），VM 内冻结安装+verify 全绿；B 批多环境管道已获 Claude 复核通过；证据待 Claude 按 W-N3 复审；实施者不得自行关闭 |
 | G1-15 | ✅ 已完成 | [供应链基线](supply-chain.md)：Claude 首审 `FAIL`（SM-01 MAJOR：安装树平台依赖）后复审 `PASS`，SM-01/SM-02 全部关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条受审许可覆盖经 npm 核验）；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成 |
 
 ## 4. G1：工程底座原子任务
