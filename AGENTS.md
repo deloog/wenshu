@@ -31,6 +31,7 @@ AI原生个人知识层立项纲领 .md       冻结产品与技术纲领
 docs/文枢-前置准备索引.md           闸门状态与事实源映射
 docs/approval-matrix.md            AI 何时必须暂停请示
 DEFINITION-OF-READY.md             任务是否允许开始
+DEFINITION-OF-DONE.md              任务是否允许标记完成（反例映射不可误判完成）
 docs/technical-baseline.md         技术边界与选型基线
 docs/testing-strategy.md           测试真实性、分层与并行
 docs/adr/                           重大技术决策
