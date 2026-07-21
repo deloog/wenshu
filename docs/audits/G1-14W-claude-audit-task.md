@@ -1,6 +1,6 @@
 # G1-14W Windows 11 参考环境独立审计任务书（交给 Claude）
 
-> 日期：2026-07-21　实施基线：G1-14W 实施提交（见 git log 中 `feat: add G1-14W windows 11 machine evidence`）　报告目标：`docs/audits/G1-14W-claude-audit-report.md`
+> 日期：2026-07-21　实施基线：`60dc31d`（feat: add G1-14W windows 11 machine evidence）　报告目标：`docs/audits/G1-14W-claude-audit-report.md`
 
 ## 1. 角色与写入边界
 
