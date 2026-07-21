@@ -28,9 +28,20 @@
 - `pnpm env:record`：在 Windows 参考机器上重新采集并写入 `artifacts/reference-machine/environment.json`。
 - `pnpm environment:check`：校验已提交证据符合契约且冻结输入锚点与当前 fixture/字体锚点一致；已接入 `pnpm verify` 与 CI `contracts` 作业。
 
-## 2. 与 G1-14W 的关系
+## 2. 双环境设计与 G1-14W 差异记录
 
-本机是 Windows 10 开发基线机，**不是** PoC-A 预注册的 Windows 11 64 位参考环境。PA-05/PA-13 的正式 PDF 导出与性能测量必须在 G1-14W 落实的 Windows 11 环境执行；届时用同一采集器登记第二份机器证据（更换 `machine_label`），并记录与本文 Windows 10 基线的差异。本文件不代表 Windows 11 环境已就绪。
+本机是 Windows 10 开发基线机（`wenshu-dev-primary`），**不是** PoC-A 预注册的 Windows 11 64 位参考环境。PA-05/PA-13 的正式 PDF 导出与性能测量必须在 G1-14W 落实的 Windows 11 环境执行。
+
+证据目录支持多份机器证据（`environment*.json`，每份独立 `machine_label` 且互不相同；`environment:check` 逐份校验契约与冻结锚点，不默认只查第一份）：
+
+| 文件 | 机器标签 | 环境 | 状态 |
+|---|---|---|---|
+| `environment.json` | `wenshu-dev-primary` | Windows 10 Pro 19045 开发基线机 | ✅ 已登记（G1-14） |
+| `environment.win11.json` | `wenshu-poc-a-win11` | Windows 11 64 位参考环境（决策 #4，Hyper-V 隔离 VM） | ⏳ 待采集（G1-14W） |
+
+Win11 采集命令（在 Win11 参考环境内、清洁克隆后执行）：`pnpm env:record -- --label wenshu-poc-a-win11 --out environment.win11.json`。**在 Win10 上不得使用该参数组合**——那会伪造 Win11 证据。
+
+**Win10 ↔ Win11 差异记录**：待 `environment.win11.json` 采集后在此逐项填写（OS build、DPI/分辨率、CPU/内存、Chromium 候选版本、与 Win10 基线的实测差异）。当前状态：未采集，不代表 Windows 11 环境已就绪。
 
 ## 3. 性能采样协议
 

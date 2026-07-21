@@ -26,7 +26,7 @@ playwright-report/
 artifacts/*
 !artifacts/reference-machine/
 artifacts/reference-machine/*
-!artifacts/reference-machine/environment.json
+!artifacts/reference-machine/environment*.json
 tmp/
 
 # Local databases, journals, and runtime state
