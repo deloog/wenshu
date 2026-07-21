@@ -280,3 +280,58 @@ Node/pnpm 与 `toolchain.versions.json`（node 24.17.0 / pnpm 11.15.1）、根 `
 综合首审 `CONDITIONAL PASS` 与本轮三项 MINOR 关闭，从独立审计角度 **G1-14 无未关闭发现**。是否标记 G1-14 完成、PA-13/A-14 是否以其为基线、以及 G1-14W 的 Win11 环境批准，由业主/Codex 依本结论决定；审计者不代为标记路线图完成。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁。
+
+---
+
+# G1-14W 采集器多环境化复核（2026-07-21）：`793b423`
+
+> 复核提交：`793b423`（feat: parameterize environment recorder for multi-machine evidence），环境批准记录 `bdf3638`（决策 #4，Hyper-V 隔离 VM）。
+>
+> 本章复核 G1-14W **采集器使能**（非 Win11 证据本身——尚未采集）。该变更再次触及已审计的 `tools/environment` 基线，故独立复核其是否安全支持第二份证据、且不削弱 Win10 基线门禁。仓库外探针 `D:\tmp\g114w*`，用后删除。
+
+## 1. 基线完整性
+- Win10 基线 `environment.json` 与 G1-14 审计版（`921a31e`/`737ef71`）**字节一致**。
+- **契约 `evidence.ts` 与采集器 `collect.ts` 零改动**——决定机器真值的核心未动，G1-14 已确立的证据完整性保证仍成立。B 仅在其外围加多环境管道。
+
+## 2. 采集器参数化（`record-args.ts` + `record-environment.ts`）　**通过**
+- 默认 `--label wenshu-dev-primary` / `--out environment.json`，向后兼容 Win10 基线。
+- `--label` 用契约模式 `^[a-z0-9][a-z0-9-]{1,62}$` 校验；`--out` 用 `^[a-z0-9][a-z0-9.-]*\.json$` 校验。
+- **路径穿越决定性拦截**（实测全 REJECT）：`../evil.json`、`/etc/x.json`、`C:\x.json`、`sub/x.json`、`sub\x.json`、非 `.json`、大写标签、含空格标签、未知 flag、缺值、值为 flag。
+
+## 3. 多环境门禁（`check.ts` `checkCommittedEvidence`）　**决定性通过**
+仓库外目录实测：
+
+| 场景 | 结果 |
+|---|---|
+| 仅 `environment.json`（当前态） | PASS（1 份） |
+| 两份、标签互异 | PASS（2 份） |
+| **篡改第二份的 fixture 锚点** | `ENV_EVIDENCE_INVALID` ✔（证明逐份校验，非只查第一份） |
+| **篡改第二份的契约（dpi/scale 不符）** | `ENV_EVIDENCE_INVALID` ✔ |
+| 两份**同标签** | `ENV_EVIDENCE_INVALID`（标签互异强制） |
+| 未知 JSON（`other.json`） / 非 JSON（`notes.txt`） / 子目录 | 全部 fail-closed |
+| **空目录** | fail-closed "evidence is missing"（非空过） |
+
+其自带集成测试 `every committed evidence file is validated, not just the first` 与本复核结论一致。门禁经 `check:committed` 接入 `verify` 与 CI `contracts`（EN-01 接线不变）。
+
+## 4. `.gitignore` 与文档
+- 放行收窄为 `environment*.json`：`environment.json`/`environment.win11.json` 放行，`other.json`/`sub/x.json` 仍忽略。
+- `reference-machine.md` §2：双环境表（Win10 ✅ 已登记 / Win11 ⏳ 待采集）、批准的隔离 VM（决策 #4）、Win11 采集命令、**明示禁止在 Win10 上用 Win11 标签伪造证据**、Win10↔Win11 差异占位如实标"未采集"。诚实、无"Win11 已就绪"冒充。
+
+## 5. 回归
+- `pnpm environment:check`：`1 evidence file(s) (wenshu-dev-primary) match frozen anchors` ✔。
+- `pnpm --filter @wenshu/environment test` 全过；`pnpm verify` 退出 0、**185/185**。
+- 零手写 `any`/抑制；新文件 `check.ts` 76、`record-args.ts` 52，均 < 护栏。
+- 零漂移：`docs/poc-a/fixtures/`、`assets/fonts/**`、`tools/supply-chain/**`、`sbom/**`、Schema、生成物、workflow、`evidence.ts`、`collect.ts` 在 `793b423^..793b423` 全空。
+
+## 6. NOTE（非阻断）
+- **`W-N1`**：`--out environment.json` 配非默认 `--label` 可覆盖已审计的 Win10 基线（操作者失误，git diff 可见）。可加守卫（拒绝对已存在基线文件的非默认覆盖）更稳，非必需。
+- **`W-N2`**：门禁只要求 ≥1 份合法证据、不锁定必须存在的标签集，故不会主动发现"Win10 基线被删"（≥1 份其他合法证据仍在时）；由 git 评审兜底。
+- **`W-N3`（转交 G1-14W 证据复审）**：标签↔OS 未做代码绑定。采集器的 `os.release()` 真实，故 Win10 机器即便打 Win11 标签，`os.release` 仍为 `10.0.19045`——**G1-14W 证据复审时须独立核验 `environment.win11.json` 的 `os.release` 确为 Windows 11（build ≥ 22000）且采自真实 Win11**，以此堵住"标签伪造"。
+
+## 7. 复核结论
+
+**采集器多环境化（`793b423`）：通过。** 参数化安全（穿越拦截、契约校验）、多环境门禁决定性（逐份校验、标签互异、空/未知/子目录 fail-closed）、Win10 基线与证据契约/采集器零改动、文档诚实、`verify` 185/185。三条 NOTE 均非阻断。
+
+**G1-14W 尚未完成**：本轮只放行**使能**；G1-14W 关闭仍需在已批准的 Win11 隔离 VM 内产出 `environment.win11.json`，并由本审计角色按 `W-N3` 独立复核该证据（CIM 对账、无硬编码、真读系统、零隐私、Win10 基线不被篡改、os.release 确为 Win11）。之后方可进入 G1-16。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施的独立审计角色出具，只签署事实、不提供也不应用补丁；不修改路线图、不自行标记 G1-14W 完成。
