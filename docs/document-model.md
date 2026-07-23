@@ -76,6 +76,7 @@
 | 大写扩展名 | `photo.PNG` | 扩展名小写化；mediaType 按内容核验，不信任扩展名 |
 | 目录含点 | `v1.2/chart.svg` | 目录扁平化重命名，原名留痕 |
 | webp | `chart.webp` | v0 不支持：明确拒绝并提示转换为 png/jpeg（模板媒体类型仅 png/jpg/jpeg/svg） |
+| gif / bmp | `anim.gif`、`scan.bmp` | v0 不支持：明确拒绝并提示转换为 png/jpeg（同上白名单，无例外） |
 | Windows 保留字符 `< > " \| ? *` | `a<b.png` | 规范化剔除后重命名 |
 | Windows 保留设备名 | `con.png`、`aux.svg` | 规范化重命名规避 |
 | 尾随点/空格 | `a .png`、`a.png␣` | 规范化剔除 |
