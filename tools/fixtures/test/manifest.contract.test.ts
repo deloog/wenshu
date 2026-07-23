@@ -107,3 +107,14 @@ test("canonical fixture path predicate allows stable relative Unicode paths", ()
   assert.equal(isCanonicalFixturePath("console.txt"), true);
   assert.equal(isCanonicalFixturePath("com10.log"), true);
 });
+
+test("Windows-forbidden characters are rejected per segment (FX-06)", () => {
+  for (const character of ["<", ">", '"', "|", "?", "*"]) {
+    assert.equal(isCanonicalFixturePath(`a${character}b.png`), false);
+    assert.equal(isCanonicalFixturePath(`dir/x${character}.png`), false);
+    assert.equal(isCanonicalFixturePath(`di${character}r/x.png`), false);
+  }
+  // 既有允许面不回退：中文、大写扩展名、段内含点/空格仍合法。
+  assert.equal(isCanonicalFixturePath("资产/图表1.png"), true);
+  assert.equal(isCanonicalFixturePath("data/report 1.0.txt"), true);
+});

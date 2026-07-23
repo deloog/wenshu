@@ -38,6 +38,11 @@ function hasExactKeys(
   );
 }
 
+// Windows-forbidden characters (FX-06): < > " | ? * and the drive colon.
+// Colon was already rejected; the remaining six are now equally fail-closed so
+// the "Windows 与 POSIX 均可移植"承诺完整成立。
+const WINDOWS_FORBIDDEN_CHARACTER_PATTERN = /[<>:"|?*]/u;
+
 export function isCanonicalFixturePath(value: string): boolean {
   if (
     value.length === 0 ||
@@ -55,7 +60,7 @@ export function isCanonicalFixturePath(value: string): boolean {
       (segment) =>
         segment !== "." &&
         segment !== ".." &&
-        !segment.includes(":") &&
+        !WINDOWS_FORBIDDEN_CHARACTER_PATTERN.test(segment) &&
         !segment.endsWith(" ") &&
         !segment.endsWith(".") &&
         !WINDOWS_RESERVED_NAME_PATTERN.test(segment),
