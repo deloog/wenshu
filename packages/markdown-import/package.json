@@ -1,0 +1,25 @@
+{
+  "name": "@wenshu/markdown-import",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "parse:fixture": "node scripts/parse-fixture.ts",
+    "test:unit": "node --test test/*.unit.test.ts",
+    "test:contract": "node --test test/*.contract.test.ts",
+    "test:integration": "node --test test/*.integration.test.ts",
+    "test": "pnpm test:unit && pnpm test:contract && pnpm test:integration",
+    "check": "pnpm test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wenshu/document-model": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
