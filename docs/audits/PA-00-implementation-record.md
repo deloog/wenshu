@@ -20,6 +20,9 @@
 - `pnpm fixtures:check` 通过（7 冻结原件 + 新承重测试）；`pnpm verify` 退出 0。
 - 本批经 PR 流程？——按 G2-01 治理，功能任务须走 PR；本任务为文档+测试守卫补齐，实施记录与审计任务书附上，请审计者裁定是否须补 PR 形式。
 
-## 待独立审计
+## 审计与整改状态
 
-实施者不得自行关闭 PA-00/NF-03/FX-06；审计任务书见 [PA-00-claude-audit-task.md](PA-00-claude-audit-task.md)。FX-06 按登记要求须由独立审计签署关闭。
+- FX-06：已由 Claude 签署关闭（36 敌意用例零漏网、允许面零回退、变异测试承重）。
+- PA-M1/PA-M2：已按 [整改记录](PA-00-pam1-pam2-remediation.md) 补齐（矩阵三行 + fail-closed 冲突条款），待 Claude 复核后签署 NF-03；复核通过前 PA-01 不得开工。
+
+实施者不得自行关闭 PA-00/NF-03；审计任务书见 [PA-00-claude-audit-task.md](PA-00-claude-audit-task.md)。
