@@ -1,0 +1,18 @@
+# G2-02：依赖更新门禁。更新以 PR 形式进入，必须跑完整 CI 回归方可合并。
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 3
+    versioning-strategy: "increase"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+    # 任何许可新增（尤其 GPL/AGPL/未知）由 CI licenses:check 与 supply:check 阻断，不由本文件豁免。
