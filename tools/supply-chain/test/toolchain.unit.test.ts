@@ -118,6 +118,29 @@ test("engines and packageManager drift are detected", async () => {
   }
 });
 
+test("a transitive older copy cannot mask the direct pinned version", async () => {
+  const root = await stagedRoot({ ...PINS }, goodManifest());
+  try {
+    const withTransitiveCopy = Object.freeze({
+      ...goodSbom(),
+      packages: Object.freeze([
+        ...goodSbom().packages,
+        Object.freeze({
+          name: "typescript",
+          version: "6.0.0",
+          license: "Apache-2.0",
+          direct: false,
+          requested_by: Object.freeze([]),
+        }),
+      ]),
+    });
+    const aligned = await checkToolchainPins(root, withTransitiveCopy);
+    assert.equal(aligned.length, 8);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("missing pins or missing manifests fail closed", async () => {
   const root = await stagedRoot({ node: { version: "24.17.0" } }, goodManifest());
   try {

@@ -69,7 +69,7 @@ docs/requirements-pool.md            需求池（不入冻结范围的新想法�
 - `G1-14W` 已完成：Claude 审计 `CONDITIONAL PASS` 后复审 W14W-01 `PASS` 关闭（离线 VHDX 取证证真、全链转录 7/7、宿主已审计文件零改动）；Win11 参考环境身份真实登记，NOTE 均为 PA-05 书面跟进项。G1 全部 16 项前置中仅剩 G1-16 签署本身。
 - `G1-16` 已签署（2026-07-21）：**G1 工程底座由 Claude 独立审计签署通过**，SG-01 处置核验到位、干净树可复现、11 份审计报告终局全 PASS、零功能实现。**PA 系列可按各自 DoR 启动**；承接项：NF-03/FX-06→PA-00、PB-05A、G1-12 审计推迟（决策 #6）、Win11 VM 评估期/Chromium 为 PA-05 前置。竞品调研调整批（决策 #5）为独立审计事项，不由 G1 签署放行。竞品调整批已完成：CA-01 经归档修复后 Claude 复审 `PASS`，决策 #5 忠实性背书成立，NOTE 两条非阻断。
 - `G2-01` 已完成：Claude 审计 `PASS`（七维度逐项可判定、反例抽验与自构蒙混路径全被拦截）；DoD/PR 模板/评审清单/缺陷证据标准生效，功能任务必须走 PR。
-- `G2-02` 已获 Claude 实测 `CONDITIONAL PASS`（8 必需检查、405 实证、留痕可识别、dependabot 3 PR 全被拦）；G2-M1 已由 Codex 加 `checkToolchainPins`（冻结工具链八 pin 对账、bump 即 DRIFT）修复，待 Claude 复审签署；三个 dependabot PR 暂不合并。
+- `G2-02` 已签署（2026-07-23）：G2-M1 复审 `PASS`（双向绑定、降级/删除/改分类均被拦），G2 双门禁齐备；G2-N2（direct 过滤合成用例）已随维护补测。三个 dependabot PR 按冻结工具链处置。**PA-00 可按自身 DoR 启动**。
 - `G1-15` 已完成：Claude 首审 `FAIL`（SM-01 MAJOR）整改后复审 `PASS`，SM-01/SM-02 关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条覆盖经 npm 核验）；许可政策门禁与 MPL/Python/BlueOak/0BSD 书面结论见 [supply-chain](docs/supply-chain.md)；SM-03（MPL 措辞泛化）已随文档维护修复；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成。
 
 ## 文件与代码规则（进入 G1 后生效）

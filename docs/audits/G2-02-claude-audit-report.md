@@ -113,3 +113,93 @@
 G2-01 已签署；**G2-02 待 `G2-M1` 关闭后签署**。后续 PA 系列任务仍须各自满足 DoR、走 PR 与独立审计。
 
 > 依 `AGENTS.md` 与 `CLAUDE.md`，本报告由独立审计角色出具，只签署事实、不提供也不应用补丁；不修改仓库设置、治理文件或路线图，由 Codex 依本结论完成台账。
+
+---
+
+# G2-M1 定点复核与 G2-02 签署（2026-07-23）：`834cb3d`
+
+> 复核提交：`834cb3d`（fix: close G2-02 toolchain pin gate minor）　整改记录：[G2-02-g2m1-remediation.md](G2-02-g2m1-remediation.md)
+>
+> 本章由同一独立审计角色出具。**不采信整改记录所称的"决定性证明"**——我自建变异矩阵独立复跑，并另行构造两条实施方未测的绕过路径。
+
+## 1. 边界
+- 本轮只对本文件追加；首审 115 行未删改。未修改代码、SBOM、保护规则或治理文件。
+- 仓库外探针只写 `D:\tmp\g2m1*`，结束已删除。远程仍为只读（未合并/关闭任何 PR）。
+- **审计基线零漂移**：`e5797f7..834cb3d` 对 `artifacts/`、`sbom/`、`pnpm-lock.yaml`、`.github/workflows/`、`.github/dependabot.yml`、`DEFINITION-OF-DONE.md`、`docs/poc-a/`、`assets/` **全部为空**——保护规则、SBOM、lockfile、workflow、依赖配置与 G2-01 治理文件未被触碰。我的三份审计报告以新文件提交，未被改写。
+
+## 2. G2-M1　**已关闭**
+
+`checkToolchainPins` 挂入既有 `check-sbom.ts`（**未新造命令**，随 `supply:check` 在根 `verify` 与 CI `security` 双侧执行——两侧我均实测输出 `8 toolchain pins aligned`）。
+
+### 2.1 决定性变异矩阵（我自建，非复用实施方结论）
+
+| 变异 | 结果 |
+|---|---|
+| 真实仓库 + 真实 SBOM（对照） | **PASS（8 pins）** |
+| **SBOM `typescript` 6.0.3→7.0.2（即 dependabot PR #3 场景）** | **`TOOLCHAIN_DRIFT -> typescript`** ✔ 命中正确包名 |
+| `eslint` / `@eslint/js` / `typescript-eslint` / `prettier` / `vite` 逐个漂移 | 5/5 命中且包名正确 ✔ |
+| `engines.node` 改 24.18.0 | `-> node` ✔ |
+| **`toolchain.json` 的 node 改 24.18.0（反方向）** | `-> node` ✔ **双向绑定成立** |
+| `packageManager` 改 `pnpm@12.0.0` | `-> pnpm` ✔ |
+| 多项同时漂移（typescript + vite） | `-> typescript, vite` **全部列出**，不止报第一个 ✔ |
+
+**双向性是关键**：无论是"依赖升了、记录没跟"还是"记录改了、依赖没跟"，都被拦——这才真正锁住冻结记录，而非单向。
+
+### 2.2 fail-closed（5 种残缺输入全部拒绝）
+缺 `typescript` pin、pin 无 `version` 字段、`toolchain.versions.json` 不存在、非法 JSON、`package.json` 不存在——**5/5 抛 `TOOLCHAIN_DRIFT`**，无一静默跳过。
+
+### 2.3 我另构的两条绕过路径——均被封死
+实施方未测、我自行设计的规避方式：
+
+| 绕过尝试 | 结果 |
+|---|---|
+| 把 `typescript` 在 SBOM 中降级为传递依赖（`direct=false`） | `-> typescript` **仍被拦** ✔ |
+| 把 `typescript` 从 SBOM 整个删除 | `-> typescript` **仍被拦** ✔ |
+
+即无法通过"改变分类"或"让包消失"来躲过冻结校验。
+
+### 2.4 结论
+首审 `G2-M1` 的原始风险——「修好类型/构建破裂并重建 SBOM 后，8 项检查全绿而 `toolchain.versions.json` 静默失同步」——**已被封死**：即便构建全绿、SBOM 重建完成，只要版本与冻结记录不一致，`supply:check` 即以 `TOOLCHAIN_DRIFT` 失败，而 `supply:check` 正是 main 的 8 项必需检查之一（`security` 作业）。
+
+## 3. 单测承重（拆守卫应变红）
+
+对 `toolchain.ts` 逐条件变异后复跑其 4 项单测：
+
+| 变异 | 单测 |
+|---|---|
+| 对照（未改） | GREEN pass=4 |
+| 版本比较恒真 | **RED**（`a bumped dependency without a toolchain record update is detected`） |
+| `node` 比较恒真 | **RED**（`engines and packageManager drift are detected`） |
+| `pnpm` 比较恒真 | **RED**（同上） |
+| 移除抛错（忽略 mismatches） | **RED**（两项同时红） |
+| **去掉 `&& entry.direct` 过滤** | **GREEN pass=4** ✖ → `G2-N2` |
+
+核心版本/node/pnpm/抛错四条**均承重**；仅 `entry.direct` 子条件无决定性测试。
+
+## 4. 新增 NOTE
+
+- **`G2-N2`**：`checkToolchainPins` 中 `sbom.packages.find(e => e.name === packageName && **e.direct**)` 的 `direct` 过滤**无测试覆盖**——去掉它 4 项单测仍全绿。
+  **实际暴露面为零**：我核查 6 个 pin 包在当前 SBOM 中**各只有 1 条目且均为 direct**（typescript 6.0.3、eslint 10.7.0、@eslint/js 10.0.1、typescript-eslint 8.64.0、prettier 3.9.5、vite 8.1.5），故当前树中该过滤是等价无操作，测试自然无从区分。
+  **但它是有意义的纵深**：若某 pin 包日后同时出现直接与传递两份（如 ajv 的 8.20.0/6.15.0 那样），去掉过滤后 `find` 会按 name+version 升序命中**较低版本的传递副本**，可能**掩盖真实漂移（假阴性）**或产生假阳性。
+  **行为本身正确**（§2.3 已证 `direct=false` 与"整个删除"两种情形均被拦），仅缺测试。**建议**：加一条合成用例——构造某 pin 包同时含传递旧版与直接 pin 版的 SBOM，断言仍通过；再把直接版改漂移，断言被拦。归属 Codex，随下次 `supply-chain` 维护处理。
+  依 G2-01 的 DoD §2「核心守卫有决定性测试…不被邻近守卫代打」，此项登记为 NOTE 而非放行不提。
+
+## 5. 回归
+- `pnpm supply:check`：`147 packages (10 direct), license policy clean, no drift, **8 toolchain pins aligned**`。
+- `pnpm ci:job security`：secrets/licenses/fonts/**supply-chain** 全过，同样输出 8 pins aligned——**CI 侧确实执行**。
+- `pnpm verify`：退出 0、**194/194**。
+- 三个 dependabot PR 仍为 open/未合并（按首审建议保留为活跃证据）——`G2-M1` 落地后，它们再合并已不会造成冻结记录失同步。
+
+## 6. 复核结论
+
+**`PASS` —— 兹签署 G2-02；G2 双门禁齐备**
+
+- **`G2-M1`（MINOR）已关闭**：冻结工具链记录现由 `checkToolchainPins` **双向**绑定至 `engines`/`packageManager`/SBOM 直接依赖，挂在既有 `supply:check` 上、verify 与 CI 双侧执行；dependabot PR #3 场景实测被拦且命中正确包名；5 种残缺输入 fail-closed；我另构的两条绕过路径（降级为传递、整个删除）均被封死；4 条核心子条件中除 `direct` 外均有承重单测。
+- **无新增 BLOCKER/MAJOR/MINOR**；一条 NOTE `G2-N2`（`direct` 过滤无覆盖，当前暴露面为零）与首审 `G2-N1`（留痕措辞）随维护处理。
+- **首审其余结论保持成立**：8 必需检查与 CI 矩阵集合相同、禁 force-push/删除、private、协作者仅一人、留痕可实证识别、main 无历史改写、依赖更新必经完整回归。
+
+综合首审 `CONDITIONAL PASS` 与本轮 `G2-M1` 关闭，**G2-02 无未关闭发现，可标记完成**。
+
+**G2-01 与 G2-02 均已签署，功能变更门禁（治理侧 + 远程侧）齐备。** 后续 PA 系列任务仍须各自满足 DoR、走 PR 与独立审计；本签署不预先放行 PA-00 或任何具体任务的内容。
+
+> 依 `AGENTS.md` 与 `CLAUDE.md`，本复核由未参与实施与修复的独立审计角色出具，只签署事实、不提供也不应用补丁；不修改代码、仓库设置或路线图，由 Codex 依本结论完成台账。
