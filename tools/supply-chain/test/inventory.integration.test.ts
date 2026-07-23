@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   buildSbom,
   checkLicensePolicy,
+  checkToolchainPins,
   licensePolicyViolation,
   reviewedLicensesInUse,
   REVIEWED_LICENSES,
@@ -59,6 +60,12 @@ test("policy violation detection is decisive against license tampering", async (
   assert.equal(findings.length, 1);
   assert.equal(findings[0]?.packageName, "eslint");
   assert.notEqual(licensePolicyViolation("GPL-3.0-only"), undefined);
+});
+
+test("frozen toolchain pins align with the installed dependency tree", async () => {
+  const rebuilt = await buildSbom(workspaceRoot);
+  const aligned = await checkToolchainPins(workspaceRoot, rebuilt);
+  assert.equal(aligned.length, 8);
 });
 
 test("every external dependency declared by a workspace is installed and direct", async () => {

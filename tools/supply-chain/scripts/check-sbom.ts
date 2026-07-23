@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import {
   buildSbom,
   checkLicensePolicy,
+  checkToolchainPins,
   parseSbom,
   serializeSbom,
   SupplyChainError,
@@ -46,8 +47,10 @@ if (findings.length > 0) {
     "dependency tree contains forbidden or unreviewed licenses",
   );
 }
+const toolchainPins = await checkToolchainPins(workspaceRoot, rebuilt);
 const direct = rebuilt.packages.filter((entry) => entry.direct).length;
 console.log(
   `Supply chain check passed: ${rebuilt.packages.length} packages ` +
-    `(${direct} direct), license policy clean, no drift.`,
+    `(${direct} direct), license policy clean, no drift, ` +
+    `${toolchainPins.length} toolchain pins aligned.`,
 );

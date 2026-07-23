@@ -1,4 +1,5 @@
-export type SupplyChainCode = "SBOM_INVALID" | "SBOM_DRIFT" | "LICENSE_BLOCKED";
+export type SupplyChainCode =
+  "SBOM_INVALID" | "SBOM_DRIFT" | "LICENSE_BLOCKED" | "TOOLCHAIN_DRIFT";
 
 export class SupplyChainError extends Error {
   public readonly code: SupplyChainCode;

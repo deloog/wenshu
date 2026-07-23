@@ -21,6 +21,7 @@
 
 - [.github/dependabot.yml](../.github/dependabot.yml)：npm 周更、最多 3 个并发 PR；更新 PR 自动触发同一 8 作业矩阵回归。
 - 许可扩张由 `licenses:check` 与 `supply:check`（147 包基线、GPL/AGPL/未知阻断）在 CI `security` 作业拦截；dependabot 无任何豁免配置。
+- **冻结工具链对账**：`supply:check` 内嵌 `checkToolchainPins`——`toolchain.versions.json` 的 node/pnpm/typescript/eslint/@eslint/js/typescript-eslint/prettier/vite 八项 pin 必须与 engines/packageManager/依赖树解析版本一致，任何依赖更新未同步冻结记录即 `TOOLCHAIN_DRIFT` 阻断（覆盖 G2-M1：防止"修好构建即可绕过冻结工具链"）。
 
 ## 4. 故意失败验证（2026-07-23 实测，初配 enforce_admins=true 下）
 
