@@ -31,7 +31,16 @@ const CHROMIUM_CANDIDATES: readonly string[] = (() => {
   }
 })();
 
-export function findChromium(): string {
+export function findChromium(executableOverride?: string): string {
+  if (executableOverride !== undefined) {
+    if (!existsSync(executableOverride)) {
+      throw new RenderCheckError(
+        "RENDER_BROWSER_UNAVAILABLE",
+        "the explicitly provided browser executable does not exist",
+      );
+    }
+    return executableOverride;
+  }
   for (const candidate of CHROMIUM_CANDIDATES) {
     if (existsSync(candidate)) {
       return candidate;
@@ -48,6 +57,10 @@ export interface BrowserSession {
   /** 在页面上下文执行表达式（可含 Promise），按值返回结果。 */
   evaluate<T>(expression: string): Promise<T>;
   screenshot(filePath: string): Promise<void>;
+  /** CDP Page.printToPDF：按显式参数打印当前页，返回 PDF 字节。 */
+  printToPdf(params: Record<string, unknown>): Promise<Uint8Array>;
+  /** 浏览器产品版本（CDP Browser.getVersion），锁定留证用。 */
+  productVersion(): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -62,8 +75,10 @@ interface CdpFrame {
 const COMMAND_TIMEOUT_MS = 30_000;
 
 /** 最小 CDP 客户端：真实 Chromium、真实 Font Loading API，无任何 mock。 */
-export async function launchBrowser(): Promise<BrowserSession> {
-  const executable = findChromium();
+export async function launchBrowser(
+  executableOverride?: string,
+): Promise<BrowserSession> {
+  const executable = findChromium(executableOverride);
   const profile = await mkdtemp(join(tmpdir(), "wenshu-render-"));
   const child: ChildProcess = spawn(
     executable,
@@ -219,6 +234,14 @@ export async function launchBrowser(): Promise<BrowserSession> {
     screenshot: async (filePath: string) => {
       const result = await send("Page.captureScreenshot", { format: "png" }, sessionId);
       await writeFile(filePath, Buffer.from(String(result["data"]), "base64"));
+    },
+    printToPdf: async (params: Record<string, unknown>) => {
+      const result = await send("Page.printToPDF", params, sessionId);
+      return new Uint8Array(Buffer.from(String(result["data"]), "base64"));
+    },
+    productVersion: async () => {
+      const result = await send("Browser.getVersion", {});
+      return String(result["product"] ?? "unknown");
     },
     close: async () => {
       // Windows 上 kill 后主进程仍短暂持有 profile 锁：先 CDP 优雅关闭、等退出、重试清理。

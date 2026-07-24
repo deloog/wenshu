@@ -131,6 +131,31 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
+  packages/pdf-export:
+    dependencies:
+      '@wenshu/document-model':
+        specifier: workspace:*
+        version: link:../document-model
+      '@wenshu/report-render':
+        specifier: workspace:*
+        version: link:../report-render
+      '@wenshu/template-css':
+        specifier: workspace:*
+        version: link:../template-css
+      '@wenshu/template-map':
+        specifier: workspace:*
+        version: link:../template-map
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      '@wenshu/markdown-import':
+        specifier: workspace:*
+        version: link:../markdown-import
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
   packages/project-contract:
     dependencies:
       '@wenshu/contract-runtime':
