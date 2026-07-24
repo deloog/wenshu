@@ -4,6 +4,7 @@ import { extname, join, normalize, resolve, sep } from "node:path";
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = Object.freeze({
   ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
   ".otf": "font/otf",
   ".svg": "image/svg+xml",
   ".png": "image/png",
@@ -39,11 +40,13 @@ export async function startStaticServer(
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
       const inline = documents[url.pathname];
       if (inline !== undefined) {
-        const type =
-          typeof inline === "string" ? ".html" : extname(url.pathname).toLowerCase();
-        response.writeHead(200, {
-          "content-type": CONTENT_TYPES[type] ?? "application/octet-stream",
-        });
+        const extension = extname(url.pathname).toLowerCase();
+        const contentType =
+          CONTENT_TYPES[extension] ??
+          (typeof inline === "string"
+            ? CONTENT_TYPES[".html"]
+            : "application/octet-stream");
+        response.writeHead(200, { "content-type": contentType });
         response.end(inline);
         return;
       }
