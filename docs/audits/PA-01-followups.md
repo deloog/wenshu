@@ -2,7 +2,7 @@
 
 > 来源：[PA-01 Claude 独立审计报告](PA-01-claude-audit-report.md) §5/§6/§8　日期：2026-07-24
 
-PA-01 首审 `FAIL` 的唯一阻断 PA-A1 与建议同轮的 PA-A2/PA-A3 已修复（见 [PA-01-paa1-paa3-remediation.md](PA-01-paa1-paa3-remediation.md)），复审 `PASS`（签署以远程 CI 8/8 复现为生效条件）。下列 MINOR 与观察项**不阻断 PA-01 签署**，但必须按归属关闭；本文件只登记归属，不代表发现已经关闭。PA-A8 为复审新增发现。
+PA-01 首审 `FAIL` 的唯一阻断 PA-A1 与建议同轮的 PA-A2/PA-A3 已修复（见 [PA-01-paa1-paa3-remediation.md](PA-01-paa1-paa3-remediation.md)），复审 `PASS` 签署（生效条件=远程 CI 8/8 复现，已经 run `30067276449` 达成）。下列 MINOR 与观察项**不阻断 PA-01 签署**，但必须按归属关闭；本文件只登记归属，不代表发现已经关闭。PA-A8 为复审新增发现。
 
 | 发现 | 归属任务 | 最迟关闭点 | 验收重点 |
 |---|---|---|---|

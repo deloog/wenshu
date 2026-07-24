@@ -221,3 +221,136 @@ git diff --name-only bdd672f^..HEAD -- docs/poc-a/fixtures/ 'assets/fonts/**' '*
 - PA-A5/PA-A6 涉及 ID 语义，建议在 PA-02 开工前形成决策记录，避免模板映射阶段再回改标识体系。
 
 修复后由 Codex 更新台账，Claude 复审关闭。按 CLAUDE.md，本报告由审计者给出结论，台账由 Codex 完成。
+
+---
+
+# 附录 A · PA-A1/A2/A3 整改复审（第 2 轮，严格追加）
+
+> 复审者：Claude（独立只读审计）　日期：2026-07-24
+> 复审基线：本地提交 `7bec236`（代码与测试）、`50d9205`（台账），工作树干净
+> 上游对照：`origin/main` = `b5ef200`，**上述两个提交未推送**（见 A.6 前置缺口）
+> 写入边界：本轮仅在本文件追加本附录；首审 §1–§8 一字未改。仓外探针写于 `D:\tmp\pa01re*`，收尾已删除。
+
+## A.1 复审结论
+
+**PASS —— PA-A1 关闭，PA-01 予以签署通过。**
+
+前置条件一项：**本基线尚未推送、未经远程 ubuntu CI 验证**（A.6）。本地八项门禁全绿且我已独立复验；签署在"推送后远程 CI 8/8 复现"这一条件下生效，若远程出现跨平台差异需回到本附录追加。
+
+## A.2 PA-A1（MAJOR）—— 已闭合，我独立重跑变异证实
+
+不采信整改记录中"两处变异自证变红"的自述。我在仓外破坏性副本 `D:\tmp\pa01re` 上重建工作树、重跑完整变异矩阵（基线 **19 pass / 0 fail**）：
+
+| # | 变异的守卫 | 首审结果 | **复审结果** |
+|---|---|---|---|
+| PA-A1-a | `reconcile.ts` 删除「文档内容 vs 行账目」检查 | 12 pass / 0 fail ✖ | **17 pass / 2 fail 变红 ✔** |
+| PA-A1-b | `importer.ts` 删除 schema 校验门禁 | 12 pass / 0 fail ✖ | **18 pass / 1 fail 变红 ✔** |
+| 回归1 | `inline.ts` 不再剥离 `**` | 变红 ✔ | 18 pass / 1 fail 变红 ✔ |
+| 回归2 | `reconcile.ts` `syntaxChars` 汇总恒为 0 | 变红 ✔ | 14 pass / 5 fail 变红 ✔ |
+| 回归3 | `document.ts` `ordinal` 恒为 0 | 变红 ✔ | 17 pass / 2 fail 变红 ✔ |
+| 新增A2 | `parser.ts` 空白行 `syntaxChars` 退回 `0` | —— | 17 pass / 2 fail 变红 ✔ |
+| 新增A3a | `parser.ts` `\r` 不再计入 `syntaxChars` | —— | 17 pass / 2 fail 变红 ✔ |
+| 新增A3b | `parser.ts` `sourceChars` 退回规范化长度 | —— | 17 pass / 2 fail 变红 ✔ |
+
+**8 / 8 变异全部变红**；变异体还原后与仓库源码 `diff -r` **逐字节一致**，排除"变异未真正注入"与"还原污染基线"两类假阳性。首审阻断点消除。
+
+新增测试经审阅非同义反复：`reconcile.unit.test.ts` 以"块文本加字"与"整块丢失"两种形态篡改文档后断言抛错；schema 门禁测试复用首审 PA-A5 的 101 行表格撞键输入，断言 `importMarkdownDocument` 拒绝。两者都从**外部可观测行为**约束守卫，而非断言实现细节。
+
+## A.3 PA-A2 / PA-A3 —— 已修复，独立复验
+
+产品代码改动面经核**仅 `packages/markdown-import/src/parser.ts` 一个文件**，未触碰 `reconcile.ts`/`importer.ts`/ID 方案。
+
+- **PA-A2（空白行）**：2 空格、1 制表符、混合空白三种空白行现均正常接受，`sourceChars` 与真实文件一致、汇总与逐行恒等式均成立 ✔（首审为 `IMPORT_RECONCILE_FAILED`）。
+- **PA-A3（CRLF）**：CRLF 全文、CRLF+空白行、LF/CRLF 混合三种形态，`sourceChars` 与真实文件字符数**完全一致，未归账字符 0** ✔。`golden-report.md` 转 CRLF 后真实 12967 字符、`sourceChars` 报 12967（首审差 303），逐行恒等式 303/303 成立。
+- **关键旁证**：CRLF 版与 LF 版导入产出的**文档 JSON 完全一致** —— 证明 `\r` 计入语法消费而未渗入内容。
+- **旧 Mac 孤立 `\r` 行尾**：仍 fail-closed（`IMPORT_FRONTMATTER_INVALID`）✔。
+
+## A.4 核心对账与 fail-closed 无回归
+
+冻结路径 `golden-report.md` 复算，数值与首审基线**逐项一致**：
+
+- `sourceChars` 12664、`contentChars` 11136、`syntaxChars` 1225、`newlineChars` 303 ✔
+- 逐行恒等式 **303 / 303** 成立；文档文本 ⊆ 源子序列 **11139 / 11139**；字符超量种类 0 ✔
+- 两个资产 SHA-256 与内容寻址名仍一致 ✔
+- fail-closed 抽样 13 类（代码围栏、四级标题、HTML、行内链接、未知标记、未配对 `**`、缩进块、Setext、残缺表格、越根/远程/webp 图片）全部仍被拒，错误分类不变、无正文回显 ✔
+- 冻结物零漂移：`git diff b5ef200..HEAD -- docs/poc-a/fixtures/ 'assets/fonts/**' '*.schema.json' 'packages/*/src/generated/' artifacts/ sbom/ pnpm-lock.yaml` **输出为空** ✔
+- SBOM **147 → 147，零新增**；`packages/markdown-import/package.json` 与根 `package.json` 未改动 ✔
+- 测试数复核 unit 10 + contract 4 + integration 5 = **19 pass / 0 fail**（与自述一致）；`pnpm verify` **exit 0** ✔
+
+## A.5 新发现
+
+### PA-A8 · MINOR · 控制字符可无阻碍进入文档正文
+
+- **证据**：正文中的 U+0000 NUL、U+0008 BS、U+001B ESC、U+007F DEL、U+2028 LS **全部被接受并原样进入 `paragraph.text`**；行中间的孤立 `\r` 同样落入 `contentChars`（段落文本实测为 `"第一\r段。"`）。schema `BodyText` 仅约束长度，无控制字符限制。
+- **定性**：**既有问题，非本次整改引入的回归。** 首审的 `replaceAll("\r\n","\n")` 同样不处理孤立 `\r` 与其他控制字符；PA-A3 的修复只针对行尾 `\r`，未扩大也未缩小这一面。
+- **影响**：不影响 PA-01 的对账正确性（这些字符如实计入 `contentChars`，归账闭合）。风险在下游：PA-03 语义 HTML 渲染与 PDF 生成消费含 NUL/ESC 的文本时行为未定义；孤立 `\r` 在 CommonMark 中本应是行结束符，此处被当作正文字符，与"严格子集解析"的表述有出入。
+- **建议**：登记为 followup，与 PA-A4（BOM）同批处置——在导入边界对 C0/C1 控制字符（保留 `\t`）与 U+2028/2029 作 fail-closed 或规范化，并补测试。**不阻断 PA-01 签署。**
+
+## A.6 前置缺口（须在签署生效前补齐）
+
+**本基线未推送，远程 CI 未验证。** `origin/main` 仍停在 `b5ef200`，`7bec236`/`50d9205` 均为本地提交。按 AGENTS.md「推送节奏」第 1 条，交付独立审计前基线必须已推送且经远程 CI 验证。
+
+- 我的门禁复核全部在**本地 Windows + 冻结工具链**上完成；CI 矩阵在 **ubuntu-24.04** 上跑 8 job。G1-15 的 SM-01 正是"本地绿、ubuntu 红"的先例，此差异不能仅凭本地结果排除。
+- 本次改动面（`parser.ts` 的行尾处理）**恰好属于跨平台敏感面**——行尾语义在 Windows 与 Linux 检出时可能因 `core.autocrlf`/`.gitattributes` 而不同。按 AGENTS.md 推送节奏第 3 条，跨平台敏感变更应立即推送验证。
+- 我作为审计者对 GitHub 只有只读权限，不推送、不触发 Actions。**请业主或 Codex 推送**，我再据远程 run 结果在本附录追加确认。
+
+补充核查：`.gitattributes` 与 `golden-report.md` 的检出行尾未随本次改动变更（冻结物零漂移已覆盖），但这一条只能证明仓库侧未变，不能替代远程 CI 实跑。
+
+## A.7 结论与交接
+
+**PA-A1 关闭。PA-01 复审 PASS，予以签署**（以远程 CI 8/8 复现为生效条件，见 A.6）。
+
+- **已闭合**：PA-A1（MAJOR）、PA-A2、PA-A3 —— 均经我独立重跑变异与行为复验，非采信自述。
+- **未闭合但不阻断**：PA-A4、PA-A5、PA-A6、PA-A7 已在 `docs/audits/PA-01-followups.md` 登记归属，台账表述与审计结论一致，未见过度声称。新增 **PA-A8** 请一并登记。
+- **PA-02（模板映射）与 PA-03（语义 HTML 渲染 + 字体加载）可按波次并行开工**，但 **PA-A5（序数打包非单射）与 PA-A6（documentId 语义）必须在 PA-02 开工前形成决策记录**——两者都触及标识体系，PA-02 一旦以现有 ID 为锚点建映射，回改成本将显著上升。PA-A8 建议与 PA-03 的渲染边界一并裁定。
+
+按 CLAUDE.md，本附录由审计者给出结论，台账由 Codex 完成；实施者不自行关闭发现。
+
+---
+
+## 附录 A.8 · 远程 CI 确认 —— 签署生效（严格追加）
+
+> 追加日期：2026-07-24　确认基线：`origin/main` = `bec3a63`（`b5ef200..bec3a63` 三个提交已推送）
+
+A.6 提出的前置缺口已补齐，**A.1 的签署条件成就，PA-01 签署即时生效。**
+
+### 我独立核验的远程证据（未采信转述）
+
+- **run `30067276449`**：`name=verify`、`event=push`、`head_sha=bec3a63`、`status=completed`、`conclusion=success`。head_sha 与 `origin/main` 一致 ✔
+- **8 个 job 全部 `success`**：`static / unit-config / contracts / typecheck / build-test / build-staging / build-production / security`；与分支保护 `required_status_checks.contexts` 的 8 项**逐项同名同数**，无"绿在非必需检查上"的偷换 ✔
+- **runner `labels=["ubuntu-24.04"]`** —— 跨平台确证在真实 Linux 上完成 ✔
+
+### A.6 的跨平台风险已被直接证伪
+
+A.6 的顾虑是 `parser.ts` 行尾处理在 Linux 上可能与本地 Windows 不同。我从 `contracts` job（id `89400605500`）日志中取到**逐条测试的实跑记录**，而非仅看 job 结论：
+
+| 在 ubuntu-24.04 上实跑通过的关键测试 | 覆盖的发现 |
+|---|---|
+| `whitespace-only blank lines are consumed as syntax, not rejected` | PA-A2 |
+| `CRLF sources account every carriage return as per-line syntax` | PA-A3 |
+| `CRLF input reconciles against the raw file character count` | PA-A3 |
+| `document content drifting from line accounting fails closed` | **PA-A1-a** |
+| `document content silently dropped from a block fails closed` | **PA-A1-a** |
+| `assembled document violating the v0.1.0 contract is rejected at the schema gate` | **PA-A1-b** |
+| `frozen golden report imports with zero content loss`（含新增逐行恒等式断言） | §2 核心对账 |
+
+markdown-import 在 ubuntu 上的计数为 unit **10** + contract **4** + integration **5** = **19 pass / 0 fail**，与本地逐项一致 ✔
+
+补充核查行尾检出一致性：`.gitattributes` 为 `* text=auto eol=lf`，`golden-report.md` 的仓库对象实测 **`\r` 数 = 0、`\n` 数 = 303**，两平台检出字节一致——排除了"Windows 检出 CRLF、Linux 检出 LF 导致对账口径分叉"这一残余路径。
+
+### 交付基线一致性
+
+`git diff 7bec236..bec3a63 -- 'packages/**' 'apps/**' 'tools/**' '*.json' '*.yaml' '.github/'` **输出为空** —— 第三个提交 `bec3a63` 为纯文档提交，代码面与我在附录 A 所审的 `7bec236` 零差异，**本报告的审计结论完整覆盖已推送的 `bec3a63`** ✔
+
+台账表述经核与审计结论一致：PA-A8 已按我的建议与 PA-A4 同批登记、并标明"PA-03 消费文档文本渲染前必须关闭"；路线图与 AGENTS.md 的 `PASS` 表述均带生效条件，未见过度声称。
+
+### 最终结论
+
+**PA-01 独立审计签署完成 —— PASS，无未关闭的 BLOCKER/MAJOR。**
+
+- 首审 `FAIL` 的唯一阻断 PA-A1 已关闭（附录 A.2 变异矩阵 8/8 全红 + 本节 ubuntu 实跑复现）。
+- PA-A2、PA-A3 已修复并经独立复验。
+- 未关闭且不阻断本门：PA-A4、PA-A5、PA-A6、PA-A7、PA-A8，均已在 `docs/audits/PA-01-followups.md` 登记归属与最迟关闭点。
+- **PA-02（模板映射）与 PA-03（语义 HTML 渲染 + 字体加载）放行，可按波次并行开工。** 硬前置不变：**PA-A5 与 PA-A6 须在 PA-02 开工前形成决策记录**；**PA-A8 须在 PA-03 消费文档文本渲染前关闭**。
+
+本报告至此终结。后续任一发现的关闭均须另起审计轮次，由 Codex 更新台账、Claude 复审关闭；实施者不自行关闭发现。
