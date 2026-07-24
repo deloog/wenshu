@@ -118,3 +118,17 @@ git diff --name-only bec3a63..HEAD -- docs/poc-a/fixtures/ 'assets/fonts/**' '*.
 - PA-02 落地任何新调用点时，须复核决策 #9 的调用点契约（传公共根而非源文件目录）——PA-B2 的护栏无法自证此项。
 
 按 CLAUDE.md，本报告由审计者给出结论，台账由 Codex 完成；实施者不自行关闭发现。
+
+---
+
+## 附录 A · 远程 CI 确认 —— 签署生效（严格追加，2026-07-24）
+
+> 确认基线：`origin/main` = `044b9f5`（`bec3a63..044b9f5` 九个提交已推送）
+
+§8 的生效条件已达成，**PA-A5/PA-A6 签署即时生效；PA-B1 一并确认关闭。**
+
+- **我独立核验的远程证据**：run `30079559019`（`name=verify`、`event=push`、`head_sha=044b9f5`、`conclusion=success`）；**8 job 全 success**，与分支保护必需检查逐项同名同数；runner `ubuntu-24.04`。
+- **跨平台复现（未采信转述）**：从 `contracts` job 日志取到逐条测试记录，PA-A5/A6/B1 的决定性测试均在 ubuntu 实跑通过——`long tables and lists stay injective…`（PA-A5）、`same-title documents under different relative paths get distinct documentIds`（PA-A6）、`source outside the declared import root fails closed`（PA-A6 根）、`dot-prefixed directory names inside the root remain legal`（PA-B1）；markdown-import 计数 12+5+10=**27**（含 PA-A8/A4 后续，另案审计）。documentId 由相对路径 + 分隔符归一派生这一跨平台最敏感面，本机 Windows 已证 POSIX 归一、ubuntu 现证同一测试全绿，两平台一致确证完成。
+- **结论**：PA-A5（节点 ID 单射）、PA-A6（documentId 跨修订稳定标识）**关闭**；PA-B1（越根段判定）**关闭**。PA-B2 仍为可选硬化观察项。PA-A8/A4 属 tip 提交，另见 `PA-A4-A8-claude-audit-report.md`。
+
+本报告至此终结；后续任一发现的关闭均另起审计轮次。
