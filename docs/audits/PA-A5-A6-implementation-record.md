@@ -42,6 +42,13 @@
 - `pnpm format:check` 通过；`pnpm verify` **exit 0 全绿**（含 quality/typecheck/supply/contracts 与 production build）。
 - 冻结物零改动：fixture/字体/schema/生成物/lockfile 未触碰；零新增依赖（SBOM 147→147 由 verify supply 门禁复核）。
 
+## PA-B1 修复（审计 MINOR，本轮顺手收口）
+
+- 问题属实：越根判定 `startsWith("..")` 过宽，误拒 `..foo` 等名以 `..` 开头的合法子目录；fail-closed 方向安全但属行为缺陷。
+- 修复：按路径段判定——`relativeSource === ".." || relativeSource.startsWith(`..${sep}`)`，合法点前缀目录放行，真正越根（`..` 段）与异盘（`isAbsolute`）依旧 fail-closed。
+- 测试：新增「dot-prefixed directory names inside the root remain legal」。变异自证：回退为 `startsWith("..")` → 该测试**变红**，已逐字节还原。
+- PA-B2（观察项，审计登记）：kind 守卫无专属测试，与决策 #8「代码评审检查点」定位一致，不整改。
+
 ## 实施期审查项（决策 #9 登记，移交审计）
 
 - 「禁止逐文件退化」是调用方契约，导入器无法自证：请审计真实调用点（`scripts/parse-fixture.ts` 与测试）传入的是公共根而非源文件目录。当前唯一生产调用点 parse-fixture 传 `docs/poc-a/fixtures`（fixture 公共根）✔；测试均传构造的公共根 ✔。PA-02 落地新调用点时须复核同一条。
