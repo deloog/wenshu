@@ -8,8 +8,8 @@ PA-01 首审 `FAIL` 的唯一阻断 PA-A1 与建议同轮的 PA-A2/PA-A3 已修�
 |---|---|---|---|
 | PA-A4：UTF-8 BOM 被拒且错误信息误导（指向"缺 front matter 围栏"） | 待排期（markdown-import 下一触点） | PA-02 开工前随 PA-A5/A6 决策一并裁定处置时点 | 剥离 BOM 计入语法消费，或保留拒绝但给出专属错误信息；Windows 记事本/Excel 导出形态有测试 |
 | PA-A8：控制字符（U+0000 NUL、ESC、DEL、U+2028）与行中孤立 `\r` 原样进入 `paragraph.text` | 与 PA-A4 同批处置 | PA-03 消费文档文本渲染前必须关闭 | 既有问题（非本轮回归），不影响对账正确性；但 PA-03 渲染与 PDF 生成消费含 NUL/ESC 文本行为未定义。处置方向：控制字符 fail-closed 拒绝或显式清洗并计入语法消费，决策与 PA-A4 同批记录 |
-| PA-A5：序数打包 `ordinal*10000+row*100+col` 非单射，百行表格/列表失败关闭且报错不指真因 | [决策 #8](../决策记录.md) **已批准**（Claude 复核：单射经 3153 位置穷举实证；承重不变量 kind 非数字已写入）；实施排期 PA-02 前 | **PA-02 开工前** | 实施要点：复合摘要种子（构造单射）；`validateDocument` issues（code/path）进入错误信息；PA-A1-b 门禁测试触发器替换为 title 超 ShortText maxLength 500（Claude 已实证决定性不回潮）；新增 kind 保持非数字词汇表 |
-| PA-A6：`documentId` 仅由 title 派生，同名不同文文档身份碰撞 | [决策 #9](../决策记录.md) **已批准**（(a) 收口：v0 导入根=调用方显式公共目录、必填，禁止逐文件退化）；实施排期 PA-02 前 | **PA-02 开工前** | 裁定：documentId = 跨修订稳定标识，派生 = 公共导入根相对路径 + title；残余（同槽位覆盖）按新修订 + §3 显式冲突解决兜底。**实施期审查项（Claude 复核登记）：审计真实调用点传入的是知识库/导入包级公共根而非源文件目录**——「禁止逐文件退化」是调用方契约，导入器无法自证，须在实施审计时验证 |
+| PA-A5：序数打包 `ordinal*10000+row*100+col` 非单射，百行表格/列表失败关闭且报错不指真因 | [决策 #8](../决策记录.md) 已批准；**已实现待 Claude 审计**（[实施记录](PA-A5-A6-implementation-record.md)） | **PA-02 开工前** | 已落地：复合摘要种子（构造单射）+ kind 非数字词汇表守卫；issues（code/path）进入错误信息；PA-A1-b 触发器已替换为 title 超 500（变异自证决定性）；101 行表格/列表反例现被接受且 ID 唯一 |
+| PA-A6：`documentId` 仅由 title 派生，同名不同文文档身份碰撞 | [决策 #9](../决策记录.md) 已批准；**已实现待 Claude 审计**（[实施记录](PA-A5-A6-implementation-record.md)） | **PA-02 开工前** | 已落地：importRoot 必填、越根 fail-closed（新码 `IMPORT_ROOT_INVALID`）；documentId=公共根相对路径+title；同名不同路径不同 ID/同路径幂等/改标题新身份均有决定性测试与变异自证。**实施期审查项：核真实调用点传公共根而非源文件目录**（当前唯一生产调用点 parse-fixture 传 fixtures 公共根） |
 | PA-A7：front matter 非 title 键静默丢弃且记为「语法消费」 | 待排期（随 PA-A5/A6 决策一并裁定） | PA-02 开工前 | 二选一落定：(a) 非 title 键 fail-closed；(b) `ImportResult` 返回 `droppedMetadata` 并对账单列 `discardedChars` |
 
 ## 观察项（不计严重级别）
