@@ -58,6 +58,75 @@ test("remote reference uses its dedicated code", () => {
   );
 });
 
+test("whitespace-only blank lines are consumed as syntax, not rejected", () => {
+  const source = [
+    "---",
+    "title: t",
+    "---",
+    "",
+    "第一段。",
+    "  ",
+    "\t",
+    "第二段。",
+  ].join("\n");
+  const parsed = parseMarkdown(source);
+  const rawLines = source.split("\n");
+  assert.equal(parsed.consumed.filter((line) => line.kind === "blank").length, 3);
+  for (const entry of parsed.consumed) {
+    assert.equal(
+      entry.contentChars + entry.syntaxChars,
+      rawLines[entry.line - 1]?.length,
+      `line ${entry.line} accounting mismatch`,
+    );
+  }
+  const totals = parsed.consumed.reduce(
+    (sum, line) => ({
+      content: sum.content + line.contentChars,
+      syntax: sum.syntax + line.syntaxChars,
+    }),
+    { content: 0, syntax: 0 },
+  );
+  assert.equal(
+    totals.content + totals.syntax + parsed.newlineChars,
+    parsed.sourceChars,
+  );
+});
+
+test("CRLF sources account every carriage return as per-line syntax", () => {
+  const lf = ["---", "title: t", "---", "", "第一段。", "", "第二段。"].join("\n");
+  const crlf = lf.replaceAll("\n", "\r\n");
+  const parsed = parseMarkdown(crlf);
+  assert.equal(parsed.sourceChars, crlf.length);
+  const rawLines = crlf.split("\n");
+  let carriageReturns = 0;
+  for (const entry of parsed.consumed) {
+    const raw = rawLines[entry.line - 1];
+    assert.ok(raw !== undefined);
+    assert.equal(
+      entry.contentChars + entry.syntaxChars,
+      raw.length,
+      `line ${entry.line} accounting mismatch`,
+    );
+    if (raw.endsWith("\r")) {
+      carriageReturns += 1;
+    }
+  }
+  assert.equal(carriageReturns, rawLines.length - 1);
+  const totals = parsed.consumed.reduce(
+    (sum, line) => ({
+      content: sum.content + line.contentChars,
+      syntax: sum.syntax + line.syntaxChars,
+    }),
+    { content: 0, syntax: 0 },
+  );
+  assert.equal(
+    totals.content + totals.syntax + parsed.newlineChars,
+    parsed.sourceChars,
+  );
+  // CRLF 与 LF 解析出同一份块结构，\r 不进入内容。
+  assert.deepEqual(parsed.blocks, parseMarkdown(lf).blocks);
+});
+
 test("tables parse alignment and reject ragged rows", () => {
   const parsed = parseMarkdown(
     [

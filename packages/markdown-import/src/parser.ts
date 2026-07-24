@@ -25,11 +25,23 @@ export interface ParsedSource {
 }
 
 export function parseMarkdown(source: string): ParsedSource {
-  const normalized = source.replaceAll("\r\n", "\n");
-  const trailingNewline = normalized.endsWith("\n");
-  const lines = normalized.split("\n");
-  if (trailingNewline) {
-    lines.pop();
+  const segments = source.split("\n");
+  const newlineChars = segments.length - 1;
+  if (source.endsWith("\n")) {
+    segments.pop();
+  }
+  // CRLF 行尾的 \r 是真实源字符，逐行剥离后计入该行的语法消费，
+  // 使对账口径对 Windows 默认行尾的原始文件闭合。
+  const lines: string[] = [];
+  const carriageReturns: number[] = [];
+  for (const segment of segments) {
+    if (segment.endsWith("\r")) {
+      lines.push(segment.slice(0, -1));
+      carriageReturns.push(1);
+    } else {
+      lines.push(segment);
+      carriageReturns.push(0);
+    }
   }
   const front = parseFrontMatter(lines);
   const consumed: ConsumedLine[] = [];
@@ -66,10 +78,11 @@ export function parseMarkdown(source: string): ParsedSource {
     const lineNumber = index + 1;
     const context = `line ${lineNumber}`;
     if (line.trim().length === 0) {
+      // 纯空白行是合法空行，空白字符按语法消费计入对账。
       consumed.push({
         line: lineNumber,
         kind: "blank",
-        syntaxChars: 0,
+        syntaxChars: line.length,
         contentChars: 0,
       });
       index += 1;
@@ -215,12 +228,18 @@ export function parseMarkdown(source: string): ParsedSource {
       "document body must contain at least one block",
     );
   }
+  const accounted = consumed.map((entry) => {
+    const carriage = carriageReturns[entry.line - 1] ?? 0;
+    return carriage === 0
+      ? entry
+      : { ...entry, syntaxChars: entry.syntaxChars + carriage };
+  });
   return Object.freeze({
     metadata: front.metadata,
     blocks: Object.freeze(blocks),
-    consumed: Object.freeze(consumed),
-    newlineChars: lines.length - 1 + (trailingNewline ? 1 : 0),
-    sourceChars: normalized.length,
+    consumed: Object.freeze(accounted),
+    newlineChars,
+    sourceChars: source.length,
     embeddedBreaks,
   });
 }
