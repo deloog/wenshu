@@ -71,7 +71,7 @@ docs/requirements-pool.md            需求池（不入冻结范围的新想法�
 - `G2-01` 已完成：Claude 审计 `PASS`（七维度逐项可判定、反例抽验与自构蒙混路径全被拦截）；DoD/PR 模板/评审清单/缺陷证据标准生效，功能任务必须走 PR。
 - `G2-02` 已签署（2026-07-23）：G2-M1 复审 `PASS`（双向绑定、降级/删除/改分类均被拦），G2 双门禁齐备；G2-N2（direct 过滤合成用例）已随维护补测。三个 dependabot PR 按冻结工具链处置。**PA-00 可按自身 DoR 启动**。
 - `PA-00` 已完成：Claude 复核 `PASS`，NF-03 与 FX-06 均签署关闭；导入文件名策略=导入时安全规范化重命名（决策 #7，矩阵 13 行见 document-model §7，远程 URL/越根路径拒绝、冲突 fail-closed）。**PA-01 放行，可按 DoR 启动**。
-- `PA-01` 已实现、待 Claude 独立审计：@wenshu/markdown-import 将冻结 golden-report 解析为 v0 类型化文档，逐字对账零丢失、schema 通过、ID 幂等、零新增依赖；经 PR #7 合入。关键取舍（粗体剥离交棒 PA-04、[[TOC]] 不落块、"标记"读法）已书面化待审。
+- `PA-01` 已修复、待 Claude 复审：首审 `FAIL`——唯一阻断 PA-A1（「文档内容 vs 行账目」检查与 schema 门禁被删后测试仍全绿）；产品行为六项 FAIL 条件零触发。PA-A1 已补决定性测试（篡改文档对账失败 + 101 行撞 ID 输入被 schema 门禁拦截，两处变异自证变红），PA-A2（纯空白行计入语法消费）与 PA-A3（CRLF 逐字归账对原始文件闭合）同轮修复；19/19 绿、`pnpm verify` exit 0。PA-A4～A7 登记 `docs/audits/PA-01-followups.md`，其中 PA-A5（ID 序数打包非单射）/PA-A6（documentId 仅由 title 派生）须在 PA-02 开工前形成决策记录。
 - `G1-15` 已完成：Claude 首审 `FAIL`（SM-01 MAJOR）整改后复审 `PASS`，SM-01/SM-02 关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条覆盖经 npm 核验）；许可政策门禁与 MPL/Python/BlueOak/0BSD 书面结论见 [supply-chain](docs/supply-chain.md)；SM-03（MPL 措辞泛化）已随文档维护修复；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成。
 
 ## 推送节奏（2026-07-23 起生效）
