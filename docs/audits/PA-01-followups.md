@@ -6,10 +6,10 @@ PA-01 首审 `FAIL` 的唯一阻断 PA-A1 与建议同轮的 PA-A2/PA-A3 已修�
 
 | 发现 | 归属任务 | 最迟关闭点 | 验收重点 |
 |---|---|---|---|
-| PA-A4：UTF-8 BOM 被拒且错误信息误导（指向"缺 front matter 围栏"） | **已修复待 Claude 审计**（[PA-A4-A8-remediation.md](PA-A4-A8-remediation.md)，与 PA-A8 同批） | 本批（PA-03 前置） | 裁定取「剥离计账」：前导 BOM 计入第 1 行 syntaxChars，对账对原始文件闭合；BOM+CRLF 组合端到端测试；变异自证变红 |
-| PA-A8：控制字符（U+0000 NUL、ESC、DEL、U+2028）与行中孤立 `\r` 原样进入 `paragraph.text` | **已修复待 Claude 审计**（[PA-A4-A8-remediation.md](PA-A4-A8-remediation.md)，PA-03 轨道首个交付物） | 本批（PA-03 前置） | 裁定取「fail-closed」：C0（保留 `\t`）/DEL/C1/U+2028/2029/孤立 `\r` 一律拒绝，错误仅带行号+码点；8 形态枚举测试 + `\t` 保留；变异自证变红且无邻近守卫代打 |
-| PA-A5：序数打包 `ordinal*10000+row*100+col` 非单射，百行表格/列表失败关闭且报错不指真因 | [决策 #8](../决策记录.md) 已批准；**已实现待 Claude 审计**（[实施记录](PA-A5-A6-implementation-record.md)） | **PA-02 开工前** | 已落地：复合摘要种子（构造单射）+ kind 非数字词汇表守卫；issues（code/path）进入错误信息；PA-A1-b 触发器已替换为 title 超 500（变异自证决定性）；101 行表格/列表反例现被接受且 ID 唯一 |
-| PA-A6：`documentId` 仅由 title 派生，同名不同文文档身份碰撞 | [决策 #9](../决策记录.md) 已批准；**已实现待 Claude 审计**（[实施记录](PA-A5-A6-implementation-record.md)） | **PA-02 开工前** | 已落地：importRoot 必填、越根 fail-closed（新码 `IMPORT_ROOT_INVALID`）；documentId=公共根相对路径+title；同名不同路径不同 ID/同路径幂等/改标题新身份均有决定性测试与变异自证。**实施期审查项：核真实调用点传公共根而非源文件目录**（当前唯一生产调用点 parse-fixture 传 fixtures 公共根） |
+| PA-A4：UTF-8 BOM 被拒且错误信息误导（指向"缺 front matter 围栏"） | **已关闭**（[PA-A4-A8-remediation.md](PA-A4-A8-remediation.md)；Claude 审计 `PASS` 签署，见 [PA-A4-A8-claude-audit-report.md](PA-A4-A8-claude-audit-report.md)） | 本批（PA-03 前置） | 裁定取「剥离计账」：前导 BOM 计入第 1 行 syntaxChars，对账对原始文件闭合；BOM+CRLF 组合端到端测试；变异自证变红 |
+| PA-A8：控制字符（U+0000 NUL、ESC、DEL、U+2028）与行中孤立 `\r` 原样进入 `paragraph.text` | **已关闭**（[PA-A4-A8-remediation.md](PA-A4-A8-remediation.md)；Claude 审计 `PASS` 签署，PA-03 前置满足） | 本批（PA-03 前置） | 裁定取「fail-closed」：C0（保留 `\t`）/DEL/C1/U+2028/2029/孤立 `\r` 一律拒绝，错误仅带行号+码点；8 形态枚举测试 + `\t` 保留；变异自证变红且无邻近守卫代打 |
+| PA-A5：序数打包 `ordinal*10000+row*100+col` 非单射，百行表格/列表失败关闭且报错不指真因 | [决策 #8](../决策记录.md) 已批准；**已关闭**（[实施记录](PA-A5-A6-implementation-record.md)；Claude 审计 `PASS`，远程 CI 复现签署生效） | **PA-02 开工前** | 已落地：复合摘要种子（构造单射）+ kind 非数字词汇表守卫；issues（code/path）进入错误信息；PA-A1-b 触发器已替换为 title 超 500（变异自证决定性）；101 行表格/列表反例现被接受且 ID 唯一 |
+| PA-A6：`documentId` 仅由 title 派生，同名不同文文档身份碰撞 | [决策 #9](../决策记录.md) 已批准；**已关闭**（[实施记录](PA-A5-A6-implementation-record.md)；Claude 审计 `PASS`，远程 CI 复现签署生效） | **PA-02 开工前** | 已落地：importRoot 必填、越根 fail-closed（新码 `IMPORT_ROOT_INVALID`）；documentId=公共根相对路径+title；同名不同路径不同 ID/同路径幂等/改标题新身份均有决定性测试与变异自证。**实施期审查项：核真实调用点传公共根而非源文件目录**（当前唯一生产调用点 parse-fixture 传 fixtures 公共根） |
 | PA-A7：front matter 非 title 键静默丢弃且记为「语法消费」 | 待排期（随 PA-A5/A6 决策一并裁定） | PA-02 开工前 | 二选一落定：(a) 非 title 键 fail-closed；(b) `ImportResult` 返回 `droppedMetadata` 并对账单列 `discardedChars` |
 
 ## 观察项（不计严重级别）
