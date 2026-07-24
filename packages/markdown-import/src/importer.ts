@@ -79,7 +79,8 @@ export async function importMarkdownDocument(
   const relativeSource = relative(resolve(importRoot), resolve(sourcePath));
   if (
     relativeSource === "" ||
-    relativeSource.startsWith("..") ||
+    relativeSource === ".." ||
+    relativeSource.startsWith(`..${sep}`) ||
     isAbsolute(relativeSource)
   ) {
     throw new MarkdownImportError(

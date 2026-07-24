@@ -196,6 +196,21 @@ test("source outside the declared import root fails closed", async () => {
   }
 });
 
+test("dot-prefixed directory names inside the root remain legal", async () => {
+  const root = await mkdtemp(join(tmpdir(), "wenshu-import-"));
+  try {
+    // PA-B1：越根判定必须按路径段，`..foo` 这类合法目录名不得被误拒。
+    const dir = join(root, "..foo");
+    await mkdir(dir, { recursive: true });
+    const file = join(dir, "doc.md");
+    await writeFile(file, ["---", "title: t", "---", "", "正文。"].join("\n"));
+    const { document } = await importMarkdownDocument(file, root);
+    assert.equal(document.title, "t");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("verify wiring cannot omit the markdown import package", async () => {
   const packagePath = resolve(import.meta.dirname, "../../../package.json");
   const parsed = JSON.parse(await readFile(packagePath, "utf8")) as unknown;
