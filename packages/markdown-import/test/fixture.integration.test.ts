@@ -211,6 +211,53 @@ test("dot-prefixed directory names inside the root remain legal", async () => {
   }
 });
 
+test("BOM-prefixed CRLF input reconciles against the raw file", async () => {
+  const root = await mkdtemp(join(tmpdir(), "wenshu-import-"));
+  try {
+    // Windows 记事本默认形态：BOM + CRLF（PA-A4 + PA-A3 + PA-A8 同路径）。
+    const lf = ["---", "title: t", "---", "", "第一段。", "", "- 一"].join("\n");
+    const raw = `\uFEFF${lf.replaceAll("\n", "\r\n")}`;
+    const file = join(root, "doc.md");
+    await writeFile(file, raw);
+    const { document, reconciliation } = await importMarkdownDocument(file, root);
+    assert.equal(document.title, "t");
+    assert.equal(reconciliation.sourceChars, raw.length);
+    assert.equal(
+      reconciliation.contentChars +
+        reconciliation.syntaxChars +
+        reconciliation.newlineChars,
+      reconciliation.sourceChars,
+    );
+    const rawLines = raw.split("\n");
+    for (const line of reconciliation.lines) {
+      assert.equal(
+        line.contentChars + line.syntaxChars,
+        rawLines[line.line - 1]?.length,
+        `line ${line.line} accounting mismatch`,
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("control characters fail closed at the import boundary", async () => {
+  const root = await mkdtemp(join(tmpdir(), "wenshu-import-"));
+  try {
+    const file = join(root, "doc.md");
+    await writeFile(file, ["---", "title: t", "---", "", "第一\u0000段。"].join("\n"));
+    await assert.rejects(
+      () => importMarkdownDocument(file, root),
+      (error: unknown) =>
+        error instanceof MarkdownImportError &&
+        error.code === "IMPORT_UNSUPPORTED_SYNTAX" &&
+        error.message.includes("control character U+0000"),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("verify wiring cannot omit the markdown import package", async () => {
   const packagePath = resolve(import.meta.dirname, "../../../package.json");
   const parsed = JSON.parse(await readFile(packagePath, "utf8")) as unknown;

@@ -24,10 +24,26 @@ export interface ParsedSource {
   readonly embeddedBreaks: number;
 }
 
+/** C0（保留 \t=0x09、\n=0x0A 为结构字符）、DEL、C1 与 U+2028/2029 一律拒绝。 */
+function isDisallowedControl(codePoint: number): boolean {
+  return (
+    codePoint <= 0x08 ||
+    (codePoint >= 0x0b && codePoint <= 0x1f) ||
+    codePoint === 0x7f ||
+    (codePoint >= 0x80 && codePoint <= 0x9f) ||
+    codePoint === 0x2028 ||
+    codePoint === 0x2029
+  );
+}
+
 export function parseMarkdown(source: string): ParsedSource {
-  const segments = source.split("\n");
+  // PA-A4：前导 BOM 剥离并计入第 1 行语法消费（Windows 记事本/Excel 导出常态）；
+  // 正文中间的 U+FEFF 不作特殊处理。
+  const hasBom = source.startsWith("\uFEFF");
+  const text = hasBom ? source.slice(1) : source;
+  const segments = text.split("\n");
   const newlineChars = segments.length - 1;
-  if (source.endsWith("\n")) {
+  if (text.endsWith("\n")) {
     segments.pop();
   }
   // CRLF 行尾的 \r 是真实源字符，逐行剥离后计入该行的语法消费，
@@ -41,6 +57,21 @@ export function parseMarkdown(source: string): ParsedSource {
     } else {
       lines.push(segment);
       carriageReturns.push(0);
+    }
+  }
+  // PA-A8：控制字符 fail-closed。保留 \t；\n 为结构字符；行尾 \r 已在上面剥离，
+  // 此处残留的 \r 必为行中孤立 \r。错误只带行号与码点，不回显正文。
+  for (const [lineIndex, line] of lines.entries()) {
+    for (const char of line) {
+      const codePoint = char.codePointAt(0) ?? 0;
+      if (!isDisallowedControl(codePoint)) {
+        continue;
+      }
+      const hex = codePoint.toString(16).toUpperCase().padStart(4, "0");
+      throw new MarkdownImportError(
+        "IMPORT_UNSUPPORTED_SYNTAX",
+        `control character U+${hex} is not allowed in document text: line ${lineIndex + 1}`,
+      );
     }
   }
   const front = parseFrontMatter(lines);
@@ -229,7 +260,8 @@ export function parseMarkdown(source: string): ParsedSource {
     );
   }
   const accounted = consumed.map((entry) => {
-    const carriage = carriageReturns[entry.line - 1] ?? 0;
+    const carriage =
+      (carriageReturns[entry.line - 1] ?? 0) + (entry.line === 1 && hasBom ? 1 : 0);
     return carriage === 0
       ? entry
       : { ...entry, syntaxChars: entry.syntaxChars + carriage };
