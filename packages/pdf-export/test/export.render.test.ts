@@ -30,7 +30,7 @@ test("baseline export: A4, embedded fonts, metadata policy, verbatim reconciliat
     ),
   );
   // A4 物理尺寸（Skia 页框取整有 <1pt 抖动，双引擎实测 594.96–595.92）。
-  const [widthPt, heightPt] = inspection.pageSizePt;
+  const [widthPt = 0, heightPt = 0] = inspection.pageSizePt;
   assert.ok(Math.abs(widthPt - 595.28) < 1, `width ${widthPt}`);
   assert.ok(Math.abs(heightPt - 841.89) < 1, `height ${heightPt}`);
   // 字体内嵌（名称随引擎在 SourceHanSansCN / 联合设计别名 Noto Sans SC 间变化，

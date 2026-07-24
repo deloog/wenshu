@@ -22,7 +22,7 @@ export interface BaselineInput {
   readonly fixtureRoot: string;
   readonly fontDir: string;
   readonly templatePath: string;
-  readonly browserPath?: string;
+  readonly browserPath?: string | undefined;
 }
 
 export interface BaselineOutput {

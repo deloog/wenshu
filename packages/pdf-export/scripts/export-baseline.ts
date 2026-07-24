@@ -33,6 +33,12 @@ const output = await produceBaselinePdf({
 });
 
 const { inspection } = output;
+
+// 先留证后断言：即使检查失败，PDF 与初步证据也已落盘（可信失败留证）。
+await mkdir(outDir, { recursive: true });
+const pdfPath = resolve(outDir, "golden-report-baseline.pdf");
+await writeFile(pdfPath, output.pdfBytes);
+
 assertMetadataPolicy(
   inspection.metadata,
   inspection.xmp,
@@ -40,8 +46,8 @@ assertMetadataPolicy(
 );
 
 const A4_PT = [595.28, 841.89] as const;
-const [widthPt, heightPt] = inspection.pageSizePt;
-if (Math.abs(widthPt - A4_PT[0]) > 0.5 || Math.abs(heightPt - A4_PT[1]) > 0.5) {
+const [widthPt = 0, heightPt = 0] = inspection.pageSizePt;
+if (Math.abs(widthPt - A4_PT[0]) > 1 || Math.abs(heightPt - A4_PT[1]) > 1) {
   throw new Error(`page size is not A4: ${JSON.stringify(inspection.pageSizePt)}`);
 }
 for (const font of inspection.fonts) {
@@ -52,9 +58,6 @@ for (const font of inspection.fonts) {
 assertPdfReconciled(output.extractedText, output.expectedText);
 
 const sha256 = createHash("sha256").update(output.pdfBytes).digest("hex");
-await mkdir(outDir, { recursive: true });
-const pdfPath = resolve(outDir, "golden-report-baseline.pdf");
-await writeFile(pdfPath, output.pdfBytes);
 const evidence = {
   task: "PA-05 baseline A4 PDF export",
   label,
