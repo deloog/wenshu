@@ -71,7 +71,7 @@ docs/requirements-pool.md            需求池（不入冻结范围的新想法�
 - `G2-01` 已完成：Claude 审计 `PASS`（七维度逐项可判定、反例抽验与自构蒙混路径全被拦截）；DoD/PR 模板/评审清单/缺陷证据标准生效，功能任务必须走 PR。
 - `G2-02` 已签署（2026-07-23）：G2-M1 复审 `PASS`（双向绑定、降级/删除/改分类均被拦），G2 双门禁齐备；G2-N2（direct 过滤合成用例）已随维护补测。三个 dependabot PR 按冻结工具链处置。**PA-00 可按自身 DoR 启动**。
 - `PA-00` 已完成：Claude 复核 `PASS`，NF-03 与 FX-06 均签署关闭；导入文件名策略=导入时安全规范化重命名（决策 #7，矩阵 13 行见 document-model §7，远程 URL/越根路径拒绝、冲突 fail-closed）。**PA-01 放行，可按 DoR 启动**。
-- `PA-01` 已修复、待 Claude 复审：首审 `FAIL`——唯一阻断 PA-A1（「文档内容 vs 行账目」检查与 schema 门禁被删后测试仍全绿）；产品行为六项 FAIL 条件零触发。PA-A1 已补决定性测试（篡改文档对账失败 + 101 行撞 ID 输入被 schema 门禁拦截，两处变异自证变红），PA-A2（纯空白行计入语法消费）与 PA-A3（CRLF 逐字归账对原始文件闭合）同轮修复；19/19 绿、`pnpm verify` exit 0。PA-A4～A7 登记 `docs/audits/PA-01-followups.md`，其中 PA-A5（ID 序数打包非单射）/PA-A6（documentId 仅由 title 派生）须在 PA-02 开工前形成决策记录。
+- `PA-01` 复审 `PASS`（签署以远程 CI 8/8 复现为生效条件）：首审 `FAIL` 唯一阻断 PA-A1 已关闭——复审不采信实施者自述，仓外重建工作树重跑完整变异矩阵 8/8 全红（删「文档内容 vs 行账目」检查 17/2、删 schema 门禁 18/1，变异体还原后与仓库逐字节一致）；PA-A2/A3 独立复验通过（CRLF 未归账字符 0、CRLF/LF 文档 JSON 一致）；核心对账数值与首审逐项一致，SBOM 147→147，verify exit 0。复审新增 PA-A8（控制字符与行中孤立 `\r` 原样进入 paragraph.text，PA-03 消费前必须关闭）已登记 `docs/audits/PA-01-followups.md`；PA-A5/PA-A6 仍须在 PA-02 开工前形成决策记录。PA-02/PA-03 可按波次并行开工。
 - `G1-15` 已完成：Claude 首审 `FAIL`（SM-01 MAJOR）整改后复审 `PASS`，SM-01/SM-02 关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条覆盖经 npm 核验）；许可政策门禁与 MPL/Python/BlueOak/0BSD 书面结论见 [supply-chain](docs/supply-chain.md)；SM-03（MPL 措辞泛化）已随文档维护修复；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成。
 
 ## 推送节奏（2026-07-23 起生效）

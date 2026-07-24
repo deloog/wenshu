@@ -2,11 +2,12 @@
 
 > 来源：[PA-01 Claude 独立审计报告](PA-01-claude-audit-report.md) §5/§6/§8　日期：2026-07-24
 
-PA-01 首审 `FAIL` 的唯一阻断 PA-A1 与建议同轮的 PA-A2/PA-A3 已修复（见 [PA-01-paa1-paa3-remediation.md](PA-01-paa1-paa3-remediation.md)），待 Claude 复审。下列 MINOR 与观察项**不阻断 PA-01 签署**，但必须按归属关闭；本文件只登记归属，不代表发现已经关闭。
+PA-01 首审 `FAIL` 的唯一阻断 PA-A1 与建议同轮的 PA-A2/PA-A3 已修复（见 [PA-01-paa1-paa3-remediation.md](PA-01-paa1-paa3-remediation.md)），复审 `PASS`（签署以远程 CI 8/8 复现为生效条件）。下列 MINOR 与观察项**不阻断 PA-01 签署**，但必须按归属关闭；本文件只登记归属，不代表发现已经关闭。PA-A8 为复审新增发现。
 
 | 发现 | 归属任务 | 最迟关闭点 | 验收重点 |
 |---|---|---|---|
 | PA-A4：UTF-8 BOM 被拒且错误信息误导（指向"缺 front matter 围栏"） | 待排期（markdown-import 下一触点） | PA-02 开工前随 PA-A5/A6 决策一并裁定处置时点 | 剥离 BOM 计入语法消费，或保留拒绝但给出专属错误信息；Windows 记事本/Excel 导出形态有测试 |
+| PA-A8：控制字符（U+0000 NUL、ESC、DEL、U+2028）与行中孤立 `\r` 原样进入 `paragraph.text` | 与 PA-A4 同批处置 | PA-03 消费文档文本渲染前必须关闭 | 既有问题（非本轮回归），不影响对账正确性；但 PA-03 渲染与 PDF 生成消费含 NUL/ESC 文本行为未定义。处置方向：控制字符 fail-closed 拒绝或显式清洗并计入语法消费，决策与 PA-A4 同批记录 |
 | PA-A5：序数打包 `ordinal*10000+row*100+col` 非单射，百行表格/列表失败关闭且报错不指真因 | PA-02 前置决策（新增决策记录） | **PA-02 开工前** | 改复合摘要喂 SHA-256（非算术打包）或等效单射方案；`validateDocument` 的 `issues`（code/path）进入错误信息；决策写入 `决策记录.md` |
 | PA-A6：`documentId` 仅由 title 派生，同名不同文文档身份碰撞 | PA-02 前置决策（新增决策记录） | **PA-02 开工前** | 明确 documentId 语义归属（内容身份 vs 跨修订稳定标识）；若后者由上层命名空间供给；决策写入 `决策记录.md` |
 | PA-A7：front matter 非 title 键静默丢弃且记为「语法消费」 | 待排期（随 PA-A5/A6 决策一并裁定） | PA-02 开工前 | 二选一落定：(a) 非 title 键 fail-closed；(b) `ImportResult` 返回 `droppedMetadata` 并对账单列 `discardedChars` |
