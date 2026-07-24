@@ -1,0 +1,23 @@
+{
+  "name": "@wenshu/template-map",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test test/*.contract.test.ts",
+    "check": "pnpm test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wenshu/contract-runtime": "workspace:*",
+    "@wenshu/document-model": "workspace:*",
+    "@wenshu/template-model": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
