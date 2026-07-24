@@ -99,3 +99,23 @@
 ### 7.3 关联裁定
 
 - fixture 可移植字符规则已按 FX-06 补齐：`isCanonicalFixturePath` 逐段拒绝 `< > " | ? *`（见 fixture-integrity.md §路径），与文档对象白名单互为独立两层，不互相借用。
+
+---
+
+## 8. 导入期 ID 派生约束（PA-A5/A6 裁定草案，2026-07-24，待 Claude 独立复核与业主批准后生效）
+
+> 本节是 `@wenshu/markdown-import` 的实现约束，对应 [决策记录](../决策记录.md) #8/#9；不修改本文件 §2/§3 的冻结契约，Schema 零变更。
+
+### 8.1 节点 ID：复合摘要种子（PA-A5）
+
+- 禁止十进制位宽算术打包（如 `ordinal*10000+row*100+cell`）。层级位置以分隔符分层种子串喂入 SHA-256 输入（`种子:kind:内容摘要`）：节点 = `ordinal`；列表项/表格列 = `ordinal:index`；表格行 = `ordinal:rowIndex`；单元格 = `ordinal:rowIndex:cellIndex`。构造单射、无输入规模上限。
+- ID 外在形式不变：`前缀_` + 128 位小写十六进制（§3）。
+- 派生必须保持 PA-01 已审三性质：同输入幂等；同文档内全部 ID 唯一（重复仍由 `DOCUMENT_DUPLICATE_ID` fail-closed）；输入变更 → 仅受影响节点 ID 变更。
+- schema 门禁错误信息必须携带 `validateDocument` 的稳定 issues（`code` + JSON `path`），不回显正文、标题或资源内容（§5）。
+
+### 8.2 `documentId`：跨修订稳定标识（PA-A6）
+
+- 语义：`documentId` 是跨修订稳定标识（与 `revision` 配合），不是内容身份；内容去重属项目层职责。
+- 派生：`doc_` + SHA-256（`"wenshu/import/v0"` + 导入根内 POSIX 相对路径 + `title`）前 32 位小写十六进制；v0 导入根默认为源文件所在目录，上层可显式提供导入根。
+- 性质：同路径同标题重导入（含内容修订）→ 同 ID；不同路径同名文档 → 不同 ID；标题改写 → 新身份（v0 显式语义）。
+- 残余碰撞面（同路径同标题不同内容）按同一文档新修订处理；导入冲突显式解决，不静默覆盖（§3）。
