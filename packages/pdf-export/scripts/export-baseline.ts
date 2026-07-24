@@ -54,6 +54,12 @@ for (const font of inspection.fonts) {
   if (!font.embedded) {
     throw new Error(`font not embedded: ${font.name || font.family}`);
   }
+  // 静默回落熔断：PDF 中只允许冻结字体（Skia 可能用联合设计别名登记）。
+  if (!/SourceHanSansCN|Noto-Sans-SC/u.test(font.name)) {
+    throw new Error(
+      `non-frozen font in pdf (silent fallback): ${font.name || font.family || "unnamed"}`,
+    );
+  }
 }
 assertPdfReconciled(output.extractedText, output.expectedText);
 

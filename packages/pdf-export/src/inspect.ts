@@ -285,15 +285,29 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
       continue;
     }
     const subtype = /\/Subtype\s*\/([A-Za-z0-9]+)/.exec(object.dict)?.[1] ?? "";
-    // Skia 命名事实：冻结 OTF（Source Han Sans CN）在 PDF 中以联合设计别名
-    // Noto Sans SC 登记于 FontDescriptor（/FontName、/FontFamily、/FontWeight）。
-    const descriptorRef = /\/FontDescriptor\s+(\d+)\s+0\s+R/.exec(object.dict)?.[1];
+    // Type0 为复合字体：名称在自身 /BaseFont，描述符在 CIDFont 后代；
+    // Skia 命名事实：冻结 OTF（Source Han Sans CN）可能以联合设计别名
+    // Noto Sans SC 登记（/FontName、/FontFamily、/FontWeight）。
+    const descendantRef = /\/DescendantFonts\s*\[\s*(\d+)\s+0\s+R\s*\]/.exec(
+      object.dict,
+    )?.[1];
+    const descendant =
+      descendantRef === undefined ? undefined : objects.get(Number(descendantRef));
+    const descriptorRef = /\/FontDescriptor\s+(\d+)\s+0\s+R/.exec(
+      descendant?.dict ?? object.dict,
+    )?.[1];
     const descriptor =
       descriptorRef === undefined ? undefined : objects.get(Number(descriptorRef));
-    const name =
+    const nameCandidates = [
+      /\/BaseFont\s*\/([A-Za-z0-9+.,-]+)/.exec(object.dict)?.[1],
+      descendant === undefined
+        ? undefined
+        : (/\/BaseFont\s*\/([A-Za-z0-9+.,-]+)/.exec(descendant.dict)?.[1] ?? undefined),
       descriptor === undefined
-        ? ""
-        : (/\/FontName\s*\/([A-Za-z0-9+.,-]+)/.exec(descriptor.dict)?.[1] ?? "");
+        ? undefined
+        : (/\/FontName\s*\/([A-Za-z0-9+.,-]+)/.exec(descriptor.dict)?.[1] ?? undefined),
+    ];
+    const name = nameCandidates.find((candidate) => candidate !== undefined && candidate !== "") ?? "";
     const familyRaw =
       descriptor === undefined
         ? ""
