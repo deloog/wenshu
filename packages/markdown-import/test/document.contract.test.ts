@@ -33,7 +33,7 @@ const SOURCE = [
 
 function build() {
   const parsed = parseMarkdown(SOURCE);
-  return { parsed, document: assembleDocument(parsed, [], []) };
+  return { parsed, document: assembleDocument(parsed, [], [], "test.md") };
 }
 
 test("assembled document satisfies the frozen v0.1.0 contract", () => {
@@ -94,4 +94,51 @@ test("nested sections and page break keep contract shape", () => {
   }
   const pageBreak = JSON.parse(JSON.stringify(document.blocks));
   assert.equal(JSON.stringify(pageBreak).includes('"reason":"source"'), true);
+});
+
+function collectIds(value: unknown, ids: string[]): void {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectIds(entry, ids));
+    return;
+  }
+  if (typeof value === "object" && value !== null) {
+    const record = value as Record<string, unknown>;
+    if (typeof record["id"] === "string") {
+      ids.push(record["id"]);
+    }
+    Object.values(record).forEach((entry) => collectIds(entry, ids));
+  }
+}
+
+test("long tables and lists stay injective beyond the old decimal packing limits", () => {
+  // 决策 #8：rowIndex >= 100 不再溢出进相邻 ordinal 命名空间（PA-A5 原反例）。
+  const rows = Array.from({ length: 101 }, (_, index) => `| 行${index} |`);
+  rows[100] = "| 撞键 |";
+  const items = Array.from({ length: 101 }, (_, index) => `- 条${index}`);
+  items[100] = "- 撞条";
+  const parsed = parseMarkdown(
+    [
+      "---",
+      "title: t",
+      "---",
+      "| 表一 |",
+      "|---|",
+      ...rows,
+      "",
+      "| 表二 |",
+      "|---|",
+      "| 撞键 |",
+      "",
+      ...items,
+      "",
+      "- 撞条",
+    ].join("\n"),
+  );
+  const document = assembleDocument(parsed, [], [], "long.md");
+  const result = validateDocument(document);
+  assert.ok(result.ok, JSON.stringify(result.ok ? [] : result.issues));
+  const ids: string[] = [];
+  collectIds(document.blocks, ids);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(ids.length > 300);
 });

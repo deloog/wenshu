@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { dirname, posix } from "node:path";
+import { dirname, isAbsolute, posix, relative, resolve, sep } from "node:path";
 
 import { validateDocument } from "@wenshu/document-model";
 
@@ -73,7 +73,21 @@ async function resolveAsset(
 
 export async function importMarkdownDocument(
   sourcePath: string,
+  importRoot: string,
 ): Promise<ImportResult> {
+  // 决策 #9：导入根为调用方显式声明的公共目录（必填），源文件必须位于根内。
+  const relativeSource = relative(resolve(importRoot), resolve(sourcePath));
+  if (
+    relativeSource === "" ||
+    relativeSource.startsWith("..") ||
+    isAbsolute(relativeSource)
+  ) {
+    throw new MarkdownImportError(
+      "IMPORT_ROOT_INVALID",
+      "source file must reside inside the declared import root",
+    );
+  }
+  const documentNamespace = relativeSource.split(sep).join(posix.sep);
   const source = await readFile(sourcePath, "utf8");
   const parsed = parseMarkdown(source);
   const figures: ResolvedFigure[] = [];
@@ -90,12 +104,21 @@ export async function importMarkdownDocument(
       Object.freeze({ source: block.source, alt: block.alt, assetId: asset.id }),
     );
   }
-  const document = assembleDocument(parsed, figures, [...assets.values()]);
+  const document = assembleDocument(
+    parsed,
+    figures,
+    [...assets.values()],
+    documentNamespace,
+  );
   const validation = validateDocument(document);
   if (!validation.ok) {
+    // 只携带稳定 code 与 JSON 路径，不回显正文、标题或资源内容（document-model §5）。
+    const detail = validation.issues
+      .map((issue) => `${issue.code} at ${issue.path}`)
+      .join("; ");
     throw new MarkdownImportError(
       "IMPORT_RECONCILE_FAILED",
-      "assembled document does not satisfy the v0.1.0 contract",
+      `assembled document does not satisfy the v0.1.0 contract: ${detail}`,
     );
   }
   const reconciliation = buildReconciliation(parsed, document);

@@ -6,7 +6,7 @@ const fixture = resolve(
   import.meta.dirname,
   "../../../docs/poc-a/fixtures/golden-report.md",
 );
-const result = await importMarkdownDocument(fixture);
+const result = await importMarkdownDocument(fixture, resolve(fixture, ".."));
 const { reconciliation } = result;
 console.log(`document: ${result.document.title} (${result.document.documentId})`);
 console.log(

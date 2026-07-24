@@ -24,7 +24,7 @@ const SOURCE = [
 
 function build() {
   const parsed = parseMarkdown(SOURCE);
-  return { parsed, document: assembleDocument(parsed, [], []) };
+  return { parsed, document: assembleDocument(parsed, [], [], "test.md") };
 }
 
 test("untampered document reconciles against line accounting", () => {

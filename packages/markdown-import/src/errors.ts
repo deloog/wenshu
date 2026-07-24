@@ -3,6 +3,7 @@ export type MarkdownImportCode =
   | "IMPORT_UNSUPPORTED_SYNTAX"
   | "IMPORT_REMOTE_REF"
   | "IMPORT_ASSET_INVALID"
+  | "IMPORT_ROOT_INVALID"
   | "IMPORT_RECONCILE_FAILED";
 
 export class MarkdownImportError extends Error {

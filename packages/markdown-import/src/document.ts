@@ -27,14 +27,13 @@ interface SectionFrame {
   readonly children: JsonObject[];
 }
 
-function stableId(
-  prefix: string,
-  ordinal: number,
-  kind: string,
-  digest: string,
-): string {
+function stableId(prefix: string, seed: string, kind: string, digest: string): string {
+  // 决策 #8 承重不变量：kind 必须取自非数字词汇表，种子前缀才能与内容无歧义分界。
+  if (!/^[A-Za-z-]+$/u.test(kind)) {
+    throw new Error(`stableId kind must be non-numeric vocabulary: ${kind}`);
+  }
   const hash = createHash("sha256")
-    .update(`${ordinal}:${kind}:${digest}`)
+    .update(`${seed}:${kind}:${digest}`)
     .digest("hex")
     .slice(0, 32);
   return `${prefix}_${hash}`;
@@ -44,6 +43,7 @@ export function assembleDocument(
   parsed: ParsedSource,
   figures: readonly ResolvedFigure[],
   assets: readonly ResolvedAsset[],
+  documentNamespace: string,
 ): WenshuDocument {
   const title = parsed.metadata["title"];
   if (typeof title !== "string" || title.length === 0) {
@@ -52,7 +52,11 @@ export function assembleDocument(
       "front matter must provide a non-empty title",
     );
   }
-  const documentId = `doc_${createHash("sha256").update(title).digest("hex").slice(0, 32)}`;
+  // 决策 #9：documentId 是跨修订稳定标识，派生自公共导入根相对路径 + 标题。
+  const documentId = `doc_${createHash("sha256")
+    .update(`wenshu/import/v0\n${documentNamespace}\n${title}`)
+    .digest("hex")
+    .slice(0, 32)}`;
   let ordinal = 0;
   const figureQueue = [...figures];
   const roots: JsonObject[] = [];
@@ -100,7 +104,12 @@ export function assembleDocument(
         stack.push({
           level: block.level,
           node: {
-            id: stableId("node", ordinal, "section", `${block.level}:${block.text}`),
+            id: stableId(
+              "node",
+              `${ordinal}`,
+              "section",
+              `${block.level}:${block.text}`,
+            ),
             type: "section",
             level: block.level,
             title: block.text,
@@ -111,48 +120,43 @@ export function assembleDocument(
       }
       case "paragraph":
         appendBlock({
-          id: stableId("node", ordinal, "paragraph", block.text),
+          id: stableId("node", `${ordinal}`, "paragraph", block.text),
           type: "paragraph",
           text: block.text,
         });
         break;
       case "quote":
         appendBlock({
-          id: stableId("node", ordinal, "quote", block.text),
+          id: stableId("node", `${ordinal}`, "quote", block.text),
           type: "quote",
           text: block.text,
         });
         break;
       case "list":
         appendBlock({
-          id: stableId("node", ordinal, "list", block.items.join("")),
+          id: stableId("node", `${ordinal}`, "list", block.items.join("")),
           type: "list",
           ordered: block.ordered,
           items: block.items.map((text, index) => ({
-            id: stableId("item", ordinal * 100 + index, "list-item", text),
+            id: stableId("item", `${ordinal}:${index}`, "list-item", text),
             text,
           })),
         });
         break;
       case "table": {
         const columns = block.columns.map((column, index) => ({
-          id: stableId("col", ordinal * 100 + index, "column", column.header),
+          id: stableId("col", `${ordinal}:${index}`, "column", column.header),
           header: column.header,
           align: column.align,
         }));
         appendBlock({
-          id: stableId("node", ordinal, "table", JSON.stringify(block.rows)),
+          id: stableId("node", `${ordinal}`, "table", JSON.stringify(block.rows)),
           type: "table",
           columns,
           rows: block.rows.map((row, rowIndex) => ({
-            id: stableId("row", ordinal * 1000 + rowIndex, "row", row.join("")),
+            id: stableId("row", `${ordinal}:${rowIndex}`, "row", row.join("")),
             cells: row.map((text, cellIndex) => ({
-              id: stableId(
-                "cell",
-                ordinal * 10000 + rowIndex * 100 + cellIndex,
-                "cell",
-                text,
-              ),
+              id: stableId("cell", `${ordinal}:${rowIndex}:${cellIndex}`, "cell", text),
               columnId: columns[cellIndex]?.id,
               text,
             })),
@@ -169,7 +173,7 @@ export function assembleDocument(
           );
         }
         appendBlock({
-          id: stableId("node", ordinal, "figure", figure.assetId),
+          id: stableId("node", `${ordinal}`, "figure", figure.assetId),
           type: "figure",
           assetId: figure.assetId,
           altText: figure.alt,
@@ -178,7 +182,7 @@ export function assembleDocument(
       }
       case "pageBreak":
         appendBlock({
-          id: stableId("node", ordinal, "pageBreak", "source"),
+          id: stableId("node", `${ordinal}`, "pageBreak", "source"),
           type: "pageBreak",
           reason: "source",
         });
