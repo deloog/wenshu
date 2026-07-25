@@ -6,8 +6,10 @@ import { resolve } from "node:path";
 import {
   assertMetadataPolicy,
   assertPdfReconciled,
+  inspectPdf,
   normalizePdfText,
   produceBaselinePdf,
+  repairPdfTextLayer,
 } from "../src/index.ts";
 
 /**
@@ -32,12 +34,15 @@ const output = await produceBaselinePdf({
   browserPath,
 });
 
-const { inspection } = output;
+const repair = repairPdfTextLayer(output.pdfBytes, output.expectedText);
+const finalBytes = repair.pdfBytes;
+// 全部检查针对最终（修复后）PDF：元数据、A4、字体、逐字对账。
+const inspection = inspectPdf(finalBytes);
 
 // 先留证后断言：即使检查失败，PDF 与初步证据也已落盘（可信失败留证）。
 await mkdir(outDir, { recursive: true });
 const pdfPath = resolve(outDir, "golden-report-baseline.pdf");
-await writeFile(pdfPath, output.pdfBytes);
+await writeFile(pdfPath, finalBytes);
 
 assertMetadataPolicy(
   inspection.metadata,
@@ -63,7 +68,7 @@ for (const font of inspection.fonts) {
 }
 assertPdfReconciled(output.extractedText, output.expectedText);
 
-const sha256 = createHash("sha256").update(output.pdfBytes).digest("hex");
+const sha256 = createHash("sha256").update(finalBytes).digest("hex");
 const evidence = {
   task: "PA-05 baseline A4 PDF export",
   label,
@@ -76,8 +81,12 @@ const evidence = {
   printParams: output.printParams,
   pdf: {
     path: pdfPath,
-    bytes: output.pdfBytes.length,
+    bytes: finalBytes.length,
     sha256,
+    repair: {
+      repairedHoles: repair.repairedHoles,
+      patchedFonts: repair.patchedObjects,
+    },
     pageCount: inspection.pageCount,
     pageSizePt: inspection.pageSizePt,
   },

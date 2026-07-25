@@ -1,6 +1,14 @@
 import { inflateSync } from "node:zlib";
 
 import { PdfExportError } from "./errors.ts";
+import type { GlyphOrigin } from "./cmap-repair.ts";
+
+export interface TextHole {
+  readonly pageIndex: number;
+  readonly offset: number;
+  readonly fontObjectId: number;
+  readonly code: number;
+}
 
 /** 本检查器只支持自家管线产出的 Skia/Chromium PDF，未知结构一律 fail-closed。 */
 
@@ -29,6 +37,10 @@ export interface PdfInspection {
   readonly pageSizePt: readonly number[];
   readonly fonts: readonly PdfFontInfo[];
   readonly pages: readonly PdfPageInfo[];
+  /** 无 ToUnicode 映射的字形洞（Skia m150 缺陷面，见 cmap-repair.ts）。 */
+  readonly holes: readonly TextHole[];
+  /** 与整篇提取文本同位对齐的字形来源（null = 无单一字形）。 */
+  readonly origins: readonly (GlyphOrigin | null)[];
 }
 
 interface PdfObject {
@@ -197,73 +209,139 @@ function parseToUnicode(cmap: string): ToUnicodeMap {
   return { codeLength, map };
 }
 
-function extractText(content: string, fonts: Map<string, ToUnicodeMap>): string {
+function extractText(
+  content: string,
+  fonts: Map<string, ToUnicodeMap>,
+  fontIds: Map<string, number>,
+  pageIndex: number,
+  baseOffset: number,
+  contentObjectId: number,
+): { text: string; holes: TextHole[]; origins: (GlyphOrigin | null)[] } {
   const parts: string[] = [];
+  const origins: (GlyphOrigin | null)[] = [];
+  const holes: TextHole[] = [];
+  let offset = baseOffset;
   let current: ToUnicodeMap | undefined;
+  let currentFontId = 0;
   // 标签化 PDF 的 ActualText 覆盖：ToUnicode 把共享字形映射到康熙部首码位时，
   // Skia 用 ActualText 给出正字——命中即采用并抑制 span 内字形解码。
+  // span 的 ActualText 字符回填其内层字形身份（供修复层判定错标）。
   let suppress = 0;
+  let spanIndex = -1;
+  let spanCharOffset = -1;
+  let spanGlyph: { fontObjectId: number; code: number } | undefined;
   const tokenPattern =
     /\/ActualText\s*<([0-9A-Fa-f]+)>\s*>>\s*BDC|\bEMC\b|\/([A-Za-z0-9]+)\s+[\d.]+\s+Tf|<([0-9A-Fa-f]+)>\s*Tj|\[((?:[^\])]*))\]\s*TJ/gu;
+  const pushChar = (text: string, origin: GlyphOrigin | null): void => {
+    parts.push(text);
+    origins.push(origin);
+    offset += [...text].length;
+  };
   for (const token of content.matchAll(tokenPattern)) {
     if (token[1] !== undefined) {
-      parts.push(utf16beHexToString(token[1]));
+      const actualText = utf16beHexToString(token[1]);
+      spanIndex += 1;
+      spanCharOffset = origins.length;
+      spanGlyph = undefined;
+      parts.push(actualText);
+      origins.push(null);
+      offset += [...actualText].length;
       suppress += 1;
       continue;
     }
     if (token[0] === "EMC") {
+      if (spanGlyph !== undefined && spanCharOffset >= 0) {
+        origins[spanCharOffset] = Object.freeze({
+          fontObjectId: spanGlyph.fontObjectId,
+          code: spanGlyph.code,
+          viaActualText: true,
+          spanIndex,
+          contentObjectId,
+        });
+      }
+      spanGlyph = undefined;
+      spanCharOffset = -1;
       suppress = Math.max(0, suppress - 1);
       continue;
     }
     if (token[2] !== undefined) {
       if (suppress === 0) {
         current = fonts.get(token[2]);
+        currentFontId = fontIds.get(token[2]) ?? 0;
       }
-      continue;
-    }
-    if (suppress > 0) {
       continue;
     }
     const hexRun = token[3];
     if (hexRun !== undefined) {
-      if (current === undefined) {
-        fail("text shown before any font selection");
-      }
+      const codeLength = current?.codeLength ?? 1;
       for (
         let index = 0;
-        index + current.codeLength * 2 <= hexRun.length;
-        index += current.codeLength * 2
+        index + codeLength * 2 <= hexRun.length;
+        index += codeLength * 2
       ) {
-        const code = Number.parseInt(
-          hexRun.slice(index, index + current.codeLength * 2),
-          16,
-        );
-        parts.push(current.map.get(code) ?? "");
+        const code = Number.parseInt(hexRun.slice(index, index + codeLength * 2), 16);
+        if (suppress > 0) {
+          spanGlyph ??= { fontObjectId: currentFontId, code };
+          continue;
+        }
+        const mapped = current?.map.get(code);
+        if (mapped === undefined) {
+          // 无 ToUnicode 映射的字形洞：Skia m150 缺陷面，交修复层对齐补回。
+          holes.push(
+            Object.freeze({ pageIndex, offset, fontObjectId: currentFontId, code }),
+          );
+        } else {
+          pushChar(
+            mapped,
+            Object.freeze({
+              fontObjectId: currentFontId,
+              code,
+              viaActualText: false,
+              spanIndex: -1,
+              contentObjectId,
+            }),
+          );
+        }
       }
       continue;
     }
     const array = token[4];
     if (array !== undefined) {
-      if (current === undefined) {
-        fail("text shown before any font selection");
-      }
+      const codeLength = current?.codeLength ?? 1;
       for (const piece of array.matchAll(/<([0-9A-Fa-f]+)>/g)) {
         const hex = piece[1] ?? "";
         for (
           let index = 0;
-          index + current.codeLength * 2 <= hex.length;
-          index += current.codeLength * 2
+          index + codeLength * 2 <= hex.length;
+          index += codeLength * 2
         ) {
-          const code = Number.parseInt(
-            hex.slice(index, index + current.codeLength * 2),
-            16,
-          );
-          parts.push(current.map.get(code) ?? "");
+          const code = Number.parseInt(hex.slice(index, index + codeLength * 2), 16);
+          if (suppress > 0) {
+            spanGlyph ??= { fontObjectId: currentFontId, code };
+            continue;
+          }
+          const mapped = current?.map.get(code);
+          if (mapped === undefined) {
+            holes.push(
+              Object.freeze({ pageIndex, offset, fontObjectId: currentFontId, code }),
+            );
+          } else {
+            pushChar(
+              mapped,
+              Object.freeze({
+                fontObjectId: currentFontId,
+                code,
+                viaActualText: false,
+                spanIndex: -1,
+                contentObjectId,
+              }),
+            );
+          }
         }
       }
     }
   }
-  return parts.join("");
+  return { text: parts.join(""), holes, origins };
 }
 
 /** 解析自家管线 PDF：元数据、页尺寸、字体（内嵌/子集）与逐页文本层。 */
@@ -276,10 +354,28 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
 
   const fontInfos: PdfFontInfo[] = [];
   const toUnicodeByTag = new Map<string, ToUnicodeMap>();
+  const fontIdByTag = new Map<string, number>();
   const pageDicts = [...objects.values()].filter(
     (object) =>
       /\/Type\s*\/Page\b/.test(object.dict) && !/\/Type\s*\/Pages\b/.test(object.dict),
   );
+  // 先收齐字体对象 id，再整词解析资源字典的 `/Tag id 0 R` 对——
+  // 避免 `46` 撞上 `/F146 146 0 R` 这类数字后缀误配（巡/既错码根因）。
+  const fontObjectIds = new Set<number>();
+  for (const [id, object] of objects) {
+    if (/\/Type\s*\/Font\b/.test(object.dict)) {
+      fontObjectIds.add(id);
+    }
+  }
+  const tagByFontId = new Map<number, string>();
+  for (const pageDict of pageDicts) {
+    for (const match of pageDict.dict.matchAll(/\/([A-Za-z0-9]+)\s+(\d+)\s+0\s+R/g)) {
+      const refId = Number(match[2]);
+      if (fontObjectIds.has(refId)) {
+        tagByFontId.set(refId, match[1] ?? "");
+      }
+    }
+  }
   for (const [id, object] of objects) {
     if (!/\/Type\s*\/Font\b/.test(object.dict)) {
       continue;
@@ -307,7 +403,9 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
         ? undefined
         : (/\/FontName\s*\/([A-Za-z0-9+.,-]+)/.exec(descriptor.dict)?.[1] ?? undefined),
     ];
-    const name = nameCandidates.find((candidate) => candidate !== undefined && candidate !== "") ?? "";
+    const name =
+      nameCandidates.find((candidate) => candidate !== undefined && candidate !== "") ??
+      "";
     const familyRaw =
       descriptor === undefined
         ? ""
@@ -334,23 +432,20 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
     const toUnicodeRef = /\/ToUnicode\s+(\d+)\s+0\s+R/.exec(object.dict)?.[1];
     const toUnicodeObject =
       toUnicodeRef === undefined ? undefined : objects.get(Number(toUnicodeRef));
-    if (toUnicodeObject !== undefined) {
-      // 字体标签名（/F0 等）在页面资源字典里指回本对象 id。
-      for (const pageDict of pageDicts) {
-        const tagPattern = new RegExp(`/([A-Za-z0-9]+)\\s+${id}\\s+0\\s+R`, "u");
-        const tagMatch = tagPattern.exec(pageDict.dict);
-        if (tagMatch?.[1] !== undefined) {
-          toUnicodeByTag.set(
-            tagMatch[1],
-            parseToUnicode(inflate(toUnicodeObject, "tounicode")),
-          );
-        }
+    const tag = tagByFontId.get(id);
+    if (tag !== undefined) {
+      fontIdByTag.set(tag, id);
+      if (toUnicodeObject !== undefined) {
+        toUnicodeByTag.set(tag, parseToUnicode(inflate(toUnicodeObject, "tounicode")));
       }
     }
   }
 
   const pages: PdfPageInfo[] = [];
+  const holes: TextHole[] = [];
+  const origins: (GlyphOrigin | null)[] = [];
   let pageSizePt: readonly number[] = [];
+  let runningOffset = 0;
   for (const object of pageDicts) {
     const box = /\/MediaBox\s*\[([\d.\s]+)\]/.exec(object.dict)?.[1];
     if (box === undefined) {
@@ -378,7 +473,18 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
         if (content === undefined) {
           fail(`page content object ${id} is missing`);
         }
-        text += extractText(inflate(content, "page content"), toUnicodeByTag);
+        const extracted = extractText(
+          inflate(content, "page content"),
+          toUnicodeByTag,
+          fontIdByTag,
+          pageDicts.indexOf(object),
+          runningOffset,
+          id,
+        );
+        text += extracted.text;
+        holes.push(...extracted.holes);
+        origins.push(...extracted.origins);
+        runningOffset += [...extracted.text].length;
       }
     }
     pages.push(Object.freeze({ mediaBox: Object.freeze(mediaBox), text }));
@@ -393,5 +499,7 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
     pageSizePt,
     fonts: Object.freeze(fontInfos),
     pages: Object.freeze(pages),
+    holes: Object.freeze(holes),
+    origins: Object.freeze(origins),
   });
 }

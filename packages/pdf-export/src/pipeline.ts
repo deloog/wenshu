@@ -16,6 +16,7 @@ import { composePrintDocument } from "./compose.ts";
 import { inspectPdf, type PdfInspection } from "./inspect.ts";
 import { buildExpectedPdfText, extractSvgText } from "./reconcile.ts";
 import { buildPrintParams, type PrintParams } from "./print-params.ts";
+import { injectSvgFontFace } from "./svg-font.ts";
 
 export interface BaselineInput {
   readonly fixture: string;
@@ -68,8 +69,14 @@ export async function produceBaselinePdf(
   const printParams = buildPrintParams(model);
 
   const documents: Record<string, string | Uint8Array> = { "/print.html": printHtml };
+  const fontFamily =
+    typeof manifest["family"] === "string" ? (manifest["family"] as string) : "";
   for (const [original, normalized] of Object.entries(imported.renames)) {
-    documents[`/${normalized}`] = await readFile(resolve(input.fixtureRoot, original));
+    const bytes = await readFile(resolve(input.fixtureRoot, original));
+    // 供给期变换：SVG 注入 @font-face 使图表文本使用冻结 OTF（冻结资产字节不变）。
+    documents[`/${normalized}`] = original.toLowerCase().endsWith(".svg")
+      ? injectSvgFontFace(new TextDecoder().decode(bytes), fontFamily, "/fonts/", plan)
+      : bytes;
   }
   const server = await startStaticServer(
     [{ mount: "/fonts/", directory: input.fontDir }],

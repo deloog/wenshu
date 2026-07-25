@@ -13,13 +13,17 @@ const RADICAL_SUPPLEMENT: ReadonlyMap<number, string> = new Map([
 ]);
 
 /**
- * PDF 文本归一：显式部首补充表 + NFKC（部首/合字/全角归位）+ 去布局空白。
+ * PDF 文本归一：显式部首补充表 + NFKC（部首/合字/全角归位）
+ * + 去布局空白与 Cf 格式字符（Skia 的 ActualText 残留 U+FEFF 等）。
  */
 export function normalizePdfText(text: string): string {
   const supplemented = [...text]
     .map((char) => RADICAL_SUPPLEMENT.get(char.codePointAt(0) ?? 0) ?? char)
     .join("");
-  return supplemented.normalize("NFKC").replaceAll(/\s+/gu, "");
+  return supplemented
+    .normalize("NFKC")
+    .replaceAll(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/gu, "")
+    .replaceAll(/\s+/gu, "");
 }
 
 /** 提取冻结 SVG 资产的可见文本（`<text>` 元素，文档序，实体反转义）。 */
