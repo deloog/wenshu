@@ -278,8 +278,13 @@ test("p0-overlap: straddling painted extent flagged; member of another figure fl
 test("p0-content: present blocks pass; missing block flagged with ref and length", () => {
   const runs = [makeRun({ text: "标题" }), makeRun({ text: "第一段正文" })];
   const expected = [
-    { ref: "/title", text: "标题", repeatable: false },
-    { ref: "/blocks/0", text: "第一段正文", repeatable: false },
+    { ref: "/title", text: "标题", repeatable: false, kind: "cover-title" as const },
+    {
+      ref: "/blocks/0",
+      text: "第一段正文",
+      repeatable: false,
+      kind: "paragraph" as const,
+    },
   ];
   assert.equal(
     p0ContentRule.check(makeInput(makeEvidence({ textRuns: runs }), expected)).length,
@@ -287,7 +292,12 @@ test("p0-content: present blocks pass; missing block flagged with ref and length
   );
   const missing = [
     ...expected,
-    { ref: "/blocks/1", text: "被删掉的段落", repeatable: false },
+    {
+      ref: "/blocks/1",
+      text: "被删掉的段落",
+      repeatable: false,
+      kind: "paragraph" as const,
+    },
   ];
   const findings = p0ContentRule.check(
     makeInput(makeEvidence({ textRuns: runs }), missing),
@@ -301,8 +311,8 @@ test("p0-content: present blocks pass; missing block flagged with ref and length
 test("p0-content: reordered block is not a missing-content false positive", () => {
   const runs = [makeRun({ text: "乙块" }), makeRun({ text: "甲块" })];
   const expected = [
-    { ref: "/blocks/0", text: "甲块", repeatable: false },
-    { ref: "/blocks/1", text: "乙块", repeatable: false },
+    { ref: "/blocks/0", text: "甲块", repeatable: false, kind: "paragraph" as const },
+    { ref: "/blocks/1", text: "乙块", repeatable: false, kind: "paragraph" as const },
   ];
   assert.equal(
     p0ContentRule.check(makeInput(makeEvidence({ textRuns: runs }), expected)).length,
@@ -313,7 +323,12 @@ test("p0-content: reordered block is not a missing-content false positive", () =
 test("p0-content: repeatable header accepts any single occurrence", () => {
   const runs = [makeRun({ text: "表头列" }), makeRun({ text: "数据行" })];
   const expected = [
-    { ref: "/blocks/2/header-group", text: "表头列", repeatable: true },
+    {
+      ref: "/blocks/2/header-group",
+      text: "表头列",
+      repeatable: true,
+      kind: "table-header-group" as const,
+    },
   ];
   assert.equal(
     p0ContentRule.check(makeInput(makeEvidence({ textRuns: runs }), expected)).length,

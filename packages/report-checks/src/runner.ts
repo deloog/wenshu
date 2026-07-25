@@ -4,12 +4,13 @@
  */
 import { ReportChecksError, type P0CheckInput, type P0Rule } from "./check-input.ts";
 import { P0_RULE_IDS, type P0RuleId } from "./finding.ts";
-import type { Finding, WenshuCheckReport } from "./generated/check-report.ts";
+import type { WenshuCheckReportV1_0_0 } from "./generated/check-report-1.0.0.ts";
+import type { Finding } from "./generated/check-report.ts";
 import { p0BoundsRule } from "./rules/p0-bounds.ts";
 import { p0ContentRule } from "./rules/p0-content.ts";
 import { p0OverlapRule } from "./rules/p0-overlap.ts";
 import { p0PageSizeRule } from "./rules/p0-page-size.ts";
-import { CHECK_REPORT_VERSION, validateCheckReport } from "./validate-report.ts";
+import { CHECK_REPORT_VERSION_1_0_0, validateCheckReport } from "./validate-report.ts";
 
 export const P0_RULES: readonly P0Rule[] = Object.freeze([
   p0PageSizeRule,
@@ -26,7 +27,7 @@ export interface P0RunOptions {
 export function runP0Checks(
   input: P0CheckInput,
   options?: P0RunOptions,
-): WenshuCheckReport {
+): WenshuCheckReportV1_0_0 {
   const disabled = new Set<string>(options?.disabledRules ?? []);
   for (const id of disabled) {
     if (!(P0_RULE_IDS as readonly string[]).includes(id)) {
@@ -55,14 +56,19 @@ export function runP0Checks(
       a.pageIndex - b.pageIndex ||
       a.nodeRef.localeCompare(b.nodeRef),
   );
-  const report: WenshuCheckReport = {
-    checkReportVersion: CHECK_REPORT_VERSION,
+  // P0 报告维持 PA-07 签署时的冻结契约 1.0.0；manualChecks 是 P1 域
+  // （PA-08 additive 1.1.0），不回填进 P0 产物。
+  const report: WenshuCheckReportV1_0_0 = {
+    checkReportVersion: CHECK_REPORT_VERSION_1_0_0,
     source: { evidenceSha256: input.evidence.source.sha256 },
     rules: executed.map((rule) => rule.id),
     findings,
   };
   const validation = validateCheckReport(report);
-  if (!validation.ok) {
+  if (
+    !validation.ok ||
+    validation.value.checkReportVersion !== CHECK_REPORT_VERSION_1_0_0
+  ) {
     throw new ReportChecksError(
       "REPORT_CHECKS_INTERNAL",
       "runner produced a report that violates its own contract",

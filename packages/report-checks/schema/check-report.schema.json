@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://wenshu.local/schemas/report-checks/1.0.0/check-report.schema.json",
+  "$id": "https://wenshu.local/schemas/report-checks/1.1.0/check-report.schema.json",
   "title": "WenshuCheckReport",
-  "description": "Version 1 report of rule-based checks over the PA-06 PDF evidence model. Findings carry stable codes, page/node locations and numeric basis only; document content is never echoed.",
+  "description": "Version 1.1.0 report of rule-based checks over the PA-06 PDF evidence model. Findings carry stable codes, page/node locations and numeric basis only; document content is never echoed. Adds manualChecks (PA-08 honesty gate): judgments the rules cannot determine automatically are deferred to explicit human review with numeric evidence, never disguised as automatic passes. Additive over frozen 1.0.0.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["checkReportVersion", "source", "rules", "findings"],
+  "required": ["checkReportVersion", "source", "rules", "findings", "manualChecks"],
   "properties": {
-    "checkReportVersion": { "const": "1.0.0" },
+    "checkReportVersion": { "const": "1.1.0" },
     "source": {
       "type": "object",
       "additionalProperties": false,
@@ -29,9 +29,57 @@
     "findings": {
       "type": "array",
       "items": { "$ref": "#/$defs/Finding" }
+    },
+    "manualChecks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ManualCheck" },
+      "description": "Explicit human-review items for judgments that have no deterministic or template-traceable basis (e.g. sparse-page density, heading keep-with-next gray zone). Presence of a manual check is never a pass and never a finding."
     }
   },
   "$defs": {
+    "ManualCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "code", "pageIndex", "nodeRef", "reason", "basis"],
+      "properties": {
+        "ruleId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "code": {
+          "type": "string",
+          "pattern": "^P[0-9]_[A-Z0-9_]+$",
+          "description": "Stable review code for the deferred judgment (P1_* review codes land in PA-08~10)."
+        },
+        "pageIndex": { "type": "integer", "minimum": 0 },
+        "nodeRef": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic node locator, same vocabulary as Finding.nodeRef."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Static explanation of why automatic determination is impossible (template silence, registered approximation). Static text only, never document content."
+        },
+        "basis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metrics"],
+          "properties": {
+            "metrics": {
+              "type": "object",
+              "additionalProperties": { "type": "number" },
+              "minProperties": 1,
+              "description": "Numeric evidence for the human reviewer (e.g. coverageRatio, followingLinesOnPage, template threshold). Named values only, never text."
+            },
+            "relatedNodeRef": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Second party for paired review items."
+            }
+          }
+        }
+      }
+    },
     "Finding": {
       "type": "object",
       "additionalProperties": false,

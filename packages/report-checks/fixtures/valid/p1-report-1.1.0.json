@@ -1,0 +1,47 @@
+{
+  "checkReportVersion": "1.1.0",
+  "source": {
+    "evidenceSha256": "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd"
+  },
+  "rules": ["p1-heading-keep", "p1-sparse-page"],
+  "findings": [
+    {
+      "ruleId": "p1-heading-keep",
+      "code": "P1_HEADING_SEPARATED",
+      "pageIndex": 6,
+      "nodeRef": "/blocks/4",
+      "basis": {
+        "metrics": { "followingLinesOnPage": 0, "templateKeepWithNextLines": 2 },
+        "relatedNodeRef": "/blocks/4/children/0"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "ruleId": "p1-heading-keep",
+      "code": "P1_HEADING_KEEP_REVIEW",
+      "pageIndex": 2,
+      "nodeRef": "/blocks/1",
+      "reason": "模板意图与已登记近似之差，降人工核验。",
+      "basis": {
+        "metrics": { "followingLinesOnPage": 1, "templateKeepWithNextLines": 2 },
+        "relatedNodeRef": "/blocks/1/children/0"
+      }
+    },
+    {
+      "ruleId": "p1-sparse-page",
+      "code": "P1_SPARSE_DENSITY_REVIEW",
+      "pageIndex": 0,
+      "nodeRef": "page:0",
+      "reason": "模板未定义稀疏密度阈值，附密度证据降人工对照裁定。",
+      "basis": {
+        "metrics": {
+          "textAreaPt2": 7244,
+          "figureAreaPt2": 0,
+          "coverageRatio": 0.02,
+          "templateMaxConsecutiveSparsePages": 1
+        }
+      }
+    }
+  ]
+}
