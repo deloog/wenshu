@@ -26,7 +26,7 @@
 
 **独立 oracle（验收②，命门；选型见 [ADR-0005](../adr/0005-PA-06几何证据独立oracle选型.md)）**
 
-- `scripts/oracle-crosscheck.ts`：pdfjs-dist（Apache-2.0，devDependency，与被测解析器零共享代码）独立解析同一 PDF：页框 `page.view`、文本项 transform/width、operator list 路径 minMax 经 save/restore/transform 链换算 figure 框。
+- `scripts/oracle-crosscheck.ts`（比对/报告/CLI，258 行）+ `scripts/oracle-pdfjs.ts`（pdf.js 侧事实提取，224 行）：pdfjs-dist（Apache-2.0，devDependency，与被测解析器零共享代码）独立解析同一 PDF：页框 `page.view`、文本项 transform/width、operator list 路径 minMax 经 save/restore/transform 链换算 figure 框。
 - **容差（书面化，实测校准）**：页框 1pt（PA-05 既定）；行基线/行首 x 0.5pt；行宽 1pt；figure 四边 2pt；文本按 PA-05 归一口径（部首→CJK、NFKC、去空白）逐行比对。行聚合两侧同算法（基线 2pt 桶、x 升序拼接）——聚合只是分桶，被比对的事实（坐标/宽度/文本）来自两个独立解析器。
 - **签署基线实测**：20 页、350 行文本几何、2 figure 框——**0 不一致**；11 行 ActualText 分歧记为信息项（pdf.js 不支持 ActualText，回退 ToUnicode 得部首形/figure dash；分歧非零反向证实 ActualText 语义面承重，PA-05 既定事实）。
 
@@ -46,13 +46,14 @@
 
 ## PA-F3 搭车（pdf-export 本包守卫决定性变异测试）
 
-- 新增 `packages/pdf-export/test/guard-mutation.unit.test.ts`（或按体量拆分）：对元数据政策、对账/归一、位置排序、修复层路径做**源码级定点变异**（临时目录复制 src → 锚定字符串变异（锚缺失即失败，跟踪源漂移）→ 动态导入 → 三段断言：未变异对照绿 / 变异后守卫失效 / 拒绝携带正确错误码防邻层代打）。
-- 详见该测试文件头注与用例名；Claude 复审时可直接重跑。
+- 新增 5 个变异测试文件（`packages/pdf-export/test/`，各 <300 行）：`metadata-mutation`（5 例：白名单/Title/Producer/Creator/XMP）、`reconcile-mutation`（3 例：逐字比对/部首表/空白归一）、`sort-mutation`（1 例：阅读序比较器）、`align-mutation`（2 例：期望值耗尽/不可解分歧）、`repair-mutation`（2 例：快速路径/错推断被重检对账拦截），共 **13 例**。
+- 机制：临时目录复制真实 src（运行时读取，锚缺失/不唯一即失败，跟踪源漂移）→ 锚定字符串定点变异 → 动态导入（对照与变异体分居不同临时目录，规避 ESM 模块缓存碰撞）→ 三段断言：未变异对照绿 / 变异后守卫失效（坏输入被放过）/ 拒绝携带正确 `PdfExportError.code`（结构断言 name+code，防邻层代打）。修复层用合成最小 PDF（1 洞）端到端验证。
+- 落地结果：`pnpm --filter @wenshu/pdf-export test` **29/29**（既有 16 含渲染 + 变异 13）；Claude 复审时可直接重跑。
 
 ## 实施者验证（真实执行清单）
 
 - `pnpm --filter @wenshu/pdf-evidence test`：**39 pass / 0 fail**（契约 23 + classify 6 + 基线集成 8 + oracle 2）。
-- `pnpm --filter @wenshu/pdf-export test`：既有 9 + geometry 16 + 变异 N 例（以 PA-F3 落地后最终数为准）。
+- `pnpm --filter @wenshu/pdf-export test`：既有 16（含真实浏览器渲染）+ 变异 13 = **29 pass / 0 fail**。
 - oracle 交叉验证：0 不一致（上文实测）。
 - 生成漂移 `generate:check`、`test:layers`、`quality:check`、`supply:check`：绿（以最终 verify 为准）。
 - `pnpm verify` exit 0（提交前最终重跑，结果见交接说明）。
