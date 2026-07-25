@@ -2,6 +2,7 @@ import { inflateSync } from "node:zlib";
 
 import { PdfExportError } from "./errors.ts";
 import type { GlyphOrigin } from "./cmap-repair.ts";
+import { extractOrderedText, type ToUnicodeMap } from "./extract.ts";
 
 export interface TextHole {
   readonly pageIndex: number;
@@ -154,11 +155,6 @@ function parseMetadata(objects: Map<number, PdfObject>): {
   return { metadata: Object.freeze(metadata), xmp, rootId };
 }
 
-interface ToUnicodeMap {
-  readonly codeLength: number;
-  readonly map: Map<number, string>;
-}
-
 function utf16beHexToString(hex: string): string {
   const bytes = Buffer.from(hex, "hex");
   return bytes.swap16().toString("utf16le");
@@ -207,141 +203,6 @@ function parseToUnicode(cmap: string): ToUnicodeMap {
     }
   }
   return { codeLength, map };
-}
-
-function extractText(
-  content: string,
-  fonts: Map<string, ToUnicodeMap>,
-  fontIds: Map<string, number>,
-  pageIndex: number,
-  baseOffset: number,
-  contentObjectId: number,
-): { text: string; holes: TextHole[]; origins: (GlyphOrigin | null)[] } {
-  const parts: string[] = [];
-  const origins: (GlyphOrigin | null)[] = [];
-  const holes: TextHole[] = [];
-  let offset = baseOffset;
-  let current: ToUnicodeMap | undefined;
-  let currentFontId = 0;
-  // 标签化 PDF 的 ActualText 覆盖：ToUnicode 把共享字形映射到康熙部首码位时，
-  // Skia 用 ActualText 给出正字——命中即采用并抑制 span 内字形解码。
-  // span 的 ActualText 字符回填其内层字形身份（供修复层判定错标）。
-  let suppress = 0;
-  let spanIndex = -1;
-  let spanCharOffset = -1;
-  let spanGlyph: { fontObjectId: number; code: number } | undefined;
-  const tokenPattern =
-    /\/ActualText\s*<([0-9A-Fa-f]+)>\s*>>\s*BDC|\bEMC\b|\/([A-Za-z0-9]+)\s+[\d.]+\s+Tf|<([0-9A-Fa-f]+)>\s*Tj|\[((?:[^\])]*))\]\s*TJ/gu;
-  const pushChar = (text: string, origin: GlyphOrigin | null): void => {
-    parts.push(text);
-    origins.push(origin);
-    offset += [...text].length;
-  };
-  for (const token of content.matchAll(tokenPattern)) {
-    if (token[1] !== undefined) {
-      const actualText = utf16beHexToString(token[1]);
-      spanIndex += 1;
-      spanCharOffset = origins.length;
-      spanGlyph = undefined;
-      parts.push(actualText);
-      origins.push(null);
-      offset += [...actualText].length;
-      suppress += 1;
-      continue;
-    }
-    if (token[0] === "EMC") {
-      if (spanGlyph !== undefined && spanCharOffset >= 0) {
-        origins[spanCharOffset] = Object.freeze({
-          fontObjectId: spanGlyph.fontObjectId,
-          code: spanGlyph.code,
-          viaActualText: true,
-          spanIndex,
-          contentObjectId,
-        });
-      }
-      spanGlyph = undefined;
-      spanCharOffset = -1;
-      suppress = Math.max(0, suppress - 1);
-      continue;
-    }
-    if (token[2] !== undefined) {
-      if (suppress === 0) {
-        current = fonts.get(token[2]);
-        currentFontId = fontIds.get(token[2]) ?? 0;
-      }
-      continue;
-    }
-    const hexRun = token[3];
-    if (hexRun !== undefined) {
-      const codeLength = current?.codeLength ?? 1;
-      for (
-        let index = 0;
-        index + codeLength * 2 <= hexRun.length;
-        index += codeLength * 2
-      ) {
-        const code = Number.parseInt(hexRun.slice(index, index + codeLength * 2), 16);
-        if (suppress > 0) {
-          spanGlyph ??= { fontObjectId: currentFontId, code };
-          continue;
-        }
-        const mapped = current?.map.get(code);
-        if (mapped === undefined) {
-          // 无 ToUnicode 映射的字形洞：Skia m150 缺陷面，交修复层对齐补回。
-          holes.push(
-            Object.freeze({ pageIndex, offset, fontObjectId: currentFontId, code }),
-          );
-        } else {
-          pushChar(
-            mapped,
-            Object.freeze({
-              fontObjectId: currentFontId,
-              code,
-              viaActualText: false,
-              spanIndex: -1,
-              contentObjectId,
-            }),
-          );
-        }
-      }
-      continue;
-    }
-    const array = token[4];
-    if (array !== undefined) {
-      const codeLength = current?.codeLength ?? 1;
-      for (const piece of array.matchAll(/<([0-9A-Fa-f]+)>/g)) {
-        const hex = piece[1] ?? "";
-        for (
-          let index = 0;
-          index + codeLength * 2 <= hex.length;
-          index += codeLength * 2
-        ) {
-          const code = Number.parseInt(hex.slice(index, index + codeLength * 2), 16);
-          if (suppress > 0) {
-            spanGlyph ??= { fontObjectId: currentFontId, code };
-            continue;
-          }
-          const mapped = current?.map.get(code);
-          if (mapped === undefined) {
-            holes.push(
-              Object.freeze({ pageIndex, offset, fontObjectId: currentFontId, code }),
-            );
-          } else {
-            pushChar(
-              mapped,
-              Object.freeze({
-                fontObjectId: currentFontId,
-                code,
-                viaActualText: false,
-                spanIndex: -1,
-                contentObjectId,
-              }),
-            );
-          }
-        }
-      }
-    }
-  }
-  return { text: parts.join(""), holes, origins };
 }
 
 /** 解析自家管线 PDF：元数据、页尺寸、字体（内嵌/子集）与逐页文本层。 */
@@ -473,7 +334,7 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
         if (content === undefined) {
           fail(`page content object ${id} is missing`);
         }
-        const extracted = extractText(
+        const extracted = extractOrderedText(
           inflate(content, "page content"),
           toUnicodeByTag,
           fontIdByTag,

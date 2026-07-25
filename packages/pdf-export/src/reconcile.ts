@@ -26,20 +26,40 @@ export function normalizePdfText(text: string): string {
     .replaceAll(/\s+/gu, "");
 }
 
-/** 提取冻结 SVG 资产的可见文本（`<text>` 元素，文档序，实体反转义）。 */
+interface SvgTextItem {
+  readonly x: number;
+  readonly y: number;
+  readonly text: string;
+}
+
+function unescapeXml(text: string): string {
+  return text
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'");
+}
+
+/**
+ * 提取冻结 SVG 资产的可见文本，按 PDF 设备空间阅读序（y 降序、x 升序）排列——
+ * 与位置感知提取器对图表区的排序口径一致（SVG y 向下，设备 y 向上）。
+ */
 export function extractSvgText(svg: string): string {
-  const parts: string[] = [];
-  for (const match of svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)) {
-    parts.push(
-      (match[1] ?? "")
-        .replaceAll("&amp;", "&")
-        .replaceAll("&lt;", "<")
-        .replaceAll("&gt;", ">")
-        .replaceAll("&quot;", '"')
-        .replaceAll("&#39;", "'"),
+  const items: SvgTextItem[] = [];
+  for (const match of svg.matchAll(
+    /<text\b[^>]*?\bx="(-?[\d.]+)"[^>]*?\by="(-?[\d.]+)"[^>]*>([^<]*)<\/text>/g,
+  )) {
+    items.push(
+      Object.freeze({
+        x: Number(match[1]),
+        y: Number(match[2]),
+        text: unescapeXml(match[3] ?? ""),
+      }),
     );
   }
-  return parts.join("");
+  const sorted = [...items].sort((a, b) => (a.y === b.y ? a.x - b.x : b.y - a.y));
+  return sorted.map((item) => item.text).join("");
 }
 
 function visitBlocks(
