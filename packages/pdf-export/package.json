@@ -1,0 +1,26 @@
+{
+  "name": "@wenshu/pdf-export",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "export:baseline": "node scripts/export-baseline.ts",
+    "test": "node --test test/*.unit.test.ts test/*.render.test.ts",
+    "check": "pnpm test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wenshu/document-model": "workspace:*",
+    "@wenshu/report-render": "workspace:*",
+    "@wenshu/template-css": "workspace:*",
+    "@wenshu/template-map": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@wenshu/markdown-import": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
