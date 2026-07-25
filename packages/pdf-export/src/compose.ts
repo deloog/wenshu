@@ -9,18 +9,38 @@ import { PdfExportError } from "./errors.ts";
 const PRINT_BASELINE_CSS = "img, svg { max-width: 100%; height: auto; }";
 
 /**
- * 把 PA-03 语义 HTML 与 PA-04 白名单 CSS 合成为单文件打印文档：
- * 基线规则与模板 CSS 内联进 <head>（打印不依赖外部样式表请求时序），其余结构一字不改。
+ * 把 PA-03 语义 HTML 与 PA-04 白名单 CSS 合成为单文件打印文档。
+ * SVG 经 inlineSvg 内联进 DOM：Skia 的 SVG-as-<img> 沙箱不使用任何 webfont
+ * （实测主机回落 Noto、VM 回落 MicrosoftYaHei）；内联后图表文本走页面
+ * @font-face（PA-04 CSS，各环境均验证使用冻结 OTF）。
+ * 冻结资产字节不变，a11y 由 role="img" + aria-label 承接。
  */
-export function composePrintDocument(semanticHtml: string, css: string): string {
+export function composePrintDocument(
+  semanticHtml: string,
+  css: string,
+  inlineSvg?: (assetPath: string) => string | undefined,
+): string {
   if (!semanticHtml.includes("</head>") || !semanticHtml.includes("<main")) {
     throw new PdfExportError(
       "PDF_EXPORT_COMPOSE_INVALID",
       "semantic html lacks the expected head/main structure",
     );
   }
-  return semanticHtml.replace(
+  let documentHtml = semanticHtml.replace(
     "</head>",
     `<style>\n${PRINT_BASELINE_CSS}\n${css}</style></head>`,
   );
+  if (inlineSvg !== undefined) {
+    documentHtml = documentHtml.replaceAll(
+      /<img src="([^"]+\.svg)" alt="([^"]*)">/gu,
+      (whole, path: string, alt: string) => {
+        const svg = inlineSvg(path);
+        if (svg === undefined) {
+          return whole;
+        }
+        return `<div class="fig-image" role="img" aria-label="${alt}">${svg}</div>`;
+      },
+    );
+  }
+  return documentHtml;
 }

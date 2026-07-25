@@ -5,6 +5,5 @@ export * from "./metadata-policy.ts";
 export * from "./pipeline.ts";
 export * from "./print-params.ts";
 export * from "./reconcile.ts";
-export * from "./svg-font.ts";
 export * from "./cmap-repair.ts";
 export * from "./pdf-patch.ts";

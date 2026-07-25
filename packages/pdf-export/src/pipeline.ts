@@ -16,7 +16,6 @@ import { composePrintDocument } from "./compose.ts";
 import { inspectPdf, type PdfInspection } from "./inspect.ts";
 import { buildExpectedPdfText, extractSvgText } from "./reconcile.ts";
 import { buildPrintParams, type PrintParams } from "./print-params.ts";
-import { injectSvgFontFace } from "./svg-font.ts";
 
 export interface BaselineInput {
   readonly fixture: string;
@@ -67,25 +66,33 @@ export async function produceBaselinePdf(
     model,
     plan.map((face) => ({ weight: face.weight, src: `fonts/${face.fileName}` })),
   );
-  const printHtml = composePrintDocument(renderDocumentHtml(imported.document), css);
+  const svgCache = new Map<string, string>();
+  for (const original of Object.keys(imported.renames)) {
+    if (original.toLowerCase().endsWith(".svg")) {
+      svgCache.set(
+        original,
+        new TextDecoder().decode(await readFile(resolve(input.fixtureRoot, original))),
+      );
+    }
+  }
+  const printHtml = composePrintDocument(
+    renderDocumentHtml(imported.document),
+    css,
+    (assetPath) => {
+      const original = Object.entries(imported.renames).find(
+        ([, normalized]) => normalized === assetPath,
+      )?.[0];
+      if (original === undefined) {
+        return undefined;
+      }
+      return svgCache.get(original);
+    },
+  );
   const printParams = buildPrintParams(model);
 
   const documents: Record<string, string | Uint8Array> = { "/print.html": printHtml };
-  const fontFamily =
-    typeof manifest["family"] === "string" ? (manifest["family"] as string) : "";
-  const embeddedFaces = await Promise.all(
-    plan.map(async (face) => ({
-      weight: face.weight,
-      fileName: face.fileName,
-      bytes: new Uint8Array(await readFile(resolve(input.fontDir, face.fileName))),
-    })),
-  );
   for (const [original, normalized] of Object.entries(imported.renames)) {
-    const bytes = await readFile(resolve(input.fixtureRoot, original));
-    // 供给期变换：SVG 内嵌 data: 字体使沙箱 <img> 图表文本使用冻结 OTF（冻结资产字节不变）。
-    documents[`/${normalized}`] = original.toLowerCase().endsWith(".svg")
-      ? injectSvgFontFace(new TextDecoder().decode(bytes), fontFamily, embeddedFaces)
-      : bytes;
+    documents[`/${normalized}`] = await readFile(resolve(input.fixtureRoot, original));
   }
   const server = await startStaticServer(
     [{ mount: "/fonts/", directory: input.fontDir }],
