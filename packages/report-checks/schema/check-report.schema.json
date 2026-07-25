@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/report-checks/1.0.0/check-report.schema.json",
+  "title": "WenshuCheckReport",
+  "description": "Version 1 report of rule-based checks over the PA-06 PDF evidence model. Findings carry stable codes, page/node locations and numeric basis only; document content is never echoed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["checkReportVersion", "source", "rules", "findings"],
+  "properties": {
+    "checkReportVersion": { "const": "1.0.0" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceSha256"],
+      "properties": {
+        "evidenceSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the PDF bytes the checked evidence was extracted from."
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+      "description": "Rule ids actually executed (per-rule rollback is expressed by absence here)."
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Finding" }
+    }
+  },
+  "$defs": {
+    "Finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "code", "pageIndex", "nodeRef", "basis"],
+      "properties": {
+        "ruleId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "code": {
+          "type": "string",
+          "pattern": "^P[0-9]_[A-Z0-9_]+$",
+          "description": "Stable issue code; P0_* are blocking, P1_* are warnings (P1 rules land in PA-08~10)."
+        },
+        "pageIndex": { "type": "integer", "minimum": 0 },
+        "nodeRef": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic node locator: run:<readingOrder>, figure:<pageIndex>:<mcid>, page:<index>, or a document block path like /blocks/3."
+        },
+        "basis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metrics"],
+          "properties": {
+            "metrics": {
+              "type": "object",
+              "additionalProperties": { "type": "number" },
+              "minProperties": 1,
+              "description": "Numeric evidence for the finding (e.g. overflowPt, overlapAreaPt2, expectedLength). Named values only, never text."
+            },
+            "relatedNodeRef": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Second party for pairwise findings (e.g. overlap)."
+            }
+          }
+        }
+      }
+    }
+  }
+}

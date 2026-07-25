@@ -1,0 +1,11 @@
+{
+  "expectedIssue": "CHECK_REPORT_SCHEMA",
+  "expectedPath": "/",
+  "checkReportVersion": "1.0.0",
+  "source": {
+    "evidenceSha256": "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd"
+  },
+  "rules": ["p0-page-size"],
+  "findings": [],
+  "unexpected": true
+}

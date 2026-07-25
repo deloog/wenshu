@@ -395,6 +395,7 @@
         "@wenshu/pdf-export",
         "@wenshu/project-contract",
         "@wenshu/quality",
+        "@wenshu/report-checks",
         "@wenshu/report-render",
         "@wenshu/supply-chain",
         "@wenshu/template-css",
@@ -506,6 +507,7 @@
         "@wenshu/host-contract",
         "@wenshu/pdf-evidence",
         "@wenshu/project-contract",
+        "@wenshu/report-checks",
         "@wenshu/template-model"
       ]
     },
@@ -774,6 +776,7 @@
         "@wenshu/host-contract",
         "@wenshu/pdf-evidence",
         "@wenshu/project-contract",
+        "@wenshu/report-checks",
         "@wenshu/template-model"
       ]
     },
@@ -1122,6 +1125,7 @@
         "@wenshu/pdf-export",
         "@wenshu/project-contract",
         "@wenshu/quality",
+        "@wenshu/report-checks",
         "@wenshu/report-render",
         "@wenshu/supply-chain",
         "@wenshu/template-css",
