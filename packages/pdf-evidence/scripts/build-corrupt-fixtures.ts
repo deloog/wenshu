@@ -7,12 +7,13 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const repoRoot = join(import.meta.dirname, "..", "..", "..");
 const outDir = join(import.meta.dirname, "..", "fixtures", "corrupt");
+// 签署基线的随包提交副本（SHA 锚定，与 PA-05 签署身份一致）。
 const baselinePath = join(
-  repoRoot,
-  "test-results",
-  "pa-05",
+  import.meta.dirname,
+  "..",
+  "fixtures",
+  "baseline",
   "golden-report-baseline.pdf",
 );
 

@@ -17,6 +17,8 @@ export const LICENSE_OVERRIDES: ReadonlyMap<string, string> = new Map([
   ["@napi-rs/canvas-linux-x64-gnu@1.0.2", "MIT"],
   ["@napi-rs/canvas-linux-x64-musl@1.0.2", "MIT"],
   ["@napi-rs/canvas-win32-arm64-msvc@1.0.2", "MIT"],
+  // win32-x64 变体在 win32 本机安装（清单 MIT 已核）、在 linux CI 不安装，两侧都需要覆盖。
+  ["@napi-rs/canvas-win32-x64-msvc@1.0.2", "MIT"],
   ["@tybys/wasm-util@0.10.3", "MIT"],
   ["tslib@2.8.1", "0BSD"],
   ["@rolldown/binding-android-arm64@1.1.5", "MIT"],

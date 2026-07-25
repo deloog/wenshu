@@ -19,7 +19,7 @@ PA-06 把 PA-05 签署基线 PDF 解析为版本化几何/文本证据模型，�
 1. 生产提取路径保持**零第三方依赖**的自写解析器（`@wenshu/pdf-export` 几何扩展），pdfjs-dist 仅作 **devDependency**，只出现在 `packages/pdf-evidence/scripts/oracle-crosscheck.ts` 与 oracle 测试中——oracle 与被测对象代码零共享。
 2. 交叉验证口径（书面化于 oracle-crosscheck.ts 头注）：页框 ≤1pt；逐行基线/行首 x ≤0.5pt、行宽 ≤1pt；figure 框四边 ≤2pt；文本按 PA-05 归一口径（部首→CJK、NFKC、去空白）逐行比对。
 3. pdf.js 不支持 ActualText（span 内回退 ToUnicode 解码，得部首形/figure dash）——此类行记为**信息项分歧**而非不一致，其几何仍逐行参与交叉验证；分歧非零本身反向证实「ToUnicode + ActualText 是唯一语义面」（PA-05 既定事实）。
-4. 供应链义务随引入一并完成：Apache-2.0 过许可门禁；SBOM 重建并提交（147→160 包）；`@napi-rs/canvas` 平台二进制许可证覆盖登记（npm registry 核验 MIT）；`pnpm audit` 复跑结果记录于 PA-06 实施记录。
+4. 供应链义务随引入一并完成：Apache-2.0 过许可门禁；SBOM 重建并提交（147→160 包）；`@napi-rs/canvas` 平台二进制许可证覆盖登记（npm registry 核验 MIT，含 win32-x64 变体双平台覆盖——ubuntu CI 首轮 security 作业实证单边覆盖不足后补齐）；`pnpm audit` 复跑结果记录于 PA-06 实施记录。
 5. 若 pdfjs-dist 未来版本引入不宽松许可或不可接受的传递依赖，立即按供应链基线替换 oracle，不使用镜像或豁免。
 
 ## 结果

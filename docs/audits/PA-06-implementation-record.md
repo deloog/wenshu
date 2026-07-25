@@ -5,7 +5,7 @@
 
 ## 硬前置处置
 
-- PA-05 已签署合入（`89726f4`，CI 8/8）；签署基线 `test-results/pa-05/golden-report-baseline.pdf`（977,170 字节，SHA-256 `d18da69f…e6dfd`）为本任务主 fixture，测试先核 SHA 再解析（防对错物出证据）。
+- PA-05 已签署合入（`89726f4`，CI 8/8）；签署基线 `test-results/pa-05/golden-report-baseline.pdf`（977,170 字节，SHA-256 `d18da69f…e6dfd`）为本任务主 fixture。`test-results/` 不入库（远程 CI 首轮 contracts 作业 ENOENT 实证），故**签署基线以不可变副本随包提交**于 `packages/pdf-evidence/fixtures/baseline/`，测试先核 SHA-256 与签署身份逐位一致再解析（防对错物、防双源漂移）。
 - 开工时 `docs/audits/PA-05-claude-audit-report.md` 有 30 行未提交附录（Claude 的附录 A）——审计者文件，实施者未触碰、未提交，交接时提请业主处置。
 
 ## 范围与架构

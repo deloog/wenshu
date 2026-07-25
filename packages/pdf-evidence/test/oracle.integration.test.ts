@@ -14,10 +14,8 @@ import { crosscheckGeometry } from "../scripts/oracle-crosscheck.ts";
 const baselinePath = resolve(
   import.meta.dirname,
   "..",
-  "..",
-  "..",
-  "test-results",
-  "pa-05",
+  "fixtures",
+  "baseline",
   "golden-report-baseline.pdf",
 );
 const SIGNED_BASELINE_SHA256 =

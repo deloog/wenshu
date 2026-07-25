@@ -19,10 +19,13 @@ import { extractEvidence } from "../src/extract-evidence.ts";
 import type { WenshuPdfEvidence } from "../src/generated/evidence.ts";
 
 const repoRoot = resolve(import.meta.dirname, "..", "..", "..");
+// 签署基线的不可变副本随包提交（test-results/ 不入库，CI 无原件）；
+// SHA-256 锚定与 PA-05 签署身份逐位一致，杜绝双源漂移。
 const baselinePath = resolve(
-  repoRoot,
-  "test-results",
-  "pa-05",
+  import.meta.dirname,
+  "..",
+  "fixtures",
+  "baseline",
   "golden-report-baseline.pdf",
 );
 const fixtureRoot = resolve(repoRoot, "docs", "poc-a", "fixtures");
