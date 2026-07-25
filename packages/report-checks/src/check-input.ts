@@ -1,6 +1,8 @@
 /**
  * P0 检查输入：检查的唯一事实来源是 PA-06 证据模型（禁重解析 PDF 的
  * 类型级保证）+ 文档侧期望块 + 版心。禁 mock——集成测试用真实证据。
+ * 证据契约 1.1.0（PA-06B）：p0-overlap 的成员制豁免消费 textRuns[].figureMcid
+ * 与 figures[].paintBBox；1.0.0 证据无成员事实，运行时 fail-closed。
  */
 import type { WenshuPdfEvidence } from "@wenshu/pdf-evidence";
 
@@ -21,7 +23,10 @@ export interface P0Rule {
 }
 
 export class ReportChecksError extends Error {
-  public readonly code: "REPORT_CHECKS_UNKNOWN_RULE" | "REPORT_CHECKS_INTERNAL";
+  public readonly code:
+    | "REPORT_CHECKS_UNKNOWN_RULE"
+    | "REPORT_CHECKS_INTERNAL"
+    | "REPORT_CHECKS_UNSUPPORTED_EVIDENCE";
 
   public constructor(code: ReportChecksError["code"], message: string) {
     super(message);

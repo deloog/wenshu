@@ -144,6 +144,49 @@ test("acceptance 2: overlap fault between two lines is detected with both refs",
   assert.ok((hit.basis.metrics["overlapAreaPt2"] ?? 0) > 0.5);
 });
 
+test("acceptance 2: figure fully covering body text (no straddle) is detected as P0_OVERLAP", () => {
+  // PA-I1 原例（决策 #10）：非成员正文 run 完全落入 figure 绘制框（不骑缝）
+  // → P0。基线形态：p7 figure paintBBox ≈ x87..508 × y546..785。
+  const figure = baselineEvidence.figures.find(
+    (candidate) => candidate.pageIndex === 7,
+  );
+  assert.ok(figure !== undefined);
+  let coveredOrder = -1;
+  const fault = derive((draft) => {
+    // 选一个页 7 的非成员正文 run，整体挪入 figure 绘制框中央。
+    const run = draft.textRuns.find(
+      (candidate) => candidate.pageIndex === 7 && candidate.figureMcid === null,
+    );
+    assert.ok(run !== undefined);
+    coveredOrder = run.readingOrder;
+    run.bbox.x = figure.paintBBox.x + 50;
+    run.bbox.y = figure.paintBBox.y - 50;
+  });
+  const report = runP0Checks(inputFor(fault));
+  const hits = report.findings.filter(
+    (finding) =>
+      finding.code === "P0_OVERLAP" &&
+      finding.nodeRef === `run:${coveredOrder}` &&
+      finding.basis.relatedNodeRef === `figure:7:${figure.mcid}`,
+  );
+  assert.equal(hits.length, 1, JSON.stringify(report.findings.slice(0, 5)));
+  assert.ok((hits[0]?.basis.metrics["overlapAreaPt2"] ?? 0) > 0.5);
+});
+
+test("acceptance 2: figure-member runs stay exempt on the signed baseline (no false positives)", () => {
+  // 误报门：p7/p9 的图表标签 run 都是成员，基线整体仍 0 P0（验收②由
+  // acceptance 1 全覆盖，此处专断成员豁免路径确实生效——成员与绘制框重叠）。
+  const members = baselineEvidence.textRuns.filter((run) => run.figureMcid !== null);
+  assert.ok(members.length > 0);
+  const report = runP0Checks(inputFor(baselineEvidence));
+  assert.ok(
+    report.findings.every(
+      (finding) =>
+        !members.some((run) => finding.nodeRef === `run:${run.readingOrder}`),
+    ),
+  );
+});
+
 test("acceptance 2: deleted paragraph is detected as missing content at its block", () => {
   // 找到第一个在证据中唯一出现的 paragraph 期望块（标题类文本会多处出现，
   // 删除一处不等于内容缺失），定位其覆盖 run 区间并在派生证据中删除。

@@ -43,6 +43,7 @@ function makeRun(over: {
   baselineY?: number;
   fontSize?: number;
   blockOrder?: number;
+  figureMcid?: number | null;
 }): WenshuPdfEvidence["textRuns"][number] {
   runSeq += 1;
   const baselineY = over.baselineY ?? (over.y ?? 780) - 10;
@@ -61,12 +62,30 @@ function makeRun(over: {
     blockOrder: over.blockOrder ?? 1,
     readingOrder: runSeq - 1,
     viaActualText: false,
+    figureMcid: over.figureMcid ?? null,
+  };
+}
+
+function makeFigure(over: {
+  mcid?: number;
+  bbox?: { x: number; y: number; width: number; height: number };
+  paintBBox?: { x: number; y: number; width: number; height: number };
+}): WenshuPdfEvidence["figures"][number] {
+  const bbox = over.bbox ?? { x: 51, y: 785, width: 493, height: 728 };
+  return {
+    pageIndex: 0,
+    mcid: over.mcid ?? 0,
+    bbox,
+    paintBBox: over.paintBBox ?? { x: 87, y: 785, width: 421, height: 239 },
+    kind: "vector-figure",
+    altShort: null,
+    altLong: null,
   };
 }
 
 function makeEvidence(over: Partial<WenshuPdfEvidence>): WenshuPdfEvidence {
   return {
-    evidenceVersion: "1.0.0",
+    evidenceVersion: "1.1.0",
     source: { sha256: SHA, pageCount: 1, producer: "Skia/PDF m150" },
     pages: [
       {
@@ -155,14 +174,10 @@ test("p0-bounds: run beyond content box but inside page is flagged with amount",
 test("p0-bounds: figure beyond page edge is flagged", () => {
   const evidence = makeEvidence({
     figures: [
-      {
-        pageIndex: 0,
-        mcid: 0,
+      makeFigure({
         bbox: { x: 500, y: 800, width: 120, height: 100 },
-        kind: "vector-figure",
-        altShort: null,
-        altLong: null,
-      },
+        paintBBox: { x: 500, y: 800, width: 120, height: 100 },
+      }),
     ],
   });
   const findings = p0BoundsRule.check(makeInput(evidence));
@@ -202,28 +217,62 @@ test("p0-overlap: cross-line collision is flagged; touching boxes pass", () => {
   );
 });
 
-test("p0-overlap: run contained in figure exempt; straddling run flagged", () => {
-  const figure = {
-    pageIndex: 0,
-    mcid: 0,
-    bbox: { x: 51, y: 785, width: 493, height: 728 },
-    kind: "vector-figure" as const,
-    altShort: null,
-    altLong: null,
-  };
-  const inside = makeRun({ x: 100, y: 700, width: 10, height: 12 });
+test("p0-overlap: figure member run exempt; geometric insider without membership flagged", () => {
+  // 成员制（决策 #10）：figure bbox 为版心全域（clip 撑起），绘制框只是图表区。
+  const figure = makeFigure({});
+  // 图表标签：几何与结构双重在图内 → 成员豁免，与自身图/同图标签互叠不报。
+  const labelA = makeRun({ x: 100, y: 700, width: 10, height: 12, figureMcid: 0 });
+  const labelB = makeRun({ x: 105, y: 700, width: 10, height: 12, figureMcid: 0 });
   assert.equal(
     p0OverlapRule.check(
-      makeInput(makeEvidence({ textRuns: [inside], figures: [figure] })),
+      makeInput(makeEvidence({ textRuns: [labelA, labelB], figures: [figure] })),
     ).length,
     0,
   );
-  const straddle = makeRun({ x: 45, y: 700, width: 20, height: 12 });
+  // 决定性（验收①③）：几何完全落入 paintBBox（不骑缝）但结构非成员 → P0。
+  const covered = makeRun({ x: 100, y: 700, width: 10, height: 12 });
+  const findings = p0OverlapRule.check(
+    makeInput(makeEvidence({ textRuns: [covered], figures: [figure] })),
+  );
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]?.code, "P0_OVERLAP");
+  assert.equal(findings[0]?.nodeRef, `run:${covered.readingOrder}`);
+  assert.equal(findings[0]?.basis.relatedNodeRef, "figure:0:0");
+});
+
+test("p0-overlap: run inside clip-inflated bbox but outside painted extent passes", () => {
+  // 基线 p7/p9 形态：figure bbox 版心全域，正文 run 几何落入 bbox 但在
+  // paintBBox 之外 → 无重叠，不误报（误报门）。
+  const figure = makeFigure({});
+  const body = makeRun({ x: 100, y: 500, width: 200, height: 12 });
+  assert.equal(
+    p0OverlapRule.check(
+      makeInput(makeEvidence({ textRuns: [body], figures: [figure] })),
+    ).length,
+    0,
+  );
+});
+
+test("p0-overlap: straddling painted extent flagged; member of another figure flagged", () => {
+  const figure = makeFigure({});
+  // 骑缝 paintBBox 边缘的非成员 run → P0。
+  const straddle = makeRun({ x: 82, y: 700, width: 20, height: 12 });
   const findings = p0OverlapRule.check(
     makeInput(makeEvidence({ textRuns: [straddle], figures: [figure] })),
   );
   assert.equal(findings.length, 1);
   assert.equal(findings[0]?.basis.relatedNodeRef, "figure:0:0");
+  // 属于另一 figure 的成员与本图重叠 → 不享受本图豁免。
+  const other = makeFigure({
+    mcid: 1,
+    paintBBox: { x: 600, y: 100, width: 10, height: 10 },
+  });
+  const alien = makeRun({ x: 100, y: 700, width: 10, height: 12, figureMcid: 1 });
+  const alienFindings = p0OverlapRule.check(
+    makeInput(makeEvidence({ textRuns: [alien], figures: [figure, other] })),
+  );
+  assert.equal(alienFindings.length, 1);
+  assert.equal(alienFindings[0]?.basis.relatedNodeRef, "figure:0:0");
 });
 
 test("p0-content: present blocks pass; missing block flagged with ref and length", () => {
@@ -330,6 +379,19 @@ test("runner: unknown disabled rule id fails closed", () => {
       }),
     (error: unknown) =>
       error instanceof ReportChecksError && error.code === "REPORT_CHECKS_UNKNOWN_RULE",
+  );
+});
+
+test("runner: legacy 1.0.0 evidence fails closed (no membership facts)", () => {
+  const legacy = {
+    ...makeEvidence({}),
+    evidenceVersion: "1.0.0",
+  } as unknown as WenshuPdfEvidence;
+  assert.throws(
+    () => runP0Checks(makeInput(legacy)),
+    (error: unknown) =>
+      error instanceof ReportChecksError &&
+      error.code === "REPORT_CHECKS_UNSUPPORTED_EVIDENCE",
   );
 });
 

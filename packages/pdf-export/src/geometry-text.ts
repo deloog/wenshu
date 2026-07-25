@@ -1,11 +1,28 @@
 import { PdfExportError } from "./errors.ts";
 import type { GeometryFontRef, GeometryTextRun } from "./geometry.ts";
+import {
+  enclosingFigureMcid,
+  growFigurePaint,
+  growFigurePaths,
+  growFigureText,
+  IDENTITY,
+  multiply,
+  newFigureBox,
+  apply,
+  type FigureBox,
+  type Mark,
+  type Matrix,
+} from "./geometry-marks.ts";
 
 /**
  * 几何保留的内容流切词：算子语义与 extract.ts 完全一致（Tm/Td/cm/q/Q、
- * ActualText 抑制、NonStruct MCID 块序、Y_BUCKET=8 阅读序），额外做两件事：
+ * ActualText 抑制、NonStruct MCID 块序、Y_BUCKET=8 阅读序），额外做三件事：
  * 1. 逐字形累积前进量得到 run 宽度（ActualText span 的宽度来自被抑制字形）；
- * 2. 在 /Figure 标记内容 span 内累积路径点与文本 run 的包围盒。
+ * 2. 在 /Figure 标记内容 span 内累积路径点与文本 run 的包围盒（box 含 clip
+ *    矩形；paintBox 只计绘制算子消费的路径，见 geometry-marks.ts）；
+ * 3. 逐 run 记录 /Figure 成员标记（figureMcid）：run 的全部字形都在同一个
+ *    /Figure span 内发出时为该 span 的 MCID，否则 null——纯解析期结构事实，
+ *    不做任何 bbox 几何推断（决策 #10）。
  * 字形洞（无 ToUnicode 映射）是已知 Skia 缺陷面（见 cmap-repair.ts），此处按
  * 前进量-only 处理：贡献 /Widths 宽度、不产生字符，而不是 fail-closed。
  */
@@ -23,14 +40,6 @@ export interface Type3FontGeometry {
   readonly fontBBox: readonly number[];
 }
 
-interface FigureBox {
-  readonly mcid: number;
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
 export interface FigureSpanGeometry {
   readonly mcid: number;
   readonly box: FigureBox;
@@ -40,24 +49,6 @@ export interface ContentGeometry {
   /** 已按 PA-05 阅读序（块序 → y 桶降序 → x 升序）排序的本流 run。 */
   readonly runs: readonly GeometryTextRun[];
   readonly figures: readonly FigureSpanGeometry[];
-}
-
-type Matrix = readonly [number, number, number, number, number, number];
-const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
-
-function multiply(m: Matrix, n: Matrix): Matrix {
-  return [
-    m[0] * n[0] + m[2] * n[1],
-    m[1] * n[0] + m[3] * n[1],
-    m[0] * n[2] + m[2] * n[3],
-    m[1] * n[2] + m[3] * n[3],
-    m[0] * n[4] + m[2] * n[5] + m[4],
-    m[1] * n[4] + m[3] * n[5] + m[5],
-  ];
-}
-
-function apply(m: Matrix, x: number, y: number): readonly [number, number] {
-  return [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 }
 
 function fail(message: string): never {
@@ -92,12 +83,7 @@ function utf16beHexToString(hex: string): string {
 }
 
 const TOKEN =
-  /\/ActualText\s*<(?<actual>[0-9A-Fa-f]+)>\s*>>\s*BDC|\/(?<mark>[A-Za-z0-9]+)\s*<<\s*\/MCID\s+(?<mcid>\d+)\s*>>\s*BDC|\bEMC\b|\/(?<font>[A-Za-z0-9]+)\s+(?<size>[\d.]+)\s+Tf|(?<tm>(?:-?[\d.]+\s+){5}-?[\d.]+)\s+Tm|(?<td>-?[\d.]+\s+-?[\d.]+)\s+T[Dd]\b|(?<cm>(?:-?[\d.]+\s+){5}-?[\d.]+)\s+cm\b|(?<re>(?:-?[\d.]+\s+){3}-?[\d.]+)\s+re\b|(?<c6>(?:-?[\d.]+\s+){5}-?[\d.]+)\s+c\b|(?<c4>(?:-?[\d.]+\s+){3}-?[\d.]+)\s+[vy]\b|(?<p2>-?[\d.]+\s+-?[\d.]+)\s+[ml]\b|\b(?<state>q|Q|h)\b|<(?<tj>[0-9A-Fa-f]+)>\s*Tj|\[(?<tjArr>[^\]]*)\]\s*TJ/gu;
-
-interface Mark {
-  readonly kind: "actual" | "block" | "figure" | "other";
-  readonly box?: FigureBox;
-}
+  /\/ActualText\s*<(?<actual>[0-9A-Fa-f]+)>\s*>>\s*BDC|\/(?<mark>[A-Za-z0-9]+)\s*<<\s*\/MCID\s+(?<mcid>\d+)\s*>>\s*BDC|\bEMC\b|\/(?<font>[A-Za-z0-9]+)\s+(?<size>[\d.]+)\s+Tf|(?<tm>(?:-?[\d.]+\s+){5}-?[\d.]+)\s+Tm|(?<td>-?[\d.]+\s+-?[\d.]+)\s+T[Dd]\b|(?<cm>(?:-?[\d.]+\s+){5}-?[\d.]+)\s+cm\b|(?<re>(?:-?[\d.]+\s+){3}-?[\d.]+)\s+re\b|(?<c6>(?:-?[\d.]+\s+){5}-?[\d.]+)\s+c\b|(?<c4>(?:-?[\d.]+\s+){3}-?[\d.]+)\s+[vy]\b|(?<p2>-?[\d.]+\s+-?[\d.]+)\s+[ml]\b|\b(?<state>q|Q|h)\b|\b(?<paint>f\*?|F|S|s|B\*?|b\*?)\b|\b(?<discard>n)\b|<(?<tj>[0-9A-Fa-f]+)>\s*Tj|\[(?<tjArr>[^\]]*)\]\s*TJ/gu;
 
 interface GeomRun {
   x: number;
@@ -111,6 +97,11 @@ interface GeomRun {
   width: number;
   viaActualText: boolean;
   spans: Set<FigureBox>;
+  /** 首个字形的 /Figure span 归属（null = 尚无字形或字形在 span 外）。 */
+  glyphFigure: number | null;
+  sawGlyph: boolean;
+  /** 同一 run 的字形跨越不同成员状态（span 内外或多个 figure）→ 非成员。 */
+  figureMixed: boolean;
 }
 
 export function extractContentGeometry(
@@ -129,6 +120,8 @@ export function extractContentGeometry(
   let suppress = 0;
   let pendingSpanText: string | undefined;
   let blockOrder = 0;
+  /** 当前未消费路径的构造点（用户空间坐标），由绘制/丢弃算子清空。 */
+  let pathPoints: number[] = [];
 
   const newRun = (atX: number, atY: number): GeomRun => ({
     x: atX,
@@ -141,25 +134,28 @@ export function extractContentGeometry(
     width: 0,
     viaActualText: false,
     spans: new Set<FigureBox>(),
+    glyphFigure: null,
+    sawGlyph: false,
+    figureMixed: false,
   });
   let run = newRun(0, 0);
 
-  const grow = (box: FigureBox, x: number, y: number): void => {
-    box.minX = Math.min(box.minX, x);
-    box.minY = Math.min(box.minY, y);
-    box.maxX = Math.max(box.maxX, x);
-    box.maxY = Math.max(box.maxY, y);
-  };
-  const growPath = (coords: readonly number[]): void => {
-    for (const mark of markStack) {
-      if (mark.box === undefined) {
-        continue;
-      }
-      for (let index = 0; index + 1 < coords.length; index += 2) {
-        const [px, py] = apply(ctm, coords[index] ?? 0, coords[index + 1] ?? 0);
-        grow(mark.box, px, py);
-      }
+  /** 成员判定：每个字形（或无字形的 ActualText 落文）按发出时刻的栈状态记账。 */
+  const noteGlyphMembership = (): void => {
+    const enclosing = enclosingFigureMcid(markStack);
+    if (!run.sawGlyph) {
+      run.glyphFigure = enclosing;
+      run.sawGlyph = true;
+      return;
     }
+    if (run.glyphFigure !== enclosing) {
+      run.figureMixed = true;
+    }
+  };
+
+  const appendPath = (coords: readonly number[]): void => {
+    growFigurePaths(markStack, ctm, coords);
+    pathPoints.push(...coords);
   };
   const flushRun = (): void => {
     const text = run.parts.join("");
@@ -186,8 +182,7 @@ export function extractContentGeometry(
       height: top - bottom,
     });
     for (const box of run.spans) {
-      grow(box, bbox.x, bbox.y);
-      grow(box, bbox.x + bbox.width, bbox.y - bbox.height);
+      growFigureText(box, bbox.x, bbox.y, bbox.x + bbox.width, bbox.y - bbox.height);
     }
     runs.push(
       Object.freeze({
@@ -199,6 +194,7 @@ export function extractContentGeometry(
         font: run.font.ref,
         blockOrder: run.blockOrder,
         viaActualText: run.viaActualText,
+        figureMcid: run.figureMixed ? null : run.glyphFigure,
       }),
     );
   };
@@ -212,6 +208,9 @@ export function extractContentGeometry(
       run.blockOrder = blockOrder;
       run.m = multiply(ctm, tm);
       run.font = current;
+      run.glyphFigure = null;
+      run.sawGlyph = false;
+      run.figureMixed = false;
       return;
     }
     flushRun();
@@ -230,6 +229,7 @@ export function extractContentGeometry(
     for (let index = 0; index + codeLength * 2 <= hex.length; index += codeLength * 2) {
       const code = Number.parseInt(hex.slice(index, index + codeLength * 2), 16);
       run.width += advance(code);
+      noteGlyphMembership();
       for (const mark of markStack) {
         if (mark.box !== undefined) {
           run.spans.add(mark.box);
@@ -265,6 +265,7 @@ export function extractContentGeometry(
         suppress = Math.max(0, suppress - 1);
         if (pendingSpanText !== undefined) {
           // span 内无字形：文本落入当前 run，宽度保持已累积值。
+          noteGlyphMembership();
           run.parts.push(pendingSpanText);
           run.viaActualText = true;
           pendingSpanText = undefined;
@@ -278,16 +279,7 @@ export function extractContentGeometry(
     }
     if (g["mark"] !== undefined) {
       if (g["mark"] === "Figure") {
-        markStack.push({
-          kind: "figure",
-          box: {
-            mcid: Number(g["mcid"]),
-            minX: Infinity,
-            minY: Infinity,
-            maxX: -Infinity,
-            maxY: -Infinity,
-          },
-        });
+        markStack.push({ kind: "figure", box: newFigureBox(Number(g["mcid"])) });
       } else {
         if (g["mark"] === "NonStruct") {
           // 与 extract.ts 一致：仅 NonStruct MCID 推进逻辑块序。
@@ -327,8 +319,8 @@ export function extractContentGeometry(
     }
     if (g["re"] !== undefined) {
       const [rx, ry, rw, rh] = numbers(g["re"]);
-      growPath([rx ?? 0, ry ?? 0, (rx ?? 0) + (rw ?? 0), ry ?? 0]);
-      growPath([
+      appendPath([rx ?? 0, ry ?? 0, (rx ?? 0) + (rw ?? 0), ry ?? 0]);
+      appendPath([
         rx ?? 0,
         (ry ?? 0) + (rh ?? 0),
         (rx ?? 0) + (rw ?? 0),
@@ -337,11 +329,21 @@ export function extractContentGeometry(
       continue;
     }
     if (g["c6"] !== undefined) {
-      growPath(numbers(g["c6"]).slice(2));
+      appendPath(numbers(g["c6"]).slice(2));
       continue;
     }
     if (g["c4"] !== undefined || g["p2"] !== undefined) {
-      growPath(numbers(g["c4"] ?? g["p2"] ?? ""));
+      appendPath(numbers(g["c4"] ?? g["p2"] ?? ""));
+      continue;
+    }
+    if (g["paint"] !== undefined) {
+      // 绘制算子消费当前路径：paintBox 只计这些点（clip 路径走到 discard）。
+      growFigurePaint(markStack, ctm, pathPoints);
+      pathPoints = [];
+      continue;
+    }
+    if (g["discard"] !== undefined) {
+      pathPoints = [];
       continue;
     }
     if (g["tj"] !== undefined) {

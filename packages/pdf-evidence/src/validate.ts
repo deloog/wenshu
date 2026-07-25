@@ -1,10 +1,17 @@
 import Ajv2020 from "ajv/dist/2020.js";
 import { cloneAndFreeze, inspectData } from "@wenshu/contract-runtime";
 
+import evidenceSchemaV1_0_0 from "../schema/evidence-1.0.0.schema.json" with { type: "json" };
 import evidenceSchema from "../schema/evidence.schema.json" with { type: "json" };
+import type { WenshuPdfEvidenceV1_0_0 } from "./generated/evidence-1.0.0.ts";
 import type { WenshuPdfEvidence } from "./generated/evidence.ts";
 
-export const EVIDENCE_VERSION = "1.0.0" as const;
+/** 当前生产器版本；读取方同时接受冻结的 1.0.0（additive 升级纪律，决策 #10）。 */
+export const EVIDENCE_VERSION = "1.1.0" as const;
+export const SUPPORTED_EVIDENCE_VERSIONS = Object.freeze(["1.0.0", "1.1.0"] as const);
+
+/** 读取方接受的支持版本证据：1.1.0（含成员标记/绘制框）或冻结 1.0.0。 */
+export type SupportedEvidence = WenshuPdfEvidence | WenshuPdfEvidenceV1_0_0;
 
 export type EvidenceIssueCode =
   | "PDF_EVIDENCE_SCHEMA"
@@ -20,7 +27,7 @@ export interface EvidenceIssue {
 export type EvidenceValidationResult =
   | {
       readonly ok: true;
-      readonly value: WenshuPdfEvidence;
+      readonly value: SupportedEvidence;
     }
   | {
       readonly ok: false;
@@ -28,9 +35,11 @@ export type EvidenceValidationResult =
     };
 
 const MEDIA_BOX_TOLERANCE_PT = 0.01;
+const PAINT_WITHIN_BBOX_TOLERANCE_PT = 0.01;
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
-const validateShape = ajv.compile<WenshuPdfEvidence>(evidenceSchema);
+const validateShapeV1_1_0 = ajv.compile<WenshuPdfEvidence>(evidenceSchema);
+const validateShapeV1_0_0 = ajv.compile<WenshuPdfEvidenceV1_0_0>(evidenceSchemaV1_0_0);
 
 function makeIssue(code: EvidenceIssueCode, path: string): EvidenceIssue {
   return Object.freeze({ code, path });
@@ -77,7 +86,7 @@ function schemaIssuePath(error: {
   return base || "/";
 }
 
-function validateSemantics(evidence: WenshuPdfEvidence): readonly EvidenceIssue[] {
+function validateSemantics(evidence: SupportedEvidence): readonly EvidenceIssue[] {
   const issues: EvidenceIssue[] = [];
   const pageCount = evidence.source.pageCount;
 
@@ -126,6 +135,39 @@ function validateSemantics(evidence: WenshuPdfEvidence): readonly EvidenceIssue[
     }
   });
 
+  if (evidence.evidenceVersion === "1.1.0") {
+    // 1.1.0 语义：成员标记必须引用同页已登记 figure；绘制框不得越出 bbox
+    // （paint ⊆ bbox 是提取不变量：paintBox 的贡献者是 bbox 贡献者的子集）。
+    const figureKeys = new Set(
+      evidence.figures.map((figure) => `${figure.pageIndex}:${figure.mcid}`),
+    );
+    evidence.textRuns.forEach((run, index) => {
+      if (run.figureMcid === null) {
+        return;
+      }
+      if (!figureKeys.has(`${run.pageIndex}:${run.figureMcid}`)) {
+        issues.push(
+          makeIssue("PDF_EVIDENCE_SEMANTIC", `/textRuns/${index}/figureMcid`),
+        );
+      }
+    });
+    evidence.figures.forEach((figure, index) => {
+      const paint = figure.paintBBox;
+      if (paint.width === 0 && paint.height === 0) {
+        return;
+      }
+      const box = figure.bbox;
+      if (
+        paint.x < box.x - PAINT_WITHIN_BBOX_TOLERANCE_PT ||
+        paint.y > box.y + PAINT_WITHIN_BBOX_TOLERANCE_PT ||
+        paint.x + paint.width > box.x + box.width + PAINT_WITHIN_BBOX_TOLERANCE_PT ||
+        paint.y - paint.height < box.y - box.height - PAINT_WITHIN_BBOX_TOLERANCE_PT
+      ) {
+        issues.push(makeIssue("PDF_EVIDENCE_SEMANTIC", `/figures/${index}/paintBBox`));
+      }
+    });
+  }
+
   return issues;
 }
 
@@ -138,16 +180,30 @@ export function validateEvidence(input: unknown): EvidenceValidationResult {
     return fail([makeIssue("PDF_EVIDENCE_STRUCTURE", inspection.path)]);
   }
 
+  const version = isRecord(input) ? input["evidenceVersion"] : undefined;
   if (
-    isRecord(input) &&
-    "evidenceVersion" in input &&
-    input["evidenceVersion"] !== EVIDENCE_VERSION
+    version !== undefined &&
+    !(SUPPORTED_EVIDENCE_VERSIONS as readonly unknown[]).includes(version)
   ) {
     return fail([makeIssue("PDF_EVIDENCE_VERSION", "/evidenceVersion")]);
   }
 
-  if (!validateShape(input)) {
-    const issues = (validateShape.errors ?? []).map((error) =>
+  if (version === "1.0.0") {
+    if (!validateShapeV1_0_0(input)) {
+      const issues = (validateShapeV1_0_0.errors ?? []).map((error) =>
+        makeIssue("PDF_EVIDENCE_SCHEMA", schemaIssuePath(error)),
+      );
+      return fail(issues);
+    }
+    const semanticIssues = validateSemantics(input);
+    if (semanticIssues.length > 0) {
+      return fail(semanticIssues);
+    }
+    return Object.freeze({ ok: true, value: cloneAndFreeze(input) });
+  }
+
+  if (!validateShapeV1_1_0(input)) {
+    const issues = (validateShapeV1_1_0.errors ?? []).map((error) =>
       makeIssue("PDF_EVIDENCE_SCHEMA", schemaIssuePath(error)),
     );
     return fail(issues);

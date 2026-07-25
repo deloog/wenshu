@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://wenshu.local/schemas/pdf-evidence/1.0.0/evidence.schema.json",
+  "$id": "https://wenshu.local/schemas/pdf-evidence/1.1.0/evidence.schema.json",
   "title": "WenshuPdfEvidence",
-  "description": "Version 1 PDF geometric/textual evidence model extracted from the signed baseline PDF. Pure extraction facts; no quality judgement fields are allowed.",
+  "description": "Version 1.1 PDF geometric/textual evidence model extracted from the signed baseline PDF. Pure extraction facts; no quality judgement fields are allowed. Additive over 1.0.0 (decision #10): TextRun.figureMcid (parse-time /Figure membership) and FigureBox.paintBBox (painted-only extent, clip excluded). The reader keeps accepting frozen 1.0.0 data (schema/evidence-1.0.0.schema.json).",
   "type": "object",
   "additionalProperties": false,
   "required": ["evidenceVersion", "source", "pages", "textRuns", "figures", "fonts"],
   "properties": {
-    "evidenceVersion": { "const": "1.0.0" },
+    "evidenceVersion": { "const": "1.1.0" },
     "source": { "$ref": "#/$defs/EvidenceSource" },
     "pages": {
       "type": "array",
@@ -107,7 +107,8 @@
         "font",
         "blockOrder",
         "readingOrder",
-        "viaActualText"
+        "viaActualText",
+        "figureMcid"
       ],
       "properties": {
         "pageIndex": { "type": "integer", "minimum": 0 },
@@ -132,13 +133,26 @@
         "viaActualText": {
           "type": "boolean",
           "description": "Text comes from an ActualText span rather than glyph decoding."
+        },
+        "figureMcid": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Parse-time /Figure membership (decision #10): the MCID of the single /Figure marked-content span inside which every glyph of this run was emitted; null when the run sits outside all /Figure spans or straddles span boundaries. Never derived from bbox geometry."
         }
       }
     },
     "FigureBox": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["pageIndex", "mcid", "bbox", "kind", "altShort", "altLong"],
+      "required": [
+        "pageIndex",
+        "mcid",
+        "bbox",
+        "paintBBox",
+        "kind",
+        "altShort",
+        "altLong"
+      ],
       "properties": {
         "pageIndex": { "type": "integer", "minimum": 0 },
         "mcid": {
@@ -147,6 +161,10 @@
           "description": "Marked content id of the /Figure span on the page."
         },
         "bbox": { "$ref": "#/$defs/BBox" },
+        "paintBBox": {
+          "$ref": "#/$defs/BBox",
+          "description": "Painted extent: union of path points consumed by painting operators (f/F/S/s/B/b family) and member text-run bboxes. Clip paths (W n) never contribute; the pipeline's page-wide SVG root clip inflates bbox but not paintBBox. Zero box when the span paints nothing."
+        },
         "kind": {
           "const": "vector-figure",
           "description": "v1 pipeline emits SVG figures as vector content only; raster images would require a version bump."

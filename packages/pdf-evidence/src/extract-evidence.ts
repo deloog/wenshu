@@ -68,11 +68,13 @@ export function extractEvidence(bytes: Uint8Array): EvidenceExtractionResult {
         blockOrder: run.blockOrder,
         readingOrder,
         viaActualText: run.viaActualText,
+        figureMcid: run.figureMcid,
       })),
       figures: geometry.figures.map((figure) => ({
         pageIndex: figure.pageIndex,
         mcid: figure.mcid,
         bbox: { ...figure.bbox },
+        paintBBox: { ...figure.paintBBox },
         kind: "vector-figure",
         altShort: figure.altShort,
         altLong: figure.altLong,
@@ -82,7 +84,7 @@ export function extractEvidence(bytes: Uint8Array): EvidenceExtractionResult {
 
     // 产物必须满足自身冻结契约；不满足属内部缺陷，fail-closed 而非带病交付。
     const validation = validateEvidence(evidence);
-    if (!validation.ok) {
+    if (!validation.ok || validation.value.evidenceVersion !== EVIDENCE_VERSION) {
       return failure("PDF_EVIDENCE_UNSUPPORTED", "internal-consistency");
     }
     return Object.freeze({ ok: true, evidence: validation.value });

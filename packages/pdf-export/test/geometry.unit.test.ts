@@ -158,9 +158,99 @@ test("figure span bbox unions path ops under nested cm transforms", () => {
   close(figure?.bbox.y ?? 0, 790);
   close(figure?.bbox.width ?? 0, 100);
   close(figure?.bbox.height ?? 0, 50);
+  // 本例路径全部由绘制算子消费：paintBBox 与 bbox 一致。
+  close(figure?.paintBBox.x ?? 0, 5);
+  close(figure?.paintBBox.y ?? 0, 790);
+  close(figure?.paintBBox.width ?? 0, 100);
+  close(figure?.paintBBox.height ?? 0, 50);
   // 无 StructElem：提取事实照实输出 null 替代文本。
   assert.equal(figure?.altShort, null);
   assert.equal(figure?.altLong, null);
+});
+
+test("clip paths grow figure bbox but never the painted bbox", () => {
+  const geometry = extractGeometry(
+    fixturePdf(
+      [
+        "/Figure <</MCID 2 >>BDC",
+        // 版心全域 clip（自家管线 SVG 根背景的真实形态）：只进 bbox。
+        "0 0 600 800 re",
+        "W* n",
+        // 实际绘制内容：一小块填充矩形。
+        "100 600 200 100 re",
+        "f",
+        "EMC",
+      ].join("\n"),
+    ),
+  );
+  const figure = geometry.figures[0];
+  assert.equal(figure?.mcid, 2);
+  close(figure?.bbox.x ?? 0, 0);
+  close(figure?.bbox.width ?? 0, 600);
+  close(figure?.bbox.height ?? 0, 800);
+  close(figure?.paintBBox.x ?? 0, 100);
+  close(figure?.paintBBox.y ?? 0, 700);
+  close(figure?.paintBBox.width ?? 0, 200);
+  close(figure?.paintBBox.height ?? 0, 100);
+});
+
+test("figure membership is a parse-time fact, never bbox geometry", () => {
+  const geometry = extractGeometry(
+    fixturePdf(
+      [
+        "/Figure <</MCID 5 >>BDC",
+        // clip 撑大 bbox 到整页；绘制内容只有左上角一块。
+        "0 0 600 800 re",
+        "W* n",
+        "0 700 100 100 re",
+        "f",
+        "BT /F1 10 Tf",
+        "1 0 0 1 10 750 Tm <01> Tj",
+        "ET",
+        "EMC",
+        "/NonStruct <</MCID 6 >>BDC",
+        "BT /F1 10 Tf",
+        // 几何落在 figure bbox 内（整页），但结构上在 span 外 → 非成员。
+        "1 0 0 1 300 400 Tm <02> Tj",
+        "ET",
+        "EMC",
+      ].join("\n"),
+    ),
+  );
+  assert.equal(geometry.textRuns.length, 2);
+  const member = geometry.textRuns.find((run) => run.text === "A");
+  const outsider = geometry.textRuns.find((run) => run.text === "B");
+  assert.equal(member?.figureMcid, 5);
+  assert.equal(outsider?.figureMcid, null);
+});
+
+test("run straddling a figure span boundary is non-member (mixed)", () => {
+  const geometry = extractGeometry(
+    fixturePdf(
+      [
+        "BT /F1 10 Tf",
+        // 同一 run：第一个字形在 span 外，第二个在 span 内（无 Tm/Td 切断）。
+        "1 0 0 1 0 0 Tm <01> Tj",
+        "/Figure <</MCID 4 >>BDC",
+        "<02> Tj",
+        "EMC",
+        "ET",
+      ].join("\n"),
+    ),
+  );
+  assert.equal(geometry.textRuns.length, 1);
+  assert.equal(geometry.textRuns[0]?.text, "AB");
+  assert.equal(geometry.textRuns[0]?.figureMcid, null);
+});
+
+test("figure with only clip content registers a zero painted bbox", () => {
+  const geometry = extractGeometry(
+    fixturePdf(["/Figure <</MCID 9 >>BDC", "0 0 600 800 re", "W* n", "EMC"].join("\n")),
+  );
+  const figure = geometry.figures[0];
+  assert.equal(figure?.mcid, 9);
+  assert.ok((figure?.bbox.width ?? 0) > 0);
+  assert.deepEqual(figure?.paintBBox, { x: 0, y: 0, width: 0, height: 0 });
 });
 
 test("reading order sorts by block order, then y bucket desc, then x asc", () => {

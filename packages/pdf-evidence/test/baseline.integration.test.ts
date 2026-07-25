@@ -52,7 +52,7 @@ function loadEvidence(): WenshuPdfEvidence {
 const evidence = loadEvidence();
 
 test("evidence anchors source identity: sha256, page count, Skia producer", () => {
-  assert.equal(evidence.evidenceVersion, "1.0.0");
+  assert.equal(evidence.evidenceVersion, "1.1.0");
   assert.equal(evidence.source.sha256, SIGNED_BASELINE_SHA256);
   assert.equal(evidence.source.pageCount, 20);
   assert.match(evidence.source.producer, /^Skia\/PDF/);
@@ -111,6 +111,73 @@ test("figures carry vector bboxes inside the page and structure-tree captions", 
     );
     assert.ok((figure.altLong ?? "").length > 0);
   }
+});
+
+test("figure membership and painted extent are parse-time facts (decision #10)", () => {
+  // PA-06B 形态事实（实测针定）：两个 figure 的 bbox 都是版心全域（SVG 根
+  // clip 矩形撑起），绘制框 paintBBox 只是图表区；图表标签是 span 成员，
+  // 正文 run 全部非成员，且没有任何非成员 run 与 paintBBox 显著重叠——
+  // 这是 PA-07 成员制豁免下基线仍 0 P0 的证据侧前提。
+  const expected = new Map([
+    [
+      7,
+      {
+        mcid: 0,
+        members: 58,
+        paint: { x: 87.01, top: 784.92, width: 421.48, height: 238.84 },
+      },
+    ],
+    [
+      9,
+      {
+        mcid: 4,
+        members: 80,
+        paint: { x: 87.0, top: 553.92, width: 421.5, height: 182.65 },
+      },
+    ],
+  ]);
+  assert.equal(evidence.figures.length, 2);
+  for (const figure of evidence.figures) {
+    const pin = expected.get(figure.pageIndex);
+    assert.ok(pin !== undefined, `unexpected figure page ${figure.pageIndex}`);
+    assert.equal(figure.mcid, pin.mcid);
+    // bbox 为版心全域（既有语义，clip  inclusive）；paintBBox 远小于 bbox。
+    assert.ok(figure.bbox.height > 700, `bbox height ${figure.bbox.height}`);
+    assert.ok(
+      figure.paintBBox.height < figure.bbox.height / 2,
+      `paint height ${figure.paintBBox.height} vs bbox ${figure.bbox.height}`,
+    );
+    assert.ok(Math.abs(figure.paintBBox.x - pin.paint.x) < 1);
+    assert.ok(Math.abs(figure.paintBBox.y - pin.paint.top) < 1);
+    assert.ok(Math.abs(figure.paintBBox.width - pin.paint.width) < 1);
+    assert.ok(Math.abs(figure.paintBBox.height - pin.paint.height) < 1);
+
+    const pageRuns = evidence.textRuns.filter(
+      (run) => run.pageIndex === figure.pageIndex,
+    );
+    const members = pageRuns.filter((run) => run.figureMcid === figure.mcid);
+    const nonMembers = pageRuns.filter((run) => run.figureMcid === null);
+    assert.equal(members.length, pin.members, `members on page ${figure.pageIndex}`);
+    assert.equal(members.length + nonMembers.length, pageRuns.length);
+    // 非成员 run 与绘制框零显著重叠（>0.5pt² 即显著）。
+    const px0 = figure.paintBBox.x;
+    const py1 = figure.paintBBox.y;
+    const px1 = px0 + figure.paintBBox.width;
+    const py0 = py1 - figure.paintBBox.height;
+    const hits = nonMembers.filter((run) => {
+      const ix = Math.min(run.bbox.x + run.bbox.width, px1) - Math.max(run.bbox.x, px0);
+      const iy =
+        Math.min(run.bbox.y, py1) - Math.max(run.bbox.y - run.bbox.height, py0);
+      return ix > 0 && iy > 0 && ix * iy > 0.5;
+    });
+    assert.equal(hits.length, 0, `overlaps on page ${figure.pageIndex}`);
+  }
+  // figure 页之外没有任何成员标记。
+  assert.ok(
+    evidence.textRuns.every(
+      (run) => run.figureMcid === null || run.pageIndex === 7 || run.pageIndex === 9,
+    ),
+  );
 });
 
 test("fonts are the frozen embedded subset faces only", () => {

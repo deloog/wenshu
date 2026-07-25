@@ -36,6 +36,14 @@ export function runP0Checks(
       );
     }
   }
+  // p0-overlap 的成员制豁免依赖 1.1.0 成员事实（figureMcid/paintBBox）；
+  // 旧版证据没有该事实，放行会把成员误判为非成员——fail-closed。
+  if (input.evidence.evidenceVersion !== "1.1.0") {
+    throw new ReportChecksError(
+      "REPORT_CHECKS_UNSUPPORTED_EVIDENCE",
+      "p0 checks require evidence contract 1.1.0 (figure membership facts)",
+    );
+  }
   const executed = P0_RULES.filter((rule) => !disabled.has(rule.id));
   const findings: Finding[] = [];
   for (const rule of executed) {

@@ -225,6 +225,26 @@ export async function crosscheckGeometry(bytes: Uint8Array): Promise<CrosscheckR
           });
         }
       }
+      // 绘制框（v1.1.0）：oracle 侧只计 fill/stroke 家族的 constructPath；
+      // 本方 paintBBox 另含成员文本 run 包围盒——自家管线图表标签都落在
+      // 已绘制背景矩形内，两侧在同一容差下可比（其他管线形态需复核此投影）。
+      const ourPaint = oursFigure.paintBBox;
+      const theirPaint = theirsFigure.paint ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+      const paintEdges: readonly (readonly [string, number])[] = [
+        ["left", Math.abs(ourPaint.x - theirPaint.minX)],
+        ["top", Math.abs(ourPaint.y - theirPaint.maxY)],
+        ["right", Math.abs(ourPaint.x + ourPaint.width - theirPaint.maxX)],
+        ["bottom", Math.abs(ourPaint.y - ourPaint.height - theirPaint.minY)],
+      ];
+      for (const [edge, diff] of paintEdges) {
+        if (diff > FIGURE_EDGE_TOLERANCE_PT) {
+          mismatches.push({
+            kind: "figure-paint-edge",
+            pageIndex: page.index,
+            detail: `figure=${figure} ${edge} d=${diff}`,
+          });
+        }
+      }
     }
   }
   return {

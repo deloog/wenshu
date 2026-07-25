@@ -1,10 +1,10 @@
 /* Generated from schema/evidence.schema.json. Do not edit directly. */
 
 /**
- * Version 1 PDF geometric/textual evidence model extracted from the signed baseline PDF. Pure extraction facts; no quality judgement fields are allowed.
+ * Version 1.1 PDF geometric/textual evidence model extracted from the signed baseline PDF. Pure extraction facts; no quality judgement fields are allowed. Additive over 1.0.0 (decision #10): TextRun.figureMcid (parse-time /Figure membership) and FigureBox.paintBBox (painted-only extent, clip excluded). The reader keeps accepting frozen 1.0.0 data (schema/evidence-1.0.0.schema.json).
  */
 export interface WenshuPdfEvidence {
-  evidenceVersion: "1.0.0";
+  evidenceVersion: "1.1.0";
   source: EvidenceSource;
   /**
    * @minItems 1
@@ -61,6 +61,10 @@ export interface TextRun {
    * Text comes from an ActualText span rather than glyph decoding.
    */
   viaActualText: boolean;
+  /**
+   * Parse-time /Figure membership (decision #10): the MCID of the single /Figure marked-content span inside which every glyph of this run was emitted; null when the run sits outside all /Figure spans or straddles span boundaries. Never derived from bbox geometry.
+   */
+  figureMcid: number | null;
 }
 export interface BBox {
   /**
@@ -92,6 +96,7 @@ export interface FigureBox {
    */
   mcid: number;
   bbox: BBox;
+  paintBBox: BBox1;
   /**
    * v1 pipeline emits SVG figures as vector content only; raster images would require a version bump.
    */
@@ -104,6 +109,21 @@ export interface FigureBox {
    * Descriptive /Alt from the leaf Figure structure element bound to this MCID.
    */
   altLong: string | null;
+}
+/**
+ * Painted extent: union of path points consumed by painting operators (f/F/S/s/B/b family) and member text-run bboxes. Clip paths (W n) never contribute; the pipeline's page-wide SVG root clip inflates bbox but not paintBBox. Zero box when the span paints nothing.
+ */
+export interface BBox1 {
+  /**
+   * Left edge in PDF user space (pt).
+   */
+  x: number;
+  /**
+   * Top edge in PDF user space (pt), baseline-derived for text runs.
+   */
+  y: number;
+  width: number;
+  height: number;
 }
 export interface FontInfo {
   name: string;
