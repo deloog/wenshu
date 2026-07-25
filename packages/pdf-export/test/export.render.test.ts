@@ -5,8 +5,10 @@ import test from "node:test";
 import {
   assertMetadataPolicy,
   assertPdfReconciled,
+  inspectPdf,
   normalizePdfText,
   produceBaselinePdf,
+  repairPdfTextLayer,
 } from "../src/index.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
@@ -48,9 +50,19 @@ test("baseline export: A4, embedded fonts, metadata policy, verbatim reconciliat
     inspection.fonts.every((font) => font.subset),
     "fonts must be embedded subsets of the frozen OTF",
   );
-  // 文本层可搜索可复制：独立抽取与文档文本逐字对账。
+  // 文本层可搜索可复制：修复层（洞/错标修补）后独立抽取与文档文本逐字对账。
+  const repaired = repairPdfTextLayer(
+    output.pdfBytes,
+    output.expectedText,
+    output.repeatables,
+  );
+  const after = inspectPdf(repaired.pdfBytes);
   assert.doesNotThrow(() =>
-    assertPdfReconciled(output.extractedText, output.expectedText),
+    assertPdfReconciled(
+      after.pages.map((page) => page.text).join(""),
+      output.expectedText,
+      output.repeatables,
+    ),
   );
   assert.ok(normalizePdfText(output.extractedText).length > 10_000);
 });

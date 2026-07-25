@@ -33,6 +33,8 @@ export interface BaselineOutput {
   readonly inspection: PdfInspection;
   readonly extractedText: string;
   readonly expectedText: string;
+  /** 跨页重绘表头（CSS table-header-group 设计行为，对账跳过）。 */
+  readonly repeatables: readonly string[];
 }
 
 /**
@@ -100,12 +102,14 @@ export async function produceBaselinePdf(
     ),
   );
   const inspection = inspectPdf(pdfBytes);
+  const expected = buildExpectedPdfText(imported.document, svgTexts);
   return Object.freeze({
     pdfBytes,
     browserProduct,
     printParams,
     inspection,
     extractedText: inspection.pages.map((page) => page.text).join(""),
-    expectedText: buildExpectedPdfText(imported.document, svgTexts),
+    expectedText: expected.text,
+    repeatables: expected.repeatables,
   });
 }

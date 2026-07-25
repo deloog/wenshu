@@ -42,8 +42,8 @@ function unescapeXml(text: string): string {
 }
 
 /**
- * 提取冻结 SVG 资产的可见文本，按 PDF 设备空间阅读序（y 降序、x 升序）排列——
- * 与位置感知提取器对图表区的排序口径一致（SVG y 向下，设备 y 向上）。
+ * 提取冻结 SVG 资产的可见文本，按 PDF 设备空间阅读序（y 升序、x 升序）排列——
+ * 与位置感知提取器对图表区的排序口径一致（外层 cm 翻转使 SVG y 升序 ≈ 设备 y 降序）。
  */
 export function extractSvgText(svg: string): string {
   const items: SvgTextItem[] = [];
@@ -58,7 +58,7 @@ export function extractSvgText(svg: string): string {
       }),
     );
   }
-  const sorted = [...items].sort((a, b) => (a.y === b.y ? a.x - b.x : b.y - a.y));
+  const sorted = [...items].sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
   return sorted.map((item) => item.text).join("");
 }
 
@@ -67,12 +67,13 @@ function visitBlocks(
   parts: string[],
   figureSvgTexts: readonly string[],
   figureIndex: { value: number },
+  repeatables?: string[],
 ): void {
   for (const block of blocks) {
     switch (block.type) {
       case "section":
         parts.push(block.title);
-        visitBlocks(block.children, parts, figureSvgTexts, figureIndex);
+        visitBlocks(block.children, parts, figureSvgTexts, figureIndex, repeatables);
         break;
       case "paragraph":
       case "quote":
@@ -94,6 +95,7 @@ function visitBlocks(
         for (const column of block.columns) {
           parts.push(column.header);
         }
+        repeatables?.push(block.columns.map((column) => column.header).join(""));
         for (const row of block.rows) {
           for (const cell of row.cells) {
             parts.push(cell.text);
@@ -113,22 +115,104 @@ function visitBlocks(
   }
 }
 
+export interface ExpectedPdfText {
+  readonly text: string;
+  /** 跨页时 CSS table-header-group 会重绘的表头串（渲染器生成，对账时按重复区跳过）。 */
+  readonly repeatables: readonly string[];
+}
+
 /**
  * PDF 对账期望文本（承接 PA-01/PA-03 口径）：
  * 文档文本序列 + 有序列表渲染标记 + 冻结 SVG 资产的内嵌文本（SHA-256 已锚）。
+ * 表格表头单列 repeatables：跨页重绘属排版器设计行为，不计入源文本重复。
  */
 export function buildExpectedPdfText(
   document: WenshuDocument,
   figureSvgTexts: readonly string[],
-): string {
+): ExpectedPdfText {
   const parts: string[] = [document.title];
-  visitBlocks(document.blocks, parts, figureSvgTexts, { value: 0 });
-  return parts.join("");
+  const repeatables: string[] = [];
+  visitBlocks(document.blocks, parts, figureSvgTexts, { value: 0 }, repeatables);
+  return Object.freeze({
+    text: parts.join(""),
+    repeatables: Object.freeze(repeatables),
+  });
 }
 
 /** 逐字对账：不一致即失败，只报位置与长度，不回显正文。 */
-export function assertPdfReconciled(extracted: string, expected: string): void {
-  const actual = normalizePdfText(extracted);
+const FORMAT_CHARS_STRIP = /[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/gu;
+
+/** 与 cmap-repair 对齐器一致的字符归一（供重复区匹配）。 */
+function alignNormalizeChar(char: string): string {
+  const codePoint = char.codePointAt(0) ?? 0;
+  const radical = RADICAL_SUPPLEMENT.get(codePoint);
+  if (radical !== undefined) {
+    return radical;
+  }
+  return char.normalize("NFKC");
+}
+
+/** 渲染器重绘表头跳过区：首个出现保留，后续出现的 [from, to) 区间。 */
+export function computeRepeatSkipSpans(
+  actual: readonly string[],
+  repeatables: readonly string[],
+): ReadonlyMap<number, number> {
+  const spans = new Map<number, number>();
+  for (const repeatable of repeatables) {
+    const needle = [...repeatable]
+      .filter((char) => !/\s/u.test(char) && !FORMAT_CHARS_STRIP.test(char))
+      .map((char) => alignNormalizeChar(char));
+    if (needle.length === 0) {
+      continue;
+    }
+    const occurrences: Array<[number, number]> = [];
+    let start = 0;
+    while (start < actual.length) {
+      let i = start;
+      let j = 0;
+      while (j < needle.length && i < actual.length) {
+        const char = actual[i] ?? "";
+        if (/\s/u.test(char) || FORMAT_CHARS_STRIP.test(char)) {
+          i += 1;
+          continue;
+        }
+        if (alignNormalizeChar(char) !== needle[j]) {
+          break;
+        }
+        i += 1;
+        j += 1;
+      }
+      if (j === needle.length) {
+        occurrences.push([start, i]);
+        start = i;
+      } else {
+        start += 1;
+      }
+    }
+    for (const [from, to] of occurrences.slice(1)) {
+      spans.set(from, to);
+    }
+  }
+  return spans;
+}
+
+/** 逐字对账：不一致即失败，只报位置与长度，不回显正文。 */
+export function assertPdfReconciled(
+  extracted: string,
+  expected: string,
+  repeatables: readonly string[] = [],
+): void {
+  let actualText = extracted;
+  if (repeatables.length > 0) {
+    const spans = computeRepeatSkipSpans([...extracted], repeatables);
+    const chars = [...actualText];
+    const skips = [...spans.entries()].sort((a, b) => b[0] - a[0]);
+    for (const [from, to] of skips) {
+      chars.splice(from, to - from);
+    }
+    actualText = chars.join("");
+  }
+  const actual = normalizePdfText(actualText);
   const want = normalizePdfText(expected);
   if (actual === want) {
     return;

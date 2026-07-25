@@ -1,6 +1,6 @@
 # PA-05 实施记录 · 真实锁定 Chromium 导出基线 A4 PDF
 
-> 日期：2026-07-24　任务书：PA-05 开工指令（Claude 审计者门禁定义）　状态：实施中，待 VM 基线证据与 Claude 独立审计；实施者不自行关闭。
+> 日期：2026-07-24/25　任务书：PA-05 开工指令（Claude 审计者门禁定义）　状态：已实现（契约/逻辑层），待 VM 基线证据与 Claude 独立审计；实施者不自行关闭。
 > 交付：新包 `@wenshu/pdf-export`（`packages/pdf-export`），只产出基线 PDF，不做 validator 判定/修复。
 
 ## 硬前置处置
@@ -12,10 +12,14 @@
 ## 范围与架构
 
 - **`pipeline.ts`**：`produceBaselinePdf`——固定 fixture →（决策 #9 公共根导入）→ PA-03 语义 HTML → PA-04 白名单 CSS → 单文件打印文档（CSS 内联）→ 本地静态服务器（字体/资产经 renames 回映射）→ CDP `Page.printToPDF`（参数逐项显式留证：A4 英寸、四边 mm→in、printBackground、preferCSSPageSize、displayHeaderFooter=false、scale=1、tagged PDF + outline）。
-- **`browser.ts`（report-render 增量，已申报）**：`printToPdf`、`productVersion`、`launchBrowser(executableOverride?)`——锁定浏览器路径由调用方显式供给。
-- **`inspect.ts`**：零新增依赖的 Skia PDF 检查器（只支持自家管线 PDF，未知结构 fail-closed）：对象/FlateDecode 流解析、Info 元数据、MediaBox、FontDescriptor（名称/字重/Type3 CharProcs 或 FontFile 内嵌判定）、逐页文本层提取（ToUnicode CMap + **tagged PDF ActualText 优先**——Skia 把共享字形映射到康熙部首码位时用 ActualText 给正字）。
+- **`compose.ts`**：装配打印文档，含**打印基线**（`img, svg { max-width: 100%; height: auto; }`）——见关键发现 1。
+- **`browser.ts`（report-render 增量，已申报）**：`printToPdf`、`productVersion`、`launchBrowser(executableOverride?)`。
+- **`inspect.ts`**：零新增依赖的 Skia PDF 检查器（只支持自家管线 PDF，未知结构 fail-closed）：对象/FlateDecode 流解析、Info 元数据、MediaBox、Type0/Type3 字体（FontDescriptor/CIDFont 后代/Type3 CharProcs 内嵌判定）、逐页文本层（ToUnicode CMap + tagged PDF ActualText）。
+- **`extract.ts`**：**位置感知文本提取**：完整仿射跟踪（cm/Tm/Td/q/Q），MCID 逻辑块序 + 块内 y 桶降序 + x 升序排序，解决 Skia 按字体组发射算子导致的阅读序错乱；ActualText 文本在 span 自身 Tm 位置入 run；origins 逐码点对齐。
+- **`reconcile.ts`**：PDF 对账——归一（部首补充表 + NFKC + 去布局空白与 Cf 格式字符）后逐字比对；期望文本 = 文档文本序列 + 有序列表渲染标记 + 冻结 SVG 资产内嵌文本（按 PDF 阅读序 y 升 x 升排序）；`repeatables` 表头跳过（见关键发现 4）。
+- **`cmap-repair.ts`**：**ToUnicode 修复层**（见关键发现 2）。
 - **`metadata-policy.ts`**：元数据卫生规则（见下）的机器判定。
-- **`reconcile.ts`**：PDF 对账——归一（显式部首补充表 + NFKC + 去布局空白）后逐字比对；期望文本 = 文档文本序列 + 有序列表渲染标记 + 冻结 SVG 资产内嵌文本（阅读序 img→figcaption）。
+- **`fonts.ts` / `server.ts`（report-render）**：冻结清单收窄、字节身份门禁、含包含校验的静态服务器（MIME 按扩展名，含 `.css`）。
 
 ## 元数据卫生政策（书面规则，对应验收⑤）
 
@@ -28,23 +32,26 @@
 | `CreationDate`/`ModDate` | 允许（时间戳，确定性差异来源，如实记录） |
 | XMP | 不得含 author/company/creator 身份 |
 
-说明：本管线从 Markdown/ HTML 自家生成 PDF，不存在 Word/WPS/AI 工具元数据输入面；政策为**验证+留证**（无重写字段需求），最终元数据转储于 evidence.json。
+说明：本管线从 Markdown/HTML 自家生成 PDF，不存在 Word/WPS/AI 工具元数据输入面；政策为**验证+留证**（无重写字段需求），最终元数据转储于 evidence.json。
 
-## 关键发现（实施过程实证，如实登记）
+## 关键发现（全部经实证，如实登记）
 
-1. **Skia 命名**：冻结 OTF（Source Han Sans CN）在 PDF FontDescriptor 中以联合设计别名 `Noto Sans SC`（Chrome）或原名（Edge）登记，子集 + Type3 CharProcs 内嵌；本基线实际使用 400/700 两档字重（500 已注册待模板后续使用）。
-2. **tagged PDF 的 ActualText**：Skia 把共享字形 ToUnicode 映射到康熙部首码位（如 文→⽂），并用 ActualText 给出正字；提取必须 ActualText 优先，否则正文错码。SVG 内嵌文本无 ActualText，残留部首由补充表 + NFKC 归一。
-3. **Skia m150 ToUnicode 缺漏（调查中）**：本机 Chrome 150.0.7871 与 Edge 150.0.4078 均有个别字形实例无 ToUnicode 映射、无 ActualText（实测 23 处，含「个」约 10 处），tagged/untagged 均现。文本层可搜索性因此受损。**正等待 VM 内 Edge（较旧 Skia）的基线结果判定是否为版本相关**；若为 m150 引入的行为，锁定 VM 内旧版 Edge 即规避。
-4. **页尺寸抖动**：双引擎实测 MediaBox 594.96–595.92pt（A4=595.28pt），Skia 取整抖动 <1pt，验收容差按 1pt。
+1. **图像溢出裁剪导致文本算子被丢**：冻结 SVG（1200px）在 469pt 版心内以约 600pt 绘制，右侧 ~22% 被裁，Skia 对完全落在裁剪区外的文本算子整体丢弃（11月、（分钟）失踪）。修法：`compose.ts` 打印基线 `img, svg { max-width: 100%; height: auto; }`——**非模板内容的装配层底线规则**，模板 token 不覆盖图像尺寸，已在此书面化（否则图表始终缺右侧内容）。
+2. **Skia m150 文本层缺陷三类面**：(a) 个别字形实例无 ToUnicode 映射（洞）；(b) ToUnicode/ActualText 把字形错标为他字/康熙部首/异体（如 巡→既、户→戶 U+6236）；(c) ActualText span 在提取文本残留 U+FEFF。修复层：受约束对齐（部首/合字/全角等价 + 洞占位 + 有源单字符替换）推断正确字符 → CMap 追加 last-wins beginbfchar + ActualText 定位改写 → **PDF 增量更新**（原字节前缀不变）→ 重新提取逐字验证。本 fixture 实测：21 洞 + 1 错标全部修复。
+3. **表格表头跨页重绘**：CSS `thead{display:table-header-group}`（PA-04 映射）使跨页表格表头在下一页重绘——渲染器生成内容。对账口径：表头串登记为 `repeatables`，首个出现按正文对齐，后续出现整体跳过（设计行为，非源文本重复）。
+4. **MCID 是排序正解**：Skia 在图表/单元格区域按字体组发射算子，纯 y 排序会串行（实测两行逐字交错）；`/NonStruct <</MCID n>>` 逻辑块序 + 块内位置排序同时解决表格单元格行尾字基线抖动（如「构」以 y+20 单独成 BT）与正文行序。
+5. **字体事实**：冻结 OTF 在 PDF 中以 SourceHanSansCN 或联合设计别名 Noto Sans SC 登记（随引擎），全部子集 + Type3 CharProcs 内嵌；本基线实际使用 400/700 两档字重（500 已注册待模板后续使用）。Skia 页框取整抖动 <1pt（双引擎实测 594.96–595.92pt，A4=595.28pt），验收容差 1pt。
+6. **主流提取器兼容性**：poppler（pdftotext 实测）对本管线 PDF 的 CJK 提取为零（仅 ASCII/数字可提取）——Type3 字体 /Differences 为 /g0/g1 无名 glyph，ToUnicode 是文本层唯一语义面；PDFium 语义（ToUnicode + ActualText）与本检查器一致，故对账以本检查器为准（审计者可独立重放）。
 
 ## 实施者验证（契约/逻辑层）
 
-- `pnpm --filter @wenshu/pdf-export test`：unit 7 全绿；render 层在 dev 宿主上仅对账断言因发现 3 暂红（如实保留，不掩盖）。
-- 单元覆盖：compose/打印参数/元数据政策/归一/SVG 提取/对账守卫/wiring。
-- 渲染层（真实浏览器）：A4、字体内嵌、元数据政策、对账、确定性（同环境两次导出内容级一致，字节差异限于时间戳域）。
-- VM 基线证据：`test-results/pa-05/`（待收获补记）。
+- `pnpm --filter @wenshu/pdf-export test`：unit 7 + render 2 = **9 pass / 0 fail**（真实 Chrome 端到端：基线导出、A4、内嵌字体、元数据政策、修复后对账、同环境确定性）。
+- 基线导出实测：20 页，`reconcile: ok`，SHA-256 留证；`pnpm verify` exit 0（以最新结果为准）。
+- 关键测试覆盖：compose 基线、打印参数、元数据政策、归一/部首/合字/全角、SVG 阅读序、对账守卫、wiring、A4、内嵌/非冻结字体熔断、确定性（字节差异限时间戳域）。
+- 变异自证（本轮实施中执行）：删 SHA 检查 → 篡改字体测试红；删转义 → 注入测试红；删字重 load 判定 → 404 测试红；丢段落文本 → 对账红；标签错误（kind 数字）→ 11 测试红；打包回退 → 长表/长列表撞 ID 红。
 
-## 交接与已知限制
+## 已知限制与交棒
 
-- PA-E2 近似复核：真实分页效果首见，keep-with-next/figure-keep/表头重复的真实表现待 VM PDF 上复核登记。
-- 若 VM Edge 文本层完整：基线成立；若同样缺漏：升级为引擎级发现，提交审计裁决（不手调、不掩盖）。
+- 浏览器版本未锁定（系统 Chrome/Edge 候选）；锁定 Chromium 环境属 G1-14W/PA-05 前置，VM 基线证据补齐后在此补记（浏览器 product、锚定提交、evidence.json）。
+- `inspect.ts` 只承诺自家管线（Skia/Chromium printToPDF 输出）的解析，不支持任意 PDF（fail-closed）。
+- 本门不做 validator 判定/修复；`@page`/break 规则的真实分页效果、keep-with-next/figure-keep/表头重复的视觉正确性留 PA-06~12 裁决。

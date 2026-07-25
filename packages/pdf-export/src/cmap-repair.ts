@@ -3,6 +3,14 @@ import { deflateSync, inflateSync } from "node:zlib";
 import { PdfExportError } from "./errors.ts";
 import { inspectPdf, type TextHole } from "./inspect.ts";
 import { assertPdfReconciled } from "./reconcile.ts";
+import {
+  buildIncrementalUpdate,
+  patchActualTextSpan,
+  patchCMapText,
+  readStreamText,
+  resolveToUnicodeRef,
+  toHex,
+} from "./pdf-patch.ts";
 
 /**
  * ToUnicode/ActualText 修复层：Skia m150 的标签缺陷三类面——
@@ -66,6 +74,50 @@ function normalizeChar(char: string): string {
   return char.normalize("NFKC");
 }
 
+function computeRepeatSkipSpans(
+  actual: readonly string[],
+  repeatables: readonly string[],
+): ReadonlyMap<number, number> {
+  const spans = new Map<number, number>();
+  for (const repeatable of repeatables) {
+    const needle = [...repeatable]
+      .filter((char) => !isIgnorable(char))
+      .map((char) => normalizeChar(char));
+    if (needle.length === 0) {
+      continue;
+    }
+    const occurrences: Array<[number, number]> = [];
+    let start = 0;
+    while (start < actual.length) {
+      let i = start;
+      let j = 0;
+      while (j < needle.length && i < actual.length) {
+        const char = actual[i] ?? "";
+        if (isIgnorable(char)) {
+          i += 1;
+          continue;
+        }
+        if (normalizeChar(char) !== needle[j]) {
+          break;
+        }
+        i += 1;
+        j += 1;
+      }
+      if (j === needle.length) {
+        occurrences.push([start, i]);
+        start = i;
+      } else {
+        start += 1;
+      }
+    }
+    // 保留首个出现（按正文对齐），其余登记为跳过区。
+    for (const [from, to] of occurrences.slice(1)) {
+      spans.set(from, to);
+    }
+  }
+  return spans;
+}
+
 export interface Substitution {
   readonly fontObjectId: number;
   readonly code: number;
@@ -90,6 +142,7 @@ export interface AlignmentResult {
 export function alignHoles(
   extraction: ExtractionWithHoles,
   expectedText: string,
+  repeatables: readonly string[] = [],
 ): AlignmentResult {
   const assignments = new Map<number, string>();
   const substitutions: Substitution[] = [];
@@ -101,6 +154,8 @@ export function alignHoles(
   }
   const expected = [...expectedText];
   const actual = [...extraction.text];
+  // 渲染器重绘表头：首个出现按正文对齐，后续出现整体跳过（不占真源位置）。
+  const skipSpans = computeRepeatSkipSpans(actual, repeatables);
   let cursor = 0;
   let index = 0;
   const skipExpectedSpace = (): void => {
@@ -109,6 +164,11 @@ export function alignHoles(
     }
   };
   while (index < actual.length) {
+    const skipEnd = skipSpans.get(index);
+    if (skipEnd !== undefined) {
+      index = skipEnd;
+      continue;
+    }
     skipExpectedSpace();
     const pending = holesByOffset.get(index);
     if (pending !== undefined && pending.length > 0) {
@@ -173,159 +233,6 @@ export function alignHoles(
   });
 }
 
-function locateStream(
-  bytes: Uint8Array,
-  objectId: number,
-): { readonly dict: string; readonly start: number; readonly end: number } {
-  const text = Buffer.from(bytes).toString("latin1");
-  const pattern = new RegExp(`\\b${objectId}\\s+0\\s+obj\\b`, "u");
-  const match = pattern.exec(text);
-  if (match === null) {
-    failRepair(`object ${objectId} not found`);
-  }
-  const start = (match.index ?? 0) + match[0].length;
-  const end = text.indexOf("endobj", start);
-  const body = text.slice(start, end);
-  const marker = body.indexOf("stream");
-  if (marker === -1) {
-    failRepair(`object ${objectId} has no stream`);
-  }
-  let streamStart = start + marker + "stream".length;
-  if (text.startsWith("\r\n", streamStart)) {
-    streamStart += 2;
-  } else if (text.startsWith("\n", streamStart)) {
-    streamStart += 1;
-  }
-  return {
-    dict: body.slice(0, marker),
-    start: streamStart,
-    end: text.indexOf("endstream", streamStart),
-  };
-}
-
-function readStreamText(bytes: Uint8Array, objectId: number): string {
-  const location = locateStream(bytes, objectId);
-  return inflateSync(
-    new Uint8Array(Buffer.from(bytes).subarray(location.start, location.end)),
-  ).toString("latin1");
-}
-
-function toHex(codePoint: number): string {
-  return codePoint.toString(16).toUpperCase().padStart(4, "0");
-}
-
-/** CMap 增补：追加 last-wins beginbfchar 块（后定义覆盖先定义，读者与本检查器一致）。 */
-export function patchCMapText(
-  cmap: string,
-  entries: ReadonlyMap<number, string>,
-): string {
-  const lines = [...entries.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([code, char]) => {
-      const codePoint = char.codePointAt(0);
-      if (codePoint === undefined) {
-        failRepair("repair assignment is not a single character");
-      }
-      return `<${code.toString(16).toUpperCase().padStart(2, "0")}> <${toHex(codePoint)}>`;
-    });
-  const block = `${lines.length} beginbfchar\n${lines.join("\n")}\nendbfchar\n`;
-  const at = cmap.indexOf("endcmap");
-  if (at === -1) {
-    failRepair("cmap lacks endcmap marker");
-  }
-  return cmap.slice(0, at) + block + cmap.slice(at);
-}
-
-/** ActualText 定位改写：第 spanIndex 个 hex 型 span 的值必须等于 fromHex（守卫），再改写。 */
-export function patchActualTextSpan(
-  content: string,
-  spanIndex: number,
-  fromHex: string,
-  toHexValue: string,
-): string {
-  const pattern = /\/ActualText\s*<([0-9A-Fa-f]+)>/gu;
-  let seen = -1;
-  for (const match of content.matchAll(pattern)) {
-    seen += 1;
-    if (seen !== spanIndex) {
-      continue;
-    }
-    if ((match[1] ?? "").toUpperCase() !== fromHex.toUpperCase()) {
-      failRepair("actualText guard mismatch: span content drifted");
-    }
-    const at = match.index ?? 0;
-    return (
-      content.slice(0, at) +
-      `/ActualText <${toHexValue}>` +
-      content.slice(at + match[0].length)
-    );
-  }
-  failRepair(`actualText span ${spanIndex} not found`);
-}
-
-function buildIncrementalUpdate(
-  original: Uint8Array,
-  streamRewrites: ReadonlyMap<number, string>,
-): Uint8Array {
-  const text = Buffer.from(original).toString("latin1");
-  const prevStart = /startxref\s+(\d+)\s*%%EOF\s*$/u.exec(text)?.[1];
-  if (prevStart === undefined) {
-    failRepair("original pdf lacks startxref");
-  }
-  const trailerMatch = /trailer\s*<<([\s\S]*?)>>\s*startxref/u.exec(text);
-  const rootRef = /\/Root\s+(\d+\s+0\s+R)/u.exec(trailerMatch?.[1] ?? "")?.[1];
-  const infoRef = /\/Info\s+(\d+\s+0\s+R)/u.exec(trailerMatch?.[1] ?? "")?.[1];
-  if (rootRef === undefined) {
-    failRepair("original trailer lacks /Root");
-  }
-  const parts: string[] = [];
-  const offsets = new Map<number, number>();
-  let cursor = original.length;
-  const sorted = [...streamRewrites.entries()].sort((a, b) => a[0] - b[0]);
-  for (const [objectId, streamText] of sorted) {
-    const compressed = deflateSync(Buffer.from(streamText, "latin1"));
-    const chunk =
-      `${objectId} 0 obj\n<</Length ${compressed.length} /Filter /FlateDecode>>\nstream\n` +
-      compressed.toString("latin1") +
-      `\nendstream\nendobj\n`;
-    offsets.set(objectId, cursor);
-    parts.push(chunk);
-    cursor += Buffer.byteLength(chunk, "latin1");
-  }
-  const xrefStart = cursor;
-  const xrefLines: string[] = [];
-  let index = 0;
-  while (index < sorted.length) {
-    const startId = sorted[index]?.[0] ?? 0;
-    let end = index;
-    while (
-      end + 1 < sorted.length &&
-      (sorted[end + 1]?.[0] ?? 0) === (sorted[end]?.[0] ?? 0) + 1
-    ) {
-      end += 1;
-    }
-    const segmentEntries = sorted
-      .slice(index, end + 1)
-      .map(
-        ([objectId]) =>
-          `${(offsets.get(objectId) ?? 0).toString().padStart(10, "0")} 00000 n \n`,
-      )
-      .join("");
-    xrefLines.push(`${startId} ${end - index + 1}\n${segmentEntries}`);
-    index = end + 1;
-  }
-  const maxObjectId = sorted[sorted.length - 1]?.[0] ?? 0;
-  const trailer =
-    `trailer\n<</Size ${maxObjectId + 1} /Root ${rootRef}` +
-    (infoRef === undefined ? "" : ` /Info ${infoRef}`) +
-    ` /Prev ${prevStart}>>\nstartxref\n${xrefStart}\n%%EOF\n`;
-  const update = `xref\n${xrefLines.join("")}${trailer}`;
-  const out = new Uint8Array(original.length + Buffer.byteLength(update, "latin1"));
-  out.set(original, 0);
-  out.set(Buffer.from(update, "latin1"), original.length);
-  return out;
-}
-
 export interface RepairResult {
   readonly pdfBytes: Uint8Array;
   readonly repairedHoles: number;
@@ -340,6 +247,7 @@ export interface RepairResult {
 export function repairPdfTextLayer(
   original: Uint8Array,
   expectedText: string,
+  repeatables: readonly string[] = [],
 ): RepairResult {
   const before = inspectPdf(original);
   const extractedBefore = before.pages.map((page) => page.text).join("");
@@ -362,7 +270,7 @@ export function repairPdfTextLayer(
     holes: before.holes,
     origins: before.origins,
   });
-  const alignment = alignHoles(extraction, expectedText);
+  const alignment = alignHoles(extraction, expectedText, repeatables);
   const cmapEntries = new Map<number, Map<number, string>>();
   const remember = (fontObjectId: number, code: number, char: string): void => {
     const entries = cmapEntries.get(fontObjectId) ?? new Map<number, string>();
@@ -385,9 +293,10 @@ export function repairPdfTextLayer(
   }
   const streamRewrites = new Map<number, string>();
   for (const [fontObjectId, entries] of cmapEntries) {
+    const toUnicodeId = resolveToUnicodeRef(original, fontObjectId);
     streamRewrites.set(
-      fontObjectId,
-      patchCMapText(readStreamText(original, fontObjectId), entries),
+      toUnicodeId,
+      patchCMapText(readStreamText(original, toUnicodeId), entries),
     );
   }
   for (const substitution of alignment.substitutions) {
@@ -421,7 +330,11 @@ export function repairPdfTextLayer(
   if (after.holes.length !== 0) {
     failRepair(`repair left ${after.holes.length} holes unpatched`);
   }
-  assertPdfReconciled(after.pages.map((page) => page.text).join(""), expectedText);
+  assertPdfReconciled(
+    after.pages.map((page) => page.text).join(""),
+    expectedText,
+    repeatables,
+  );
   return Object.freeze({
     pdfBytes: repaired,
     repairedHoles: before.holes.length,

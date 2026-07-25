@@ -34,7 +34,11 @@ const output = await produceBaselinePdf({
   browserPath,
 });
 
-const repair = repairPdfTextLayer(output.pdfBytes, output.expectedText);
+const repair = repairPdfTextLayer(
+  output.pdfBytes,
+  output.expectedText,
+  output.repeatables,
+);
 const finalBytes = repair.pdfBytes;
 // 全部检查针对最终（修复后）PDF：元数据、A4、字体、逐字对账。
 const inspection = inspectPdf(finalBytes);
@@ -66,7 +70,11 @@ for (const font of inspection.fonts) {
     );
   }
 }
-assertPdfReconciled(output.extractedText, output.expectedText);
+assertPdfReconciled(
+  inspection.pages.map((page) => page.text).join(""),
+  output.expectedText,
+  output.repeatables,
+);
 
 const sha256 = createHash("sha256").update(finalBytes).digest("hex");
 const evidence = {

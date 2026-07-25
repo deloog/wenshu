@@ -49,7 +49,8 @@ test("compose inlines css into the document head without touching structure", ()
   const html =
     "<!doctype html><html><head><title>t</title></head><body><main>x</main></body></html>";
   const out = composePrintDocument(html, "body { color: #000000; }");
-  assert.ok(out.includes("<style>\nbody { color: #000000; }</style></head>"));
+  assert.ok(out.includes("img, svg { max-width: 100%; height: auto; }"));
+  assert.ok(out.includes("body { color: #000000; }"));
   assert.ok(out.includes("<main>x</main>"));
   assert.throws(() => composePrintDocument("<p>broken</p>", "x"), PdfExportError);
 });
@@ -98,9 +99,10 @@ test("metadata policy accepts engine constants and rejects upstream identity", (
   );
 });
 
-test("svg text extraction follows document order and unescapes entities", () => {
+test("svg text extraction follows the pdf reading order and unescapes entities", () => {
   const svg =
-    '<svg><text x="1">标题 &amp; 甲</text><text y="2">乙 &lt;丙&gt;</text></svg>';
+    '<svg><text x="1" y="2">标题 &amp; 甲</text><text x="1" y="5">乙 &lt;丙&gt;</text></svg>';
+  // y 升序（PDF 设备空间阅读序）：y=2 先于 y=5。
   assert.equal(extractSvgText(svg), "标题 & 甲乙 <丙>");
 });
 
@@ -116,7 +118,7 @@ test("reconciliation is exact and reports first diff without content echo", asyn
       extractSvgText(await readFile(resolve(fixtureRoot, original), "utf8")),
     ),
   );
-  const expected = buildExpectedPdfText(imported.document, svgTexts);
+  const expected = buildExpectedPdfText(imported.document, svgTexts).text;
   // 自身恒等
   assert.doesNotThrow(() => assertPdfReconciled(expected, expected));
   // 丢一字即失败（只断言稳定 code 与位置提示，不锁定受归一影响的具体索引）。

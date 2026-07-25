@@ -23,6 +23,7 @@ interface TextRun {
   readonly x: number;
   readonly y: number;
   readonly fontSize: number;
+  readonly blockOrder: number;
   readonly parts: string[];
   readonly origins: (GlyphOrigin | null)[];
   readonly holes: RunHole[];
@@ -44,7 +45,7 @@ function fail(message: string): never {
 }
 
 const TOKEN =
-  /\/ActualText\s*<([0-9A-Fa-f]+)>\s*>>\s*BDC|\bEMC\b|\/([A-Za-z0-9]+)\s+([\d.]+)\s+Tf|(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+Tm|(-?[\d.]+)\s+(-?[\d.]+)\s+T[Dd]\b|(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+cm\b|\b(q|Q)\b|<([0-9A-Fa-f]+)>\s*Tj|\[((?:[^\])]*))\]\s*TJ/gu;
+  /\/ActualText\s*<([0-9A-Fa-f]+)>\s*>>\s*BDC|\bEMC\b|\/NonStruct\s*<<\s*\/MCID\s+(\d+)\s*>>\s*BDC|\/([A-Za-z0-9]+)\s+([\d.]+)\s+Tf|(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+Tm|(-?[\d.]+)\s+(-?[\d.]+)\s+T[Dd]\b|(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+cm\b|\b(q|Q)\b|<([0-9A-Fa-f]+)>\s*Tj|\[((?:[^\])]*))\]\s*TJ/gu;
 
 type Matrix = readonly [number, number, number, number, number, number];
 const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
@@ -110,6 +111,7 @@ export function extractOrderedText(
       x: atX,
       y: atY,
       fontSize: size,
+      blockOrder,
       parts: [],
       origins: [],
       holes: [],
@@ -117,6 +119,7 @@ export function extractOrderedText(
     runs.push(run);
     return run;
   };
+  let blockOrder = 0;
   let run = newRun(0, 0, fontSize);
 
   const moveTo = (): void => {
@@ -127,6 +130,7 @@ export function extractOrderedText(
         x: atX,
         y: atY,
         fontSize,
+        blockOrder,
         parts: [],
         origins: [],
         holes: [],
@@ -137,8 +141,12 @@ export function extractOrderedText(
   };
 
   const pushText = (text: string, origin: GlyphOrigin | null): void => {
+    // origins 与 text 逐码点对齐：多字符文本仅首字符携带来源，其余补 null。
     run.parts.push(text);
     run.origins.push(origin);
+    for (let index = 1; index < [...text].length; index += 1) {
+      run.origins.push(null);
+    }
   };
 
   for (const token of content.matchAll(TOKEN)) {
@@ -157,54 +165,57 @@ export function extractOrderedText(
       continue;
     }
     if (token[2] !== undefined) {
-      // 字体选择在 span 内也要更新身份（span 有自己的 Tf），但 cmap 只在非抑制态使用。
-      currentFontId = fontIds.get(token[2]) ?? 0;
-      if (suppress === 0) {
-        current = fonts.get(token[2]);
-        fontSize = Number(token[3]) || fontSize;
-      }
+      // MCID 块序：/NonStruct <</MCID n>> BDC 为逻辑块（单元格/段落）边界。
+      blockOrder += 1;
       continue;
     }
-    if (token[4] !== undefined) {
+    if (token[3] !== undefined) {
+      // 字体状态跟随 Tf 始终更新（span 内 Tf 在 EMC 后依然有效）；抑制只跳过字形解码。
+      current = fonts.get(token[3]);
+      currentFontId = fontIds.get(token[3]) ?? 0;
+      fontSize = Number(token[4]) || fontSize;
+      continue;
+    }
+    if (token[5] !== undefined) {
       // Tm：a b c d e f Tm → 文本矩阵替换，位置 = CTM × (e, f)
       tm = [
-        Number(token[4]),
         Number(token[5]),
         Number(token[6]),
         Number(token[7]),
         Number(token[8]),
         Number(token[9]),
+        Number(token[10]),
       ];
       moveTo();
       continue;
     }
-    if (token[10] !== undefined) {
+    if (token[11] !== undefined) {
       // Td/TD：dx dy → 文本矩阵平移
-      tm = multiply([1, 0, 0, 1, Number(token[10]), Number(token[11])], tm);
+      tm = multiply([1, 0, 0, 1, Number(token[11]), Number(token[12])], tm);
       moveTo();
       continue;
     }
-    if (token[12] !== undefined) {
+    if (token[13] !== undefined) {
       // cm：当前变换矩阵乘入
       ctm = multiply(ctm, [
-        Number(token[12]),
         Number(token[13]),
         Number(token[14]),
         Number(token[15]),
         Number(token[16]),
         Number(token[17]),
+        Number(token[18]),
       ]);
       continue;
     }
-    if (token[18] !== undefined) {
-      if (token[18] === "q") {
+    if (token[19] !== undefined) {
+      if (token[19] === "q") {
         ctmStack.push(ctm);
       } else {
         ctm = ctmStack.pop() ?? IDENTITY;
       }
       continue;
     }
-    const hexRun = token[19];
+    const hexRun = token[20];
     if (hexRun !== undefined) {
       const codeLength = current?.codeLength ?? 1;
       for (
@@ -222,7 +233,7 @@ export function extractOrderedText(
       }
       continue;
     }
-    const array = token[20];
+    const array = token[21];
     if (array !== undefined) {
       const codeLength = current?.codeLength ?? 1;
       for (const piece of array.matchAll(/<([0-9A-Fa-f]+)>/g)) {
@@ -244,13 +255,17 @@ export function extractOrderedText(
     }
   }
 
-  // 排序：设备空间 y 向上，阅读序 = y 降序 + x 升序；稳定排序保持流内次序。
+  // 排序：MCID 逻辑块序优先；块内 y 桶降序（8，小于正文行距）+ x 升序，稳定排序。
+  // 同块内大基线偏移（如单元格尾字）落在块内行序之后——正是它应在的位置。
   const Y_BUCKET = 8;
   const sorted = [...runs].sort((a, b) => {
-    const bucketA = Math.round(a.y / Y_BUCKET);
-    const bucketB = Math.round(b.y / Y_BUCKET);
-    if (bucketA !== bucketB) {
-      return bucketB - bucketA;
+    if (a.blockOrder !== b.blockOrder) {
+      return a.blockOrder - b.blockOrder;
+    }
+    const clusterA = Math.round(a.y / Y_BUCKET);
+    const clusterB = Math.round(b.y / Y_BUCKET);
+    if (clusterA !== clusterB) {
+      return clusterB - clusterA;
     }
     return a.x - b.x;
   });
@@ -291,6 +306,19 @@ function emit(
   pushText: (text: string, origin: GlyphOrigin | null) => void,
 ): void {
   const mapped = current?.map.get(code);
+  if (
+    process.env["PDF_DEBUG_F65"] === "1" &&
+    (currentFontId === 65 || currentFontId === 40)
+  ) {
+    console.error(
+      "F65 emit code",
+      code.toString(16),
+      "->",
+      JSON.stringify(mapped),
+      "mapSize",
+      current?.map.size,
+    );
+  }
   const localOffset = [...run.parts.join("")].length;
   if (mapped === undefined) {
     run.holes.push({ localOffset, fontObjectId: currentFontId, code });
