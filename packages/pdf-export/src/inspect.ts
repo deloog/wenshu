@@ -44,7 +44,7 @@ export interface PdfInspection {
   readonly origins: readonly (GlyphOrigin | null)[];
 }
 
-interface PdfObject {
+export interface PdfObject {
   readonly dict: string;
   readonly stream?: Uint8Array;
 }
@@ -53,7 +53,7 @@ function fail(message: string): never {
   throw new PdfExportError("PDF_INSPECT_UNSUPPORTED", message);
 }
 
-function parseObjects(bytes: Uint8Array): Map<number, PdfObject> {
+export function parseObjects(bytes: Uint8Array): Map<number, PdfObject> {
   const text = Buffer.from(bytes).toString("latin1");
   const objects = new Map<number, PdfObject>();
   const pattern = /(\d+)\s+0\s+obj\b/g;
@@ -90,7 +90,7 @@ function parseObjects(bytes: Uint8Array): Map<number, PdfObject> {
   return objects;
 }
 
-function inflate(object: PdfObject, context: string): string {
+export function inflate(object: PdfObject, context: string): string {
   if (object.stream === undefined) {
     fail(`${context} has no stream`);
   }
@@ -100,7 +100,7 @@ function inflate(object: PdfObject, context: string): string {
   return inflateSync(object.stream).toString("latin1");
 }
 
-function decodePdfString(raw: string): string {
+export function decodePdfString(raw: string): string {
   if (raw.startsWith("<") && raw.endsWith(">")) {
     const hex = raw.slice(1, -1);
     const bytes = Buffer.from(hex, "hex");
@@ -160,7 +160,7 @@ function utf16beHexToString(hex: string): string {
   return bytes.swap16().toString("utf16le");
 }
 
-function parseToUnicode(cmap: string): ToUnicodeMap {
+export function parseToUnicode(cmap: string): ToUnicodeMap {
   let codeLength = 2;
   const map = new Map<number, string>();
   // CMap 语法：N begincodespacerange <lo> <hi> endcodespacerange（区间在关键字之后）。
