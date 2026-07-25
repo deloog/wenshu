@@ -26,20 +26,42 @@ function loadCompileFromFile(): CompileFromFile {
   return moduleValue.compileFromFile as CompileFromFile;
 }
 
-export const schemaPath = resolve(
-  import.meta.dirname,
-  "../schema/evidence.schema.json",
-);
-export const generatedPath = resolve(
-  import.meta.dirname,
-  "../src/generated/evidence.ts",
-);
+export interface EvidenceTypeTarget {
+  /** schema/ 下的文件名（同时也是 banner 归因）。 */
+  readonly schemaFile: string;
+  /** src/ 下的生成物路径（与 package.json wenshu.generatedFiles 一致）。 */
+  readonly generatedFile: string;
+}
 
-export function renderEvidenceTypes(): Promise<string> {
-  return loadCompileFromFile()(schemaPath, {
-    bannerComment:
-      "/* Generated from schema/evidence.schema.json. Do not edit directly. */",
-    cwd: resolve(import.meta.dirname, ".."),
+/**
+ * 生成目标：当前契约（1.1.0）+ 冻结的 1.0.0 契约（reader 向后兼容的真源）。
+ * 顺序即注册表顺序，漂移门禁逐字比对。
+ */
+export const targets: readonly EvidenceTypeTarget[] = Object.freeze([
+  Object.freeze({
+    schemaFile: "evidence.schema.json",
+    generatedFile: "src/generated/evidence.ts",
+  }),
+  Object.freeze({
+    schemaFile: "evidence-1.0.0.schema.json",
+    generatedFile: "src/generated/evidence-1.0.0.ts",
+  }),
+]);
+
+const packageRoot = resolve(import.meta.dirname, "..");
+
+export function schemaPathOf(target: EvidenceTypeTarget): string {
+  return resolve(packageRoot, "schema", target.schemaFile);
+}
+
+export function generatedPathOf(target: EvidenceTypeTarget): string {
+  return resolve(packageRoot, target.generatedFile);
+}
+
+export function renderEvidenceTypes(target: EvidenceTypeTarget): Promise<string> {
+  return loadCompileFromFile()(schemaPathOf(target), {
+    bannerComment: `/* Generated from schema/${target.schemaFile}. Do not edit directly. */`,
+    cwd: packageRoot,
     declareExternallyReferenced: true,
     ignoreMinAndMaxItems: true,
     style: {

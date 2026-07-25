@@ -43,6 +43,12 @@ export interface GeometryTextRun {
   /** 与 extract.ts 相同的 NonStruct MCID 块序语义。 */
   readonly blockOrder: number;
   readonly viaActualText: boolean;
+  /**
+   * /Figure 成员标记（解析期结构事实，决策 #10）：run 的全部字形都在同一
+   * 个 /Figure BDC…EMC span 内发出时为该 span 的 MCID，否则 null（含跨
+   * span 边界的混合 run——骑缝等价于非成员）。禁任何 bbox 几何推断。
+   */
+  readonly figureMcid: number | null;
 }
 
 export interface GeometryFigure {
@@ -50,6 +56,12 @@ export interface GeometryFigure {
   readonly mcid: number;
   /** 路径几何（含 clip 矩形）与 span 内文本 run 包围盒的并集。 */
   readonly bbox: GeometryBBox;
+  /**
+   * 绘制包围盒：仅绘制算子（f/F/S/s/B/b 家族）消费的路径点与 span 内文本
+   * run 包围盒的并集；clip（W n）不计入（clip 不绘制，PDF 语义）。
+   * 自家管线 SVG 根背景的版心全域矩形是 clip——bbox 含它、paintBBox 不含。
+   */
+  readonly paintBBox: GeometryBBox;
   readonly altShort: string | null;
   readonly altLong: string | null;
 }
@@ -225,7 +237,12 @@ export function extractGeometry(bytes: Uint8Array): PdfGeometry {
 
   const pages: GeometryPage[] = [];
   const textRuns: GeometryTextRun[] = [];
-  const figureSpans: { pageIndex: number; mcid: number; bbox: GeometryBBox }[] = [];
+  const figureSpans: {
+    pageIndex: number;
+    mcid: number;
+    bbox: GeometryBBox;
+    paintBBox: GeometryBBox;
+  }[] = [];
   for (const [, pageDict] of pageEntries) {
     const pageIndex = pages.length;
     const box = /\/MediaBox\s*\[([\d.\s]+)\]/.exec(pageDict.dict)?.[1];
@@ -269,9 +286,11 @@ export function extractGeometry(bytes: Uint8Array): PdfGeometry {
         );
         textRuns.push(...extracted.runs);
         for (const figure of extracted.figures) {
-          const { minX, minY, maxX, maxY } = figure.box;
+          const { minX, minY, maxX, maxY, paintMinX, paintMinY, paintMaxX, paintMaxY } =
+            figure.box;
           // 空 span（无任何路径点/文本）登记零包围盒，不输出 Infinity。
           const empty = !Number.isFinite(minX);
+          const paintEmpty = !Number.isFinite(paintMinX);
           figureSpans.push({
             pageIndex,
             mcid: figure.mcid,
@@ -280,6 +299,12 @@ export function extractGeometry(bytes: Uint8Array): PdfGeometry {
               y: empty ? 0 : maxY,
               width: empty ? 0 : maxX - minX,
               height: empty ? 0 : maxY - minY,
+            }),
+            paintBBox: Object.freeze({
+              x: paintEmpty ? 0 : paintMinX,
+              y: paintEmpty ? 0 : paintMaxY,
+              width: paintEmpty ? 0 : paintMaxX - paintMinX,
+              height: paintEmpty ? 0 : paintMaxY - paintMinY,
             }),
           });
         }
@@ -330,6 +355,7 @@ export function extractGeometry(bytes: Uint8Array): PdfGeometry {
         pageIndex: span.pageIndex,
         mcid: span.mcid,
         bbox: span.bbox,
+        paintBBox: span.paintBBox,
         altShort: leaf === undefined ? null : altShortOf(leaf.parentId),
         altLong: leaf === undefined ? null : leaf.altLong,
       }),
@@ -346,6 +372,7 @@ export function extractGeometry(bytes: Uint8Array): PdfGeometry {
         pageIndex: Number(pageRaw),
         mcid: Number(mcidRaw),
         bbox: Object.freeze({ x: 0, y: 0, width: 0, height: 0 }),
+        paintBBox: Object.freeze({ x: 0, y: 0, width: 0, height: 0 }),
         altShort: altShortOf(leaf.parentId),
         altLong: leaf.altLong,
       }),

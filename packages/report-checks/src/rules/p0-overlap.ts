@@ -1,9 +1,13 @@
 /**
- * P0_OVERLAP：文本/图形框相互重叠遮挡。y 向上空间：bbox.y 为顶边。
+ * P0_OVERLAP：文本/图形绘制内容相互重叠遮挡。y 向上空间：bbox.y 为顶边。
  *
- * 豁免口径（PA-06 形态事实，书面化）：figure bbox 为版心全域（SVG 根背景），
- * 图表标签/题注等文本 run 完全落在 figure 内——完全包含于某 figure 的 run
- * 视为该图自有内容，不参与遮挡判定；部分重叠（骑缝）仍是 P0。
+ * 豁免口径（PA-06B / 决策 #10，成员制）：只豁免 figure 自有内容——run 的
+ * figureMcid（解析期结构事实，禁几何推断）与 figure 的 MCID 相同的配对不
+ * 参与遮挡判定（图表标签 vs 自己的图、同一图的标签互叠）。几何落入 figure
+ * 但非成员的 run 一律参与判定：与 figure 绘制框（paintBBox，clip 不绘制、
+ * 自家管线 SVG 根背景只撑 bbox 不撑 paintBBox）任何显著重叠（含完全包含、
+ * 不骑缝）即 P0。基线形态事实：figure 页正文 run 全部非成员且与 paintBBox
+ * 零显著重叠（pdf-evidence 基线集成测试钉定），故误报不回潮。
  *
  * 阈值（书面化）：交集面积 > max(0.5pt², 较小框面积的 1%)。
  * 同行豁免（书面化）：同 MCID 块且基线差 ≤2pt 的 run 是 Td 链上的顺序文本，
@@ -14,7 +18,6 @@ import type { P0CheckInput, P0Rule } from "../check-input.ts";
 import { figureRef, makeFinding, runRef } from "../finding.ts";
 import type { Finding } from "../generated/check-report.ts";
 
-const CONTAINMENT_TOLERANCE_PT = 0.5;
 const MIN_OVERLAP_AREA_PT2 = 0.5;
 const MIN_OVERLAP_RATIO = 0.01;
 const SAME_LINE_BASELINE_PT = 2;
@@ -29,6 +32,8 @@ interface OverlapBox {
   readonly baselineY: number;
   readonly blockOrder: number;
   readonly fontSize: number;
+  /** 成员归属：run 取 figureMcid（结构事实），figure 取自身 MCID。 */
+  readonly memberOf: number | null;
 }
 
 function area(box: OverlapBox): number {
@@ -51,15 +56,6 @@ function intersection(
   return { width, height, area: width * height };
 }
 
-function contains(outer: OverlapBox, inner: OverlapBox): boolean {
-  return (
-    inner.left >= outer.left - CONTAINMENT_TOLERANCE_PT &&
-    inner.right <= outer.right + CONTAINMENT_TOLERANCE_PT &&
-    inner.top <= outer.top + CONTAINMENT_TOLERANCE_PT &&
-    inner.bottom >= outer.bottom - CONTAINMENT_TOLERANCE_PT
-  );
-}
-
 function significant(
   hit: { readonly area: number },
   a: OverlapBox,
@@ -79,6 +75,11 @@ function sameVisualLine(a: OverlapBox, b: OverlapBox): boolean {
   );
 }
 
+/** 成员制豁免：同属一个 figure 的自有内容互叠不参与遮挡判定。 */
+function sameFigureContent(a: OverlapBox, b: OverlapBox): boolean {
+  return a.memberOf !== null && a.memberOf === b.memberOf;
+}
+
 function check(input: P0CheckInput): readonly Finding[] {
   const findings: Finding[] = [];
   for (const page of input.evidence.pages) {
@@ -86,16 +87,15 @@ function check(input: P0CheckInput): readonly Finding[] {
       .filter((figure) => figure.pageIndex === page.index)
       .map((figure) => ({
         nodeRef: figureRef(figure.pageIndex, figure.mcid),
-        left: figure.bbox.x,
-        right: figure.bbox.x + figure.bbox.width,
-        top: figure.bbox.y,
-        bottom: figure.bbox.y - figure.bbox.height,
+        left: figure.paintBBox.x,
+        right: figure.paintBBox.x + figure.paintBBox.width,
+        top: figure.paintBBox.y,
+        bottom: figure.paintBBox.y - figure.paintBBox.height,
         baselineY: Number.NaN,
         blockOrder: -1,
         fontSize: Number.POSITIVE_INFINITY,
+        memberOf: figure.mcid,
       }));
-    const contained = (run: OverlapBox): boolean =>
-      figures.some((figure) => contains(figure, run));
     const runs: OverlapBox[] = input.evidence.textRuns
       .filter((run) => run.pageIndex === page.index)
       .map((run) => ({
@@ -107,10 +107,13 @@ function check(input: P0CheckInput): readonly Finding[] {
         baselineY: run.baselineY,
         blockOrder: run.blockOrder,
         fontSize: run.fontSize,
-      }))
-      .filter((run) => !contained(run));
+        memberOf: run.figureMcid,
+      }));
 
     const report = (a: OverlapBox, b: OverlapBox): void => {
+      if (sameFigureContent(a, b)) {
+        return;
+      }
       const hit = intersection(a, b);
       if (!significant(hit, a, b)) {
         return;

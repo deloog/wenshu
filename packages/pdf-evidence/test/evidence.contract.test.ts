@@ -2,8 +2,13 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
+import evidenceSchemaV1_0_0 from "../schema/evidence-1.0.0.schema.json" with { type: "json" };
 import evidenceSchema from "../schema/evidence.schema.json" with { type: "json" };
-import { EVIDENCE_VERSION, validateEvidence } from "../src/index.ts";
+import {
+  EVIDENCE_VERSION,
+  SUPPORTED_EVIDENCE_VERSIONS,
+  validateEvidence,
+} from "../src/index.ts";
 import type { WenshuPdfEvidence } from "../src/index.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -20,11 +25,114 @@ async function fixtureFiles(kind: "invalid" | "valid"): Promise<URL[]> {
   return names.map((name) => new URL(name, directory));
 }
 
-test("v1 evidence version is frozen across constant, schema and generated type", () => {
-  assert.equal(EVIDENCE_VERSION, "1.0.0");
+test("v1.1 evidence version is frozen across constant, schema and generated type", () => {
+  assert.equal(EVIDENCE_VERSION, "1.1.0");
   assert.equal(evidenceSchema.properties.evidenceVersion.const, EVIDENCE_VERSION);
   const typedVersion: WenshuPdfEvidence["evidenceVersion"] = EVIDENCE_VERSION;
-  assert.equal(typedVersion, "1.0.0");
+  assert.equal(typedVersion, "1.1.0");
+  // additive 升级纪律：冻结的 1.0.0 schema 原样保留，读取方双向接受。
+  assert.equal(evidenceSchemaV1_0_0.properties.evidenceVersion.const, "1.0.0");
+  assert.deepEqual([...SUPPORTED_EVIDENCE_VERSIONS], ["1.0.0", "1.1.0"]);
+});
+
+test("frozen 1.0.0 data stays valid under the 1.1.0 reader (additive upgrade)", () => {
+  // v1.0.0 形状（无 figureMcid/paintBBox）在 v1.0.0 分支下合法；valid/ 目录
+  // 中的 1.0.0 fixture 由目录级用例逐文件覆盖，此处再验版本分发扬状。
+  const result = validateEvidence({
+    evidenceVersion: "1.0.0",
+    source: {
+      sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      pageCount: 1,
+      producer: "Skia/PDF m150",
+    },
+    pages: [
+      {
+        index: 0,
+        mediaBox: [0, 0, 595.28, 841.89],
+        widthPt: 595.28,
+        heightPt: 841.89,
+        rotate: 0,
+      },
+    ],
+    textRuns: [],
+    figures: [],
+    fonts: [
+      {
+        name: "ABCDEF+NotoSansCJKsc-Regular",
+        family: "Noto Sans CJK SC",
+        weight: 400,
+        subtype: "CIDFontType0",
+        subset: true,
+        embedded: true,
+      },
+    ],
+  });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  if (result.ok) {
+    assert.equal(result.value.evidenceVersion, "1.0.0");
+  }
+});
+
+test("1.1.0 run missing figureMcid fails as schema violation, not version", () => {
+  const result = validateEvidence({
+    evidenceVersion: EVIDENCE_VERSION,
+    source: {
+      sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      pageCount: 1,
+      producer: "Skia/PDF m150",
+    },
+    pages: [
+      {
+        index: 0,
+        mediaBox: [0, 0, 595.28, 841.89],
+        widthPt: 595.28,
+        heightPt: 841.89,
+        rotate: 0,
+      },
+    ],
+    textRuns: [
+      {
+        pageIndex: 0,
+        text: "段落",
+        bbox: { x: 72, y: 96, width: 200, height: 24 },
+        baselineY: 118,
+        fontSize: 16,
+        font: {
+          objectId: 30,
+          tag: "F30",
+          family: "Noto Sans CJK SC",
+          weight: 400,
+          subset: true,
+          embedded: true,
+        },
+        blockOrder: 0,
+        readingOrder: 0,
+        viaActualText: false,
+      },
+    ],
+    figures: [],
+    fonts: [
+      {
+        name: "ABCDEF+NotoSansCJKsc-Regular",
+        family: "Noto Sans CJK SC",
+        weight: 400,
+        subtype: "CIDFontType0",
+        subset: true,
+        embedded: true,
+      },
+    ],
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(
+      result.issues.some(
+        (issue) =>
+          issue.code === "PDF_EVIDENCE_SCHEMA" &&
+          issue.path === "/textRuns/0/figureMcid",
+      ),
+      JSON.stringify(result.issues),
+    );
+  }
 });
 
 test("all valid evidence fixtures pass and are deeply frozen", async (context) => {
@@ -194,6 +302,7 @@ test("duplicate reading order is a semantic violation", () => {
     blockOrder: 0,
     readingOrder: 0,
     viaActualText: false,
+    figureMcid: null,
   };
   const result = validateEvidence({
     evidenceVersion: EVIDENCE_VERSION,
@@ -260,6 +369,7 @@ test("figure page index beyond page count is a semantic violation", () => {
         pageIndex: 1,
         mcid: 5,
         bbox: { x: 72, y: 180, width: 451.28, height: 240 },
+        paintBBox: { x: 92, y: 160, width: 400, height: 200 },
         kind: "vector-figure",
         altShort: null,
         altLong: null,

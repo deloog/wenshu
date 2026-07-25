@@ -41,7 +41,26 @@ export interface OracleFigure {
   readonly minY: number;
   readonly maxX: number;
   readonly maxY: number;
+  /** 仅绘制算子（fill/stroke 家族）的并集；clip/endPath 不计入。无绘制为 null。 */
+  readonly paint: {
+    readonly minX: number;
+    readonly minY: number;
+    readonly maxX: number;
+    readonly maxY: number;
+  } | null;
 }
+
+/** pdf.js constructPath args[0] 中的绘制算子（OPS 值）；endPath/clip/eoClip 不绘制。 */
+const PAINT_OPS: ReadonlySet<number> = new Set([
+  OPS.stroke,
+  OPS.closeStroke,
+  OPS.fill,
+  OPS.eoFill,
+  OPS.fillStroke,
+  OPS.eoFillStroke,
+  OPS.closeFillStroke,
+  OPS.closeEOFillStroke,
+]);
 
 export interface OraclePage {
   readonly view: readonly number[];
@@ -119,8 +138,18 @@ function collectFigures(
   // 标记内容栈：Figure 内嵌套 NonStruct/ActualText/Lbl，EMC 只弹栈顶，
   // 只有弹出 Figure 本身才闭合当前 figure 累积。
   const markedStack: boolean[] = [];
-  let current: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
-  const include = (minMax: readonly number[]): void => {
+  interface MutableBox {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  }
+  let current: MutableBox | null = null;
+  let currentPaint: MutableBox | null = null;
+  const unionInto = (
+    target: MutableBox | null,
+    minMax: readonly number[],
+  ): MutableBox => {
     const corners = [
       applyPoint(ctm, minMax[0] ?? 0, minMax[1] ?? 0),
       applyPoint(ctm, minMax[2] ?? 0, minMax[1] ?? 0),
@@ -135,15 +164,14 @@ function collectFigures(
       maxX: Math.max(...xs),
       maxY: Math.max(...ys),
     };
-    current =
-      current === null
-        ? box
-        : {
-            minX: Math.min(current.minX, box.minX),
-            minY: Math.min(current.minY, box.minY),
-            maxX: Math.max(current.maxX, box.maxX),
-            maxY: Math.max(current.maxY, box.maxY),
-          };
+    return target === null
+      ? box
+      : {
+          minX: Math.min(target.minX, box.minX),
+          minY: Math.min(target.minY, box.minY),
+          maxX: Math.max(target.maxX, box.maxX),
+          maxY: Math.max(target.maxY, box.maxY),
+        };
   };
   for (let index = 0; index < fnArray.length; index += 1) {
     const fn = fnArray[index];
@@ -171,8 +199,9 @@ function collectFigures(
     } else if (fn === OPS.endMarkedContent) {
       const wasFigure = markedStack.pop() ?? false;
       if (wasFigure && current !== null) {
-        figures.push(current);
+        figures.push({ ...current, paint: currentPaint });
         current = null;
+        currentPaint = null;
       }
     } else if (
       fn === OPS.constructPath &&
@@ -181,7 +210,10 @@ function collectFigures(
     ) {
       const minMax = numbers(args[2], 4);
       if (minMax !== null) {
-        include(minMax);
+        current = unionInto(current, minMax);
+        if (typeof args[0] === "number" && PAINT_OPS.has(args[0])) {
+          currentPaint = unionInto(currentPaint, minMax);
+        }
       }
     }
   }
