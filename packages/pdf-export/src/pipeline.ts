@@ -73,11 +73,18 @@ export async function produceBaselinePdf(
   const documents: Record<string, string | Uint8Array> = { "/print.html": printHtml };
   const fontFamily =
     typeof manifest["family"] === "string" ? (manifest["family"] as string) : "";
+  const embeddedFaces = await Promise.all(
+    plan.map(async (face) => ({
+      weight: face.weight,
+      fileName: face.fileName,
+      bytes: new Uint8Array(await readFile(resolve(input.fontDir, face.fileName))),
+    })),
+  );
   for (const [original, normalized] of Object.entries(imported.renames)) {
     const bytes = await readFile(resolve(input.fixtureRoot, original));
-    // 供给期变换：SVG 注入 @font-face 使图表文本使用冻结 OTF（冻结资产字节不变）。
+    // 供给期变换：SVG 内嵌 data: 字体使沙箱 <img> 图表文本使用冻结 OTF（冻结资产字节不变）。
     documents[`/${normalized}`] = original.toLowerCase().endsWith(".svg")
-      ? injectSvgFontFace(new TextDecoder().decode(bytes), fontFamily, "/fonts/", plan)
+      ? injectSvgFontFace(new TextDecoder().decode(bytes), fontFamily, embeddedFaces)
       : bytes;
   }
   const server = await startStaticServer(
