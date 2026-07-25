@@ -8,7 +8,8 @@
   },
   "wenshu": {
     "generatedFiles": [
-      "src/generated/check-report.ts"
+      "src/generated/check-report.ts",
+      "src/generated/check-report-1.0.0.ts"
     ]
   },
   "scripts": {
@@ -22,6 +23,7 @@
     "@wenshu/document-model": "workspace:*",
     "@wenshu/pdf-evidence": "workspace:*",
     "@wenshu/pdf-export": "workspace:*",
+    "@wenshu/template-model": "workspace:*",
     "ajv": "catalog:"
   },
   "devDependencies": {

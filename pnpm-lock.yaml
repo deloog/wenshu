@@ -226,6 +226,9 @@ importers:
       '@wenshu/pdf-export':
         specifier: workspace:*
         version: link:../pdf-export
+      '@wenshu/template-model':
+        specifier: workspace:*
+        version: link:../template-model
       ajv:
         specifier: 'catalog:'
         version: 8.20.0

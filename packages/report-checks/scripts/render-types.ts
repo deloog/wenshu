@@ -26,20 +26,42 @@ function loadCompileFromFile(): CompileFromFile {
   return moduleValue.compileFromFile as CompileFromFile;
 }
 
-export const schemaPath = resolve(
-  import.meta.dirname,
-  "../schema/check-report.schema.json",
-);
-export const generatedPath = resolve(
-  import.meta.dirname,
-  "../src/generated/check-report.ts",
-);
+export interface CheckReportTypeTarget {
+  /** schema/ 下的文件名（同时也是 banner 归因）。 */
+  readonly schemaFile: string;
+  /** src/ 下的生成物路径（与 package.json wenshu.generatedFiles 一致）。 */
+  readonly generatedFile: string;
+}
 
-export function renderCheckReportTypes(): Promise<string> {
-  return loadCompileFromFile()(schemaPath, {
-    bannerComment:
-      "/* Generated from schema/check-report.schema.json. Do not edit directly. */",
-    cwd: resolve(import.meta.dirname, ".."),
+/**
+ * 生成目标：当前契约（1.1.0，PA-08 manualChecks）+ 冻结的 1.0.0 契约
+ * （reader 向后兼容的真源）。顺序即注册表顺序，漂移门禁逐字比对。
+ */
+export const targets: readonly CheckReportTypeTarget[] = Object.freeze([
+  Object.freeze({
+    schemaFile: "check-report.schema.json",
+    generatedFile: "src/generated/check-report.ts",
+  }),
+  Object.freeze({
+    schemaFile: "check-report-1.0.0.schema.json",
+    generatedFile: "src/generated/check-report-1.0.0.ts",
+  }),
+]);
+
+const packageRoot = resolve(import.meta.dirname, "..");
+
+export function schemaPathOf(target: CheckReportTypeTarget): string {
+  return resolve(packageRoot, "schema", target.schemaFile);
+}
+
+export function generatedPathOf(target: CheckReportTypeTarget): string {
+  return resolve(packageRoot, target.generatedFile);
+}
+
+export function renderCheckReportTypes(target: CheckReportTypeTarget): Promise<string> {
+  return loadCompileFromFile()(schemaPathOf(target), {
+    bannerComment: `/* Generated from schema/${target.schemaFile}. Do not edit directly. */`,
+    cwd: packageRoot,
     declareExternallyReferenced: true,
     ignoreMinAndMaxItems: true,
     style: {

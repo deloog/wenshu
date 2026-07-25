@@ -1,0 +1,20 @@
+{
+  "expectedIssue": "CHECK_REPORT_SEMANTIC",
+  "expectedPath": "/manualChecks/0/ruleId",
+  "checkReportVersion": "1.1.0",
+  "source": {
+    "evidenceSha256": "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd"
+  },
+  "rules": ["p1-sparse-page"],
+  "findings": [],
+  "manualChecks": [
+    {
+      "ruleId": "p1-orphan",
+      "code": "P1_SPARSE_DENSITY_REVIEW",
+      "pageIndex": 0,
+      "nodeRef": "page:0",
+      "reason": "静态口径文本。",
+      "basis": { "metrics": { "coverageRatio": 0.02 } }
+    }
+  ]
+}

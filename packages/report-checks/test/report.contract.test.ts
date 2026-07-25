@@ -6,7 +6,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { CHECK_REPORT_VERSION, validateCheckReport } from "../src/validate-report.ts";
+import {
+  CHECK_REPORT_VERSION,
+  CHECK_REPORT_VERSION_1_0_0,
+  SUPPORTED_CHECK_REPORT_VERSIONS,
+  validateCheckReport,
+} from "../src/validate-report.ts";
 
 const validDir = join(import.meta.dirname, "..", "fixtures", "valid");
 const invalidDir = join(import.meta.dirname, "..", "fixtures", "invalid");
@@ -15,8 +20,10 @@ function readFixture(dir: string, file: string): unknown {
   return JSON.parse(readFileSync(join(dir, file), "utf8"));
 }
 
-test("report version constant is frozen at 1.0.0", () => {
-  assert.equal(CHECK_REPORT_VERSION, "1.0.0");
+test("report versions are frozen: producer 1.1.0, reader accepts frozen 1.0.0", () => {
+  assert.equal(CHECK_REPORT_VERSION, "1.1.0");
+  assert.equal(CHECK_REPORT_VERSION_1_0_0, "1.0.0");
+  assert.deepEqual(SUPPORTED_CHECK_REPORT_VERSIONS, ["1.0.0", "1.1.0"]);
 });
 
 for (const file of readdirSync(validDir)) {
