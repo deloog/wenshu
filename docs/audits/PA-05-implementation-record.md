@@ -52,6 +52,6 @@
 
 ## 已知限制与交棒
 
-- 浏览器版本未锁定（系统 Chrome/Edge 候选）；锁定 Chromium 环境属 G1-14W/PA-05 前置，VM 基线证据补齐后在此补记（浏览器 product、锚定提交、evidence.json）。
+- ~~浏览器版本未锁定~~ **已锁定**：基线 PDF 在 G1-14W Win11 参考环境（10.0.22621）由其内建 Edge `Edg/150.0.4078.83`（随冻结镜像锁定）产出。证据在 `test-results/pa-05/`（baseline PDF 977,170 字节、SHA-256 `d18da69f…e6dfd`、evidence.json 含打印参数/环境/元数据/对账/修复统计）；本机对 VM PDF 独立重抽复核：字体仅 SourceHanSansCN-Bold/Regular 两款 Type3 子集全内嵌、零系统字体、对账过。
 - `inspect.ts` 只承诺自家管线（Skia/Chromium printToPDF 输出）的解析，不支持任意 PDF（fail-closed）。
 - 本门不做 validator 判定/修复；`@page`/break 规则的真实分页效果、keep-with-next/figure-keep/表头重复的视觉正确性留 PA-06~12 裁决。
