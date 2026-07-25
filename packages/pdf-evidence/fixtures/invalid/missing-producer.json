@@ -1,0 +1,30 @@
+{
+  "expectedIssue": "PDF_EVIDENCE_SCHEMA",
+  "expectedPath": "/source/producer",
+  "evidenceVersion": "1.0.0",
+  "source": {
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "pageCount": 1
+  },
+  "pages": [
+    {
+      "index": 0,
+      "mediaBox": [0, 0, 595.28, 841.89],
+      "widthPt": 595.28,
+      "heightPt": 841.89,
+      "rotate": 0
+    }
+  ],
+  "textRuns": [],
+  "figures": [],
+  "fonts": [
+    {
+      "name": "ABCDEF+NotoSansCJKsc-Regular",
+      "family": "Noto Sans CJK SC",
+      "weight": 400,
+      "subtype": "CIDFontType0",
+      "subset": true,
+      "embedded": true
+    }
+  ]
+}

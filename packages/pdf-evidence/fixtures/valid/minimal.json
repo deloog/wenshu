@@ -1,0 +1,48 @@
+{
+  "evidenceVersion": "1.0.0",
+  "source": {
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "pageCount": 1,
+    "producer": "Skia/PDF m150"
+  },
+  "pages": [
+    {
+      "index": 0,
+      "mediaBox": [0, 0, 595.28, 841.89],
+      "widthPt": 595.28,
+      "heightPt": 841.89,
+      "rotate": 0
+    }
+  ],
+  "textRuns": [
+    {
+      "pageIndex": 0,
+      "text": "报告标题",
+      "bbox": { "x": 72, "y": 96, "width": 200, "height": 24 },
+      "baselineY": 118,
+      "fontSize": 16,
+      "font": {
+        "objectId": 30,
+        "tag": "F30",
+        "family": "Noto Sans CJK SC",
+        "weight": 400,
+        "subset": true,
+        "embedded": true
+      },
+      "blockOrder": 0,
+      "readingOrder": 0,
+      "viaActualText": false
+    }
+  ],
+  "figures": [],
+  "fonts": [
+    {
+      "name": "ABCDEF+NotoSansCJKsc-Regular",
+      "family": "Noto Sans CJK SC",
+      "weight": 400,
+      "subtype": "CIDFontType0",
+      "subset": true,
+      "embedded": true
+    }
+  ]
+}

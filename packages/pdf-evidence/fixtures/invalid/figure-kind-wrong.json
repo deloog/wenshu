@@ -1,0 +1,40 @@
+{
+  "expectedIssue": "PDF_EVIDENCE_SCHEMA",
+  "expectedPath": "/figures/0/kind",
+  "evidenceVersion": "1.0.0",
+  "source": {
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "pageCount": 1,
+    "producer": "Skia/PDF m150"
+  },
+  "pages": [
+    {
+      "index": 0,
+      "mediaBox": [0, 0, 595.28, 841.89],
+      "widthPt": 595.28,
+      "heightPt": 841.89,
+      "rotate": 0
+    }
+  ],
+  "textRuns": [],
+  "figures": [
+    {
+      "pageIndex": 0,
+      "mcid": 5,
+      "bbox": { "x": 72, "y": 180, "width": 451.28, "height": 240 },
+      "kind": "raster-image",
+      "altShort": null,
+      "altLong": null
+    }
+  ],
+  "fonts": [
+    {
+      "name": "ABCDEF+NotoSansCJKsc-Regular",
+      "family": "Noto Sans CJK SC",
+      "weight": 400,
+      "subtype": "CIDFontType0",
+      "subset": true,
+      "embedded": true
+    }
+  ]
+}

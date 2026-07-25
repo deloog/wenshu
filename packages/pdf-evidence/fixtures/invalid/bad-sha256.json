@@ -1,0 +1,31 @@
+{
+  "expectedIssue": "PDF_EVIDENCE_SCHEMA",
+  "expectedPath": "/source/sha256",
+  "evidenceVersion": "1.0.0",
+  "source": {
+    "sha256": "not-a-hex-digest",
+    "pageCount": 1,
+    "producer": "Skia/PDF m150"
+  },
+  "pages": [
+    {
+      "index": 0,
+      "mediaBox": [0, 0, 595.28, 841.89],
+      "widthPt": 595.28,
+      "heightPt": 841.89,
+      "rotate": 0
+    }
+  ],
+  "textRuns": [],
+  "figures": [],
+  "fonts": [
+    {
+      "name": "ABCDEF+NotoSansCJKsc-Regular",
+      "family": "Noto Sans CJK SC",
+      "weight": 400,
+      "subtype": "CIDFontType0",
+      "subset": true,
+      "embedded": true
+    }
+  ]
+}
