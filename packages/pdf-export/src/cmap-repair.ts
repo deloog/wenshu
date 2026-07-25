@@ -1,5 +1,3 @@
-import { deflateSync, inflateSync } from "node:zlib";
-
 import { PdfExportError } from "./errors.ts";
 import { inspectPdf, type TextHole } from "./inspect.ts";
 import { assertPdfReconciled } from "./reconcile.ts";
