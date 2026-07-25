@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/pdf-evidence/1.0.0/evidence.schema.json",
+  "title": "WenshuPdfEvidence",
+  "description": "Version 1 PDF geometric/textual evidence model extracted from the signed baseline PDF. Pure extraction facts; no quality judgement fields are allowed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidenceVersion", "source", "pages", "textRuns", "figures", "fonts"],
+  "properties": {
+    "evidenceVersion": { "const": "1.0.0" },
+    "source": { "$ref": "#/$defs/EvidenceSource" },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/PageBox" }
+    },
+    "textRuns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TextRun" }
+    },
+    "figures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/FigureBox" }
+    },
+    "fonts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/FontInfo" }
+    }
+  },
+  "$defs": {
+    "EvidenceSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "pageCount", "producer"],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the exact PDF bytes this evidence was extracted from."
+        },
+        "pageCount": { "type": "integer", "minimum": 1 },
+        "producer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "PDF /Producer marker of the generating engine (e.g. Skia/PDF)."
+        }
+      }
+    },
+    "BBox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number", "description": "Left edge in PDF user space (pt)." },
+        "y": {
+          "type": "number",
+          "description": "Top edge in PDF user space (pt), baseline-derived for text runs."
+        },
+        "width": { "type": "number", "minimum": 0 },
+        "height": { "type": "number", "minimum": 0 }
+      }
+    },
+    "PageBox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "mediaBox", "widthPt", "heightPt", "rotate"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "mediaBox": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "number" }
+        },
+        "widthPt": { "type": "number", "exclusiveMinimum": 0 },
+        "heightPt": { "type": "number", "exclusiveMinimum": 0 },
+        "rotate": { "type": "integer", "enum": [0, 90, 180, 270] }
+      }
+    },
+    "FontRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objectId", "tag", "family", "weight", "subset", "embedded"],
+      "properties": {
+        "objectId": { "type": "integer", "minimum": 1 },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Resource tag used by content streams (e.g. F30)."
+        },
+        "family": { "type": "string" },
+        "weight": { "type": ["integer", "null"] },
+        "subset": { "type": "boolean" },
+        "embedded": { "type": "boolean" }
+      }
+    },
+    "TextRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pageIndex",
+        "text",
+        "bbox",
+        "baselineY",
+        "fontSize",
+        "font",
+        "blockOrder",
+        "readingOrder",
+        "viaActualText"
+      ],
+      "properties": {
+        "pageIndex": { "type": "integer", "minimum": 0 },
+        "text": { "type": "string", "minLength": 1 },
+        "bbox": { "$ref": "#/$defs/BBox" },
+        "baselineY": {
+          "type": "number",
+          "description": "Baseline position in PDF user space (pt)."
+        },
+        "fontSize": { "type": "number", "exclusiveMinimum": 0 },
+        "font": { "$ref": "#/$defs/FontRef" },
+        "blockOrder": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "MCID logical block sequence within the page content stream."
+        },
+        "readingOrder": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Global reading sequence after MCID block order, y-bucket, x sort (PA-05 rule)."
+        },
+        "viaActualText": {
+          "type": "boolean",
+          "description": "Text comes from an ActualText span rather than glyph decoding."
+        }
+      }
+    },
+    "FigureBox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pageIndex", "mcid", "bbox", "kind", "altShort", "altLong"],
+      "properties": {
+        "pageIndex": { "type": "integer", "minimum": 0 },
+        "mcid": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Marked content id of the /Figure span on the page."
+        },
+        "bbox": { "$ref": "#/$defs/BBox" },
+        "kind": {
+          "const": "vector-figure",
+          "description": "v1 pipeline emits SVG figures as vector content only; raster images would require a version bump."
+        },
+        "altShort": {
+          "type": ["string", "null"],
+          "description": "Caption-level /Alt from the parent Figure structure element (caption association)."
+        },
+        "altLong": {
+          "type": ["string", "null"],
+          "description": "Descriptive /Alt from the leaf Figure structure element bound to this MCID."
+        }
+      }
+    },
+    "FontInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "family", "weight", "subtype", "subset", "embedded"],
+      "properties": {
+        "name": { "type": "string" },
+        "family": { "type": "string" },
+        "weight": { "type": ["integer", "null"] },
+        "subtype": { "type": "string", "minLength": 1 },
+        "subset": { "type": "boolean" },
+        "embedded": { "type": "boolean" }
+      }
+    }
+  }
+}

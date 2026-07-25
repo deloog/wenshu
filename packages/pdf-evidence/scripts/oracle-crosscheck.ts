@@ -1,0 +1,254 @@
+/**
+ * 独立几何 oracle 交叉验证：证据模型（自写解析器） vs pdfjs-dist 独立解析。
+ * pdf.js 侧事实提取见 oracle-pdfjs.ts；本文件只做比对与报告。
+ *
+ * 容差（书面化，实测校准）：
+ * - 页框：1pt（PA-05 既定事实 A4 594.96–595.92pt 容差 1pt）。
+ * - 行基线 / 行起点 x：0.5pt；行宽（末右-首左）：1pt。
+ * - 文本逐行比对先按 PA-05 归一口径（部首→CJK、NFKC、剥离空白）。
+ * - figure 框：路径 minMax 经 operator-list save/restore/transform 链换算，
+ *   与证据 bbox 双向各边偏差 ≤2pt（y 向上空间，bbox.y 为顶边）。
+ *
+ * 用法：node scripts/oracle-crosscheck.ts <pdf 路径>。
+ * 退出码：0 = 全部一致；1 = 存在超容差分歧或证据提取失败。
+ */
+import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+
+import { normalizePdfText } from "@wenshu/pdf-export";
+
+import { extractEvidence } from "../src/extract-evidence.ts";
+import type { WenshuPdfEvidence } from "../src/generated/evidence.ts";
+import { bucketRuns, extractOracle, type OracleLine } from "./oracle-pdfjs.ts";
+
+const PAGE_BOX_TOLERANCE_PT = 1;
+const LINE_BASELINE_TOLERANCE_PT = 0.5;
+const LINE_X_TOLERANCE_PT = 0.5;
+const LINE_WIDTH_TOLERANCE_PT = 1;
+const FIGURE_EDGE_TOLERANCE_PT = 2;
+
+interface Mismatch {
+  readonly kind: string;
+  readonly pageIndex: number;
+  readonly detail: string;
+}
+
+export interface CrosscheckReport {
+  readonly ok: boolean;
+  readonly pagesChecked: number;
+  readonly linesChecked: number;
+  readonly figuresChecked: number;
+  readonly mismatches: readonly Mismatch[];
+  /**
+   * ActualText 分歧（信息项，非不一致）：pdf.js 不支持 ActualText，span 内回退
+   * ToUnicode 解码得部首形/figure dash，本方取 ActualText 本文——差异本身证实
+   * ActualText 是唯一语义面（PA-05 既定事实）。这些行的几何仍逐条交叉验证。
+   */
+  readonly actualTextDivergences: readonly Mismatch[];
+}
+
+function evidenceLines(evidence: WenshuPdfEvidence, pageIndex: number): OracleLine[] {
+  return bucketRuns(
+    evidence.textRuns
+      .filter((run) => run.pageIndex === pageIndex)
+      .map((run) => ({
+        x: run.bbox.x,
+        baselineY: run.baselineY,
+        maxX: run.bbox.x + run.bbox.width,
+        text: run.text.replaceAll(/\s/g, ""),
+        hasActualText: run.viaActualText,
+      })),
+  );
+}
+
+function failReport(code: string, location: string): CrosscheckReport {
+  return {
+    ok: false,
+    pagesChecked: 0,
+    linesChecked: 0,
+    figuresChecked: 0,
+    mismatches: [{ kind: "evidence", pageIndex: -1, detail: `${code}@${location}` }],
+    actualTextDivergences: [],
+  };
+}
+
+function compareLines(
+  pageIndex: number,
+  ours: readonly OracleLine[],
+  theirs: readonly OracleLine[],
+  mismatches: Mismatch[],
+  divergences: Mismatch[],
+): number {
+  let checked = 0;
+  if (ours.length !== theirs.length) {
+    mismatches.push({
+      kind: "line-count",
+      pageIndex,
+      detail: `oracle=${theirs.length} evidence=${ours.length}`,
+    });
+  }
+  for (let line = 0; line < Math.min(ours.length, theirs.length); line += 1) {
+    const a = ours[line];
+    const b = theirs[line];
+    if (a === undefined || b === undefined) {
+      continue;
+    }
+    checked += 1;
+    // 文本语义面口径与 PA-05 对账一致：部首→CJK、NFKC、剥离空白。
+    // ActualText span 行：pdf.js 回退 ToUnicode（部首形/figure dash），记信息项。
+    if (normalizePdfText(a.text) !== normalizePdfText(b.text)) {
+      const divergence: Mismatch = {
+        kind: "line-text",
+        pageIndex,
+        detail: `line=${line}`,
+      };
+      if (a.hasActualText) {
+        divergences.push(divergence);
+      } else {
+        mismatches.push(divergence);
+      }
+    }
+    if (Math.abs(a.baselineY - b.baselineY) > LINE_BASELINE_TOLERANCE_PT) {
+      mismatches.push({
+        kind: "line-baseline",
+        pageIndex,
+        detail: `line=${line} d=${Math.abs(a.baselineY - b.baselineY)}`,
+      });
+    }
+    if (Math.abs(a.minX - b.minX) > LINE_X_TOLERANCE_PT) {
+      mismatches.push({
+        kind: "line-x",
+        pageIndex,
+        detail: `line=${line} d=${Math.abs(a.minX - b.minX)}`,
+      });
+    }
+    if (Math.abs(a.maxX - a.minX - (b.maxX - b.minX)) > LINE_WIDTH_TOLERANCE_PT) {
+      mismatches.push({
+        kind: "line-width",
+        pageIndex,
+        detail: `line=${line} d=${Math.abs(a.maxX - a.minX - (b.maxX - b.minX))}`,
+      });
+    }
+  }
+  return checked;
+}
+
+export async function crosscheckGeometry(bytes: Uint8Array): Promise<CrosscheckReport> {
+  const extracted = extractEvidence(bytes);
+  if (!extracted.ok) {
+    return failReport(extracted.issue.code, extracted.issue.location);
+  }
+  const evidence = extracted.evidence;
+  const oracle = await extractOracle(bytes);
+  const mismatches: Mismatch[] = [];
+  const actualTextDivergences: Mismatch[] = [];
+  let linesChecked = 0;
+  let figuresChecked = 0;
+
+  if (oracle.length !== evidence.pages.length) {
+    mismatches.push({
+      kind: "page-count",
+      pageIndex: -1,
+      detail: `oracle=${oracle.length} evidence=${evidence.pages.length}`,
+    });
+  }
+  for (const page of evidence.pages) {
+    const oraclePage = oracle[page.index];
+    if (oraclePage === undefined) {
+      continue;
+    }
+    const viewW = (oraclePage.view[2] ?? 0) - (oraclePage.view[0] ?? 0);
+    const viewH = (oraclePage.view[3] ?? 0) - (oraclePage.view[1] ?? 0);
+    if (Math.abs(viewW - page.widthPt) > PAGE_BOX_TOLERANCE_PT) {
+      mismatches.push({
+        kind: "page-width",
+        pageIndex: page.index,
+        detail: `oracle=${viewW} evidence=${page.widthPt}`,
+      });
+    }
+    if (Math.abs(viewH - page.heightPt) > PAGE_BOX_TOLERANCE_PT) {
+      mismatches.push({
+        kind: "page-height",
+        pageIndex: page.index,
+        detail: `oracle=${viewH} evidence=${page.heightPt}`,
+      });
+    }
+
+    linesChecked += compareLines(
+      page.index,
+      evidenceLines(evidence, page.index),
+      oraclePage.lines,
+      mismatches,
+      actualTextDivergences,
+    );
+
+    const ourFigures = evidence.figures.filter(
+      (figure) => figure.pageIndex === page.index,
+    );
+    if (ourFigures.length !== oraclePage.figures.length) {
+      mismatches.push({
+        kind: "figure-count",
+        pageIndex: page.index,
+        detail: `oracle=${oraclePage.figures.length} evidence=${ourFigures.length}`,
+      });
+    }
+    for (
+      let figure = 0;
+      figure < Math.min(ourFigures.length, oraclePage.figures.length);
+      figure += 1
+    ) {
+      const oursFigure = ourFigures[figure];
+      const theirsFigure = oraclePage.figures[figure];
+      if (oursFigure === undefined || theirsFigure === undefined) {
+        continue;
+      }
+      figuresChecked += 1;
+      // y 向上空间：bbox.y 为顶边（max y），底边 = y - height。
+      const edges: readonly (readonly [string, number])[] = [
+        ["left", Math.abs(oursFigure.bbox.x - theirsFigure.minX)],
+        ["top", Math.abs(oursFigure.bbox.y - theirsFigure.maxY)],
+        [
+          "right",
+          Math.abs(oursFigure.bbox.x + oursFigure.bbox.width - theirsFigure.maxX),
+        ],
+        [
+          "bottom",
+          Math.abs(oursFigure.bbox.y - oursFigure.bbox.height - theirsFigure.minY),
+        ],
+      ];
+      for (const [edge, diff] of edges) {
+        if (diff > FIGURE_EDGE_TOLERANCE_PT) {
+          mismatches.push({
+            kind: "figure-edge",
+            pageIndex: page.index,
+            detail: `figure=${figure} ${edge} d=${diff}`,
+          });
+        }
+      }
+    }
+  }
+  return {
+    ok: mismatches.length === 0,
+    pagesChecked: evidence.pages.length,
+    linesChecked,
+    figuresChecked,
+    mismatches,
+    actualTextDivergences,
+  };
+}
+
+const invokedAsScript =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedAsScript) {
+  const path = process.argv[2];
+  if (path === undefined) {
+    console.error("usage: node scripts/oracle-crosscheck.ts <pdf>");
+    process.exit(2);
+  }
+  const bytes = new Uint8Array(readFileSync(path));
+  const report = await crosscheckGeometry(bytes);
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(report.ok ? 0 : 1);
+}

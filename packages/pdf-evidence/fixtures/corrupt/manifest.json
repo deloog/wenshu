@@ -1,0 +1,34 @@
+{
+  "fixtures": [
+    {
+      "file": "empty.bin",
+      "expectedCode": "PDF_EVIDENCE_EMPTY",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "not-a-pdf.bin",
+      "expectedCode": "PDF_EVIDENCE_MALFORMED",
+      "sha256": "55d95027ceaa8bdca28a70084e504b5d4004d42edda6ca82f1f1ff33645349e6"
+    },
+    {
+      "file": "truncated.pdf",
+      "expectedCode": "PDF_EVIDENCE_MALFORMED",
+      "sha256": "6a51cb16cba6233849a304080e7725b8dc466943b20757198132864cfad011d8"
+    },
+    {
+      "file": "encrypted.pdf",
+      "expectedCode": "PDF_EVIDENCE_ENCRYPTED",
+      "sha256": "da2439eec6be02ce90cfa43f089b8e74ff25ff83b04f68a292d6066152482756"
+    },
+    {
+      "file": "foreign-filter.pdf",
+      "expectedCode": "PDF_EVIDENCE_UNSUPPORTED",
+      "sha256": "f7d4055047ccd312d86900d3f1218fcd89bab9b6726e163a2c0dd5a10c8c386f"
+    },
+    {
+      "file": "foreign-producer.pdf",
+      "expectedCode": "PDF_EVIDENCE_UNSUPPORTED",
+      "sha256": "49334756c920d99038d700f2198c2e3ca891cdd9ad8c3bd12a454776459f5932"
+    }
+  ]
+}

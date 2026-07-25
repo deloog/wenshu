@@ -7,3 +7,4 @@ export * from "./print-params.ts";
 export * from "./reconcile.ts";
 export * from "./cmap-repair.ts";
 export * from "./pdf-patch.ts";
+export * from "./geometry.ts";

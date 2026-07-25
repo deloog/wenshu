@@ -17,7 +17,7 @@
     "quality:check": "pnpm --filter @wenshu/quality check",
     "config:check": "pnpm --filter @wenshu/config test",
     "generated:check": "pnpm -r --if-present run generate:check",
-    "contracts:test": "pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/template-map test && pnpm --filter @wenshu/host-contract test && pnpm --filter @wenshu/project-contract test && pnpm --filter @wenshu/markdown-import test && pnpm --filter @wenshu/report-render test && pnpm --filter @wenshu/template-css test && pnpm --filter @wenshu/pdf-export test",
+    "contracts:test": "pnpm --filter @wenshu/contract-runtime test && pnpm --filter @wenshu/document-model test && pnpm --filter @wenshu/template-model test && pnpm --filter @wenshu/template-map test && pnpm --filter @wenshu/host-contract test && pnpm --filter @wenshu/project-contract test && pnpm --filter @wenshu/markdown-import test && pnpm --filter @wenshu/report-render test && pnpm --filter @wenshu/template-css test && pnpm --filter @wenshu/pdf-export test && pnpm --filter @wenshu/pdf-evidence test",
     "contracts:check": "pnpm generated:check && pnpm contracts:test",
     "fixtures:check": "pnpm --filter @wenshu/fixtures check",
     "fonts:check": "pnpm --filter @wenshu/fonts check",
