@@ -112,6 +112,8 @@ test("p1 runner: report is 1.1.0, self-validates, rules listed in fixed order", 
     "p1-orphan",
     "p1-widow",
     "p1-sparse-page",
+    "p1-table-header-repeat",
+    "p1-table-row-split",
   ]);
   assert.equal(report.source.evidenceSha256, SHA);
   // 标题后继块缺失（P0 域）→ 标题规则跳过；空页命中；每页有人工密度项。
@@ -149,7 +151,13 @@ test("p1 runner: per-rule rollback suppresses findings and manualChecks of that 
     full.manualChecks.some((manual) => manual.code === "P1_SPARSE_DENSITY_REVIEW"),
   );
   const rolledBack = runP1Checks(input, { disabledRules: ["p1-sparse-page"] });
-  assert.deepEqual(rolledBack.rules, ["p1-heading-keep", "p1-orphan", "p1-widow"]);
+  assert.deepEqual(rolledBack.rules, [
+    "p1-heading-keep",
+    "p1-orphan",
+    "p1-widow",
+    "p1-table-header-repeat",
+    "p1-table-row-split",
+  ]);
   assert.ok(
     rolledBack.findings.every((finding) => finding.ruleId !== "p1-sparse-page"),
   );

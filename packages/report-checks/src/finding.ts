@@ -10,7 +10,13 @@ export type P0RuleId = "p0-page-size" | "p0-bounds" | "p0-overlap" | "p0-content
 export type P0Code =
   "P0_PAGE_SIZE" | "P0_OUT_OF_BOUNDS" | "P0_OVERLAP" | "P0_CONTENT_MISSING";
 
-export type P1RuleId = "p1-heading-keep" | "p1-orphan" | "p1-widow" | "p1-sparse-page";
+export type P1RuleId =
+  | "p1-heading-keep"
+  | "p1-orphan"
+  | "p1-widow"
+  | "p1-sparse-page"
+  | "p1-table-header-repeat"
+  | "p1-table-row-split";
 
 /** P1_*_REVIEW 为人工核验码段：只出现在 manualChecks，绝不作为自动发现。 */
 export type P1Code =
@@ -19,7 +25,10 @@ export type P1Code =
   | "P1_WIDOW"
   | "P1_EMPTY_PAGE"
   | "P1_HEADING_KEEP_REVIEW"
-  | "P1_SPARSE_DENSITY_REVIEW";
+  | "P1_SPARSE_DENSITY_REVIEW"
+  | "P1_TABLE_HEADER_NOT_REPEATED"
+  | "P1_TABLE_ROW_SPLIT"
+  | "P1_TABLE_STRUCTURE_REVIEW";
 
 export const P0_RULE_IDS: readonly P0RuleId[] = Object.freeze([
   "p0-page-size",
@@ -33,6 +42,8 @@ export const P1_RULE_IDS: readonly P1RuleId[] = Object.freeze([
   "p1-orphan",
   "p1-widow",
   "p1-sparse-page",
+  "p1-table-header-repeat",
+  "p1-table-row-split",
 ]);
 
 export function runRef(readingOrder: number): string {

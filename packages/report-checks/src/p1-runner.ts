@@ -15,6 +15,8 @@ import type { P1CheckInput, P1Rule } from "./p1-input.ts";
 import { p1HeadingKeepRule } from "./rules/p1-heading-keep.ts";
 import { p1OrphanRule } from "./rules/p1-orphan.ts";
 import { p1SparsePageRule } from "./rules/p1-sparse-page.ts";
+import { p1TableHeaderRepeatRule } from "./rules/p1-table-header-repeat.ts";
+import { p1TableRowSplitRule } from "./rules/p1-table-row-split.ts";
 import { p1WidowRule } from "./rules/p1-widow.ts";
 import { CHECK_REPORT_VERSION, validateCheckReport } from "./validate-report.ts";
 
@@ -23,6 +25,8 @@ export const P1_RULES: readonly P1Rule[] = Object.freeze([
   p1OrphanRule,
   p1WidowRule,
   p1SparsePageRule,
+  p1TableHeaderRepeatRule,
+  p1TableRowSplitRule,
 ]);
 
 export interface P1RunOptions {
