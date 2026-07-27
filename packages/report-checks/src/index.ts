@@ -34,6 +34,14 @@ export { P1_RULES, runP1Checks } from "./p1-runner.ts";
 export type { P1RunOptions } from "./p1-runner.ts";
 export { findParagraphSplits } from "./p1-splits.ts";
 export type { ParagraphSplit } from "./p1-splits.ts";
+export { columnBands, headerRepeatedOnPage, tablePages } from "./p1-table-pages.ts";
+export { analyzeTables, collectTableBlocks } from "./p1-tables.ts";
+export type {
+  TableAnalysis,
+  TableCellInfo,
+  TableHeaderInfo,
+  TableStructure,
+} from "./p1-tables.ts";
 export { P0_RULES, runP0Checks } from "./runner.ts";
 export type { P0RunOptions } from "./runner.ts";
 export { p0BoundsRule } from "./rules/p0-bounds.ts";
@@ -43,6 +51,8 @@ export { p0PageSizeRule } from "./rules/p0-page-size.ts";
 export { p1HeadingKeepRule } from "./rules/p1-heading-keep.ts";
 export { p1OrphanRule } from "./rules/p1-orphan.ts";
 export { p1SparsePageRule } from "./rules/p1-sparse-page.ts";
+export { p1TableHeaderRepeatRule } from "./rules/p1-table-header-repeat.ts";
+export { p1TableRowSplitRule } from "./rules/p1-table-row-split.ts";
 export { p1WidowRule } from "./rules/p1-widow.ts";
 export {
   CHECK_REPORT_VERSION,

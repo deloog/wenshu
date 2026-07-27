@@ -110,6 +110,8 @@ test("acceptance 2: signed baseline yields zero P1 findings; manual items bounde
     "p1-orphan",
     "p1-widow",
     "p1-sparse-page",
+    "p1-table-header-repeat",
+    "p1-table-row-split",
   ]);
   // 有界人工核验（书面钉数，基线 sha 锚定故稳定）：标题保留下续灰区 10 项
   // （8 例标题后接 1 行子标题 + 2 例标题后接单行完整段落，均为 PA-04 注册
