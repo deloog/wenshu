@@ -15,6 +15,7 @@ import { validateTemplate } from "@wenshu/template-model";
 import { buildExpectedBlocks } from "../src/expected-content.ts";
 import { contentBoxFromMargins } from "../src/layout.ts";
 import { runP1Checks } from "../src/p1-runner.ts";
+import { extractSvgAspectRatio } from "../src/svg-source.ts";
 
 const SIGNED_BASELINE_SHA256 =
   "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
@@ -45,10 +46,12 @@ const imported = await importMarkdownDocument(
   resolve(fixtureRoot, "golden-report.md"),
   fixtureRoot,
 );
-const svgTexts = Object.keys(imported.renames).map((original) =>
-  extractSvgText(readFileSync(resolve(fixtureRoot, original), "utf8")),
+const svgSources = Object.keys(imported.renames).map((original) =>
+  readFileSync(resolve(fixtureRoot, original), "utf8"),
 );
-const expected = buildExpectedBlocks(imported.document, svgTexts);
+const svgTexts = svgSources.map((source) => extractSvgText(source));
+const svgAspects = svgSources.map((source) => extractSvgAspectRatio(source));
+const expected = buildExpectedBlocks(imported.document, svgTexts, svgAspects);
 
 const templateResult = validateTemplate(
   JSON.parse(
@@ -80,10 +83,14 @@ const headingReviews = report.manualChecks.filter(
 const densityReviews = report.manualChecks.filter(
   (manual) => manual.code === "P1_SPARSE_DENSITY_REVIEW",
 ).length;
+const figureReviews = report.manualChecks.filter((manual) =>
+  manual.code.startsWith("P1_FIGURE_"),
+).length;
 console.log(
   `p1 baseline: findings=${report.findings.length} ` +
     `manualChecks=${report.manualChecks.length} ` +
-    `(headingKeepReview=${headingReviews}, sparseDensityReview=${densityReviews})`,
+    `(headingKeepReview=${headingReviews}, sparseDensityReview=${densityReviews}, ` +
+    `figureReview=${figureReviews})`,
 );
 if (report.findings.length > 0) {
   console.error(JSON.stringify(report.findings, null, 2));

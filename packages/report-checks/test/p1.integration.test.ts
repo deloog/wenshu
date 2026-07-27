@@ -20,6 +20,7 @@ import { buildExpectedBlocks } from "../src/expected-content.ts";
 import { contentBoxFromMargins } from "../src/layout.ts";
 import { attributeBlocks, bodyRunIndexesOnPage } from "../src/p1-attribution.ts";
 import { runP1Checks } from "../src/p1-runner.ts";
+import { extractSvgAspectRatio } from "../src/svg-source.ts";
 
 const SIGNED_BASELINE_SHA256 =
   "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
@@ -48,10 +49,12 @@ const imported = await importMarkdownDocument(
   resolve(fixtureRoot, "golden-report.md"),
   fixtureRoot,
 );
-const svgTexts = Object.keys(imported.renames).map((original) =>
-  extractSvgText(readFileSync(resolve(fixtureRoot, original), "utf8")),
+const svgSources = Object.keys(imported.renames).map((original) =>
+  readFileSync(resolve(fixtureRoot, original), "utf8"),
 );
-const expected = buildExpectedBlocks(imported.document, svgTexts);
+const svgTexts = svgSources.map((source) => extractSvgText(source));
+const svgAspects = svgSources.map((source) => extractSvgAspectRatio(source));
+const expected = buildExpectedBlocks(imported.document, svgTexts, svgAspects);
 
 const templateResult = validateTemplate(
   JSON.parse(
@@ -112,19 +115,30 @@ test("acceptance 2: signed baseline yields zero P1 findings; manual items bounde
     "p1-sparse-page",
     "p1-table-header-repeat",
     "p1-table-row-split",
+    "p1-figure-caption",
+    "p1-figure-source",
+    "p1-figure-aspect",
+    "p1-figure-fidelity",
+    "p1-figure-legibility",
   ]);
   // 有界人工核验（书面钉数，基线 sha 锚定故稳定）：标题保留下续灰区 10 项
   // （8 例标题后接 1 行子标题 + 2 例标题后接单行完整段落，均为 PA-04 注册
-  // 近似与模板 keepN=2 意图之差）；逐页密度证据 20 项（= 页数）。
+  // 近似与模板 keepN=2 意图之差）；逐页密度证据 20 项（= 页数）；PA-10
+  // 图片诚实门新增 2 项清晰度人工核验（基线 2 图，无确定性判据如实降人工，
+  // PA-08 钉数 30 → 32，台账 PA-10-followups 承接 PA-J1）。
   const headingReviews = report.manualChecks.filter(
     (manual) => manual.code === "P1_HEADING_KEEP_REVIEW",
   );
   const densityReviews = report.manualChecks.filter(
     (manual) => manual.code === "P1_SPARSE_DENSITY_REVIEW",
   );
+  const legibilityReviews = report.manualChecks.filter(
+    (manual) => manual.code === "P1_FIGURE_LEGIBILITY_REVIEW",
+  );
   assert.equal(headingReviews.length, 10);
   assert.equal(densityReviews.length, baselineEvidence.pages.length);
-  assert.equal(report.manualChecks.length, 30);
+  assert.equal(legibilityReviews.length, 2);
+  assert.equal(report.manualChecks.length, 32);
 });
 
 test("acceptance 3: gray zone is manual-only with static reasons, never disguised as pass", () => {
@@ -141,13 +155,17 @@ test("acceptance 3: gray zone is manual-only with static reasons, never disguise
   assert.ok(report.findings.every((finding) => finding.nodeRef !== "/blocks/0"));
   // 每条人工核验都必须带静态口径 reason（无动态内容、无伪装自动判定）。
   const reasons = new Set(report.manualChecks.map((manual) => manual.reason));
-  assert.equal(reasons.size, 2);
+  assert.equal(reasons.size, 3);
   for (const reason of reasons) {
     assert.ok(reason.length > 0 && reason.length <= 200);
   }
   assert.ok(
     report.manualChecks.every((manual) =>
-      ["P1_HEADING_KEEP_REVIEW", "P1_SPARSE_DENSITY_REVIEW"].includes(manual.code),
+      [
+        "P1_HEADING_KEEP_REVIEW",
+        "P1_SPARSE_DENSITY_REVIEW",
+        "P1_FIGURE_LEGIBILITY_REVIEW",
+      ].includes(manual.code),
     ),
   );
 });
