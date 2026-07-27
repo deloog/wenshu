@@ -20,6 +20,7 @@ import { contentBoxFromMargins } from "../src/layout.ts";
 import { tablePages } from "../src/p1-table-pages.ts";
 import { analyzeTables } from "../src/p1-tables.ts";
 import { runP1Checks } from "../src/p1-runner.ts";
+import { extractSvgAspectRatio } from "../src/svg-source.ts";
 
 const SIGNED_BASELINE_SHA256 =
   "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
@@ -51,10 +52,14 @@ const imported = await importMarkdownDocument(
   resolve(fixtureRoot, "golden-report.md"),
   fixtureRoot,
 );
-const svgTexts = Object.keys(imported.renames).map((original) =>
-  extractSvgText(readFileSync(resolve(fixtureRoot, original), "utf8")),
+const svgSources = Object.keys(imported.renames).map((original) =>
+  readFileSync(resolve(fixtureRoot, original), "utf8"),
 );
-const expected = buildExpectedBlocks(imported.document, svgTexts);
+const expected = buildExpectedBlocks(
+  imported.document,
+  svgSources.map((source) => extractSvgText(source)),
+  svgSources.map((source) => extractSvgAspectRatio(source)),
+);
 
 const templateResult = validateTemplate(
   JSON.parse(
@@ -116,8 +121,9 @@ test("acceptance 2: signed baseline yields zero table findings and zero structur
   assert.ok(
     report.manualChecks.every((manual) => manual.code !== "P1_TABLE_STRUCTURE_REVIEW"),
   );
-  // PA-08 钉数不回潮：人工项仍 30（表格规则在基线零新增人工噪音）。
-  assert.equal(report.manualChecks.length, 30);
+  // PA-08 钉数不回潮 + PA-10 诚实门：人工项 32（表格规则在基线零新增人工噪音；
+  // 图片清晰度 2 项为 PA-10 新增诚实门人工项，见 p1.integration 钉数说明）。
+  assert.equal(report.manualChecks.length, 32);
 });
 
 test("acceptance 1: header not repeated on continuation page is detected and located", () => {

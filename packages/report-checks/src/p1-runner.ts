@@ -13,6 +13,11 @@ import type {
 } from "./generated/check-report.ts";
 import type { P1CheckInput, P1Rule } from "./p1-input.ts";
 import { p1HeadingKeepRule } from "./rules/p1-heading-keep.ts";
+import { p1FigureAspectRule } from "./rules/p1-figure-aspect.ts";
+import { p1FigureCaptionRule } from "./rules/p1-figure-caption.ts";
+import { p1FigureFidelityRule } from "./rules/p1-figure-fidelity.ts";
+import { p1FigureLegibilityRule } from "./rules/p1-figure-legibility.ts";
+import { p1FigureSourceRule } from "./rules/p1-figure-source.ts";
 import { p1OrphanRule } from "./rules/p1-orphan.ts";
 import { p1SparsePageRule } from "./rules/p1-sparse-page.ts";
 import { p1TableHeaderRepeatRule } from "./rules/p1-table-header-repeat.ts";
@@ -27,6 +32,11 @@ export const P1_RULES: readonly P1Rule[] = Object.freeze([
   p1SparsePageRule,
   p1TableHeaderRepeatRule,
   p1TableRowSplitRule,
+  p1FigureCaptionRule,
+  p1FigureSourceRule,
+  p1FigureAspectRule,
+  p1FigureFidelityRule,
+  p1FigureLegibilityRule,
 ]);
 
 export interface P1RunOptions {

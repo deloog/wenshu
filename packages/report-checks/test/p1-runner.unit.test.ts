@@ -114,6 +114,11 @@ test("p1 runner: report is 1.1.0, self-validates, rules listed in fixed order", 
     "p1-sparse-page",
     "p1-table-header-repeat",
     "p1-table-row-split",
+    "p1-figure-caption",
+    "p1-figure-source",
+    "p1-figure-aspect",
+    "p1-figure-fidelity",
+    "p1-figure-legibility",
   ]);
   assert.equal(report.source.evidenceSha256, SHA);
   // 标题后继块缺失（P0 域）→ 标题规则跳过；空页命中；每页有人工密度项。
@@ -157,6 +162,11 @@ test("p1 runner: per-rule rollback suppresses findings and manualChecks of that 
     "p1-widow",
     "p1-table-header-repeat",
     "p1-table-row-split",
+    "p1-figure-caption",
+    "p1-figure-source",
+    "p1-figure-aspect",
+    "p1-figure-fidelity",
+    "p1-figure-legibility",
   ]);
   assert.ok(
     rolledBack.findings.every((finding) => finding.ruleId !== "p1-sparse-page"),

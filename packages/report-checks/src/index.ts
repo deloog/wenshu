@@ -48,12 +48,25 @@ export { p0BoundsRule } from "./rules/p0-bounds.ts";
 export { p0ContentRule } from "./rules/p0-content.ts";
 export { p0OverlapRule } from "./rules/p0-overlap.ts";
 export { p0PageSizeRule } from "./rules/p0-page-size.ts";
+export { locateText } from "./p1-figure-locate.ts";
+export type { LocateResult, RunSpan } from "./p1-figure-locate.ts";
+export { analyzeFigures, CAPTION_BELOW_TOLERANCE_PT } from "./p1-figures.ts";
+export type { Attribution, AttributionStatus, FigureAnalysis } from "./p1-figures.ts";
+export {
+  p1FigureAspectRule,
+  FIGURE_ASPECT_TOLERANCE,
+} from "./rules/p1-figure-aspect.ts";
+export { p1FigureCaptionRule } from "./rules/p1-figure-caption.ts";
+export { p1FigureFidelityRule } from "./rules/p1-figure-fidelity.ts";
+export { p1FigureLegibilityRule } from "./rules/p1-figure-legibility.ts";
+export { p1FigureSourceRule } from "./rules/p1-figure-source.ts";
 export { p1HeadingKeepRule } from "./rules/p1-heading-keep.ts";
 export { p1OrphanRule } from "./rules/p1-orphan.ts";
 export { p1SparsePageRule } from "./rules/p1-sparse-page.ts";
 export { p1TableHeaderRepeatRule } from "./rules/p1-table-header-repeat.ts";
 export { p1TableRowSplitRule } from "./rules/p1-table-row-split.ts";
 export { p1WidowRule } from "./rules/p1-widow.ts";
+export { extractSvgAspectRatio } from "./svg-source.ts";
 export {
   CHECK_REPORT_VERSION,
   CHECK_REPORT_VERSION_1_0_0,
