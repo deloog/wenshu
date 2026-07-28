@@ -44,6 +44,7 @@ export type {
 } from "./p1-tables.ts";
 export { P0_RULES, runP0Checks } from "./runner.ts";
 export type { P0RunOptions } from "./runner.ts";
+export { stripStampRuns } from "./stamp-scope.ts";
 export { p0BoundsRule } from "./rules/p0-bounds.ts";
 export { p0ContentRule } from "./rules/p0-content.ts";
 export { p0OverlapRule } from "./rules/p0-overlap.ts";

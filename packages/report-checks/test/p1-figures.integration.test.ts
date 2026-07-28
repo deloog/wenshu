@@ -23,7 +23,7 @@ import { runP0Checks } from "../src/runner.ts";
 import { extractSvgAspectRatio } from "../src/svg-source.ts";
 
 const SIGNED_BASELINE_SHA256 =
-  "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
+  "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828";
 const repoRoot = resolve(import.meta.dirname, "..", "..", "..");
 const baselinePath = resolve(
   repoRoot,
@@ -91,9 +91,9 @@ function derive(mutate: (draft: WenshuPdfEvidence) => void): WenshuPdfEvidence {
 
 /** 基线钉定（探针实测）：图 1 题注 ro 段与来源 ro 段。 */
 const FIG1 = {
-  page: 7,
+  page: 8,
   mcid: 0,
-  captionRos: [3865, 3866, 3867] as readonly number[],
+  captionRos: [4453, 4454, 4455] as readonly number[],
 } as const;
 
 function figureCodes(report: ReturnType<typeof runP1Checks>): string[] {
@@ -109,13 +109,13 @@ test("acceptance 2: signed baseline — 2 figures, zero auto findings, 2 honest 
     (manual) => manual.code === "P1_FIGURE_LEGIBILITY_REVIEW",
   );
   assert.deepEqual(legibility.map((manual) => `${manual.nodeRef}`).sort(), [
-    "figure:7:0",
-    "figure:9:4",
+    "figure:10:4",
+    "figure:8:0",
   ]);
   // 基线钉数（探针实测）：成员 run 58/80，最小字号为图内刻度字号。
-  const fig1 = legibility.find((manual) => manual.nodeRef === "figure:7:0");
+  const fig1 = legibility.find((manual) => manual.nodeRef === "figure:8:0");
   assert.equal(fig1?.basis.metrics["memberRunCount"], 58);
-  const fig2 = legibility.find((manual) => manual.nodeRef === "figure:9:4");
+  const fig2 = legibility.find((manual) => manual.nodeRef === "figure:10:4");
   assert.equal(fig2?.basis.metrics["memberRunCount"], 80);
   // 图片域其余人工项（归属歧义/比例无源）在基线为零。
   assert.equal(
@@ -132,15 +132,15 @@ test("acceptance 1: caption isolated to next page is detected and located to the
   const fault = derive((draft) => {
     for (const run of draft.textRuns) {
       if (FIG1.captionRos.includes(run.readingOrder)) {
-        run.pageIndex = 8;
+        run.pageIndex = 9;
       }
     }
   });
   const report = runP1Checks(inputFor(fault));
-  assert.deepEqual(figureCodes(report), ["P1_FIGURE_CAPTION_SEPARATED@8:figure:7:0"]);
+  assert.deepEqual(figureCodes(report), ["P1_FIGURE_CAPTION_SEPARATED@9:figure:8:0"]);
   const finding = report.findings[0];
-  assert.equal(finding?.basis.metrics["figurePage"], 7);
-  assert.equal(finding?.basis.metrics["captionPage"], 8);
+  assert.equal(finding?.basis.metrics["figurePage"], 8);
+  assert.equal(finding?.basis.metrics["captionPage"], 9);
   assert.equal(
     finding?.basis.metrics["templateFigureKeepWithCaption"],
     template.pagination_rules.figure_keep_with_caption ? 1 : 0,
@@ -149,19 +149,19 @@ test("acceptance 1: caption isolated to next page is detected and located to the
 });
 
 test("acceptance 1: source isolated to next page is detected and located", () => {
-  // 图 1 来源段：题注末 ro 之后连续非成员 run（探针实测 ro 3868..3941）。
+  // 图 1 来源段：题注末 ro 之后连续非成员 run（探针实测 ro 4456..4529）。
   const fault = derive((draft) => {
     for (const run of draft.textRuns) {
-      if (run.readingOrder >= 3868 && run.readingOrder <= 3941) {
-        run.pageIndex = 8;
+      if (run.readingOrder >= 4456 && run.readingOrder <= 4529) {
+        run.pageIndex = 9;
       }
     }
   });
   const report = runP1Checks(inputFor(fault));
-  assert.deepEqual(figureCodes(report), ["P1_FIGURE_SOURCE_SEPARATED@7:figure:7:0"]);
+  assert.deepEqual(figureCodes(report), ["P1_FIGURE_SOURCE_SEPARATED@8:figure:8:0"]);
   const finding = report.findings[0];
-  assert.equal(finding?.basis.metrics["figurePage"], 7);
-  assert.equal(finding?.basis.metrics["sourcePage"], 8);
+  assert.equal(finding?.basis.metrics["figurePage"], 8);
+  assert.equal(finding?.basis.metrics["sourcePage"], 9);
 });
 
 test("acceptance 1: aspect distortion is detected with tolerance sourced metrics", () => {
@@ -171,7 +171,7 @@ test("acceptance 1: aspect distortion is detected with tolerance sourced metrics
     figure.paintBBox.width *= 1.15;
   });
   const report = runP1Checks(inputFor(fault));
-  assert.deepEqual(figureCodes(report), ["P1_FIGURE_ASPECT_DISTORTED@7:figure:7:0"]);
+  assert.deepEqual(figureCodes(report), ["P1_FIGURE_ASPECT_DISTORTED@8:figure:8:0"]);
   const finding = report.findings[0];
   assert.ok(
     (finding?.basis.metrics["deviationMilli"] ?? 0) >
@@ -189,7 +189,7 @@ test("acceptance 4: altered figure legend text reconciles against source and is 
     run.text = "思";
   });
   const report = runP1Checks(inputFor(fault));
-  assert.deepEqual(figureCodes(report), ["P1_FIGURE_CONTENT_MISMATCH@7:figure:7:0"]);
+  assert.deepEqual(figureCodes(report), ["P1_FIGURE_CONTENT_MISMATCH@8:figure:8:0"]);
 });
 
 test("acceptance 3 (division hunt): out-of-bounds figure is P0-only, figure rules stay silent", () => {
@@ -203,7 +203,7 @@ test("acceptance 3 (division hunt): out-of-bounds figure is P0-only, figure rule
   assert.ok(
     p0.findings.some(
       (finding) =>
-        finding.code === "P0_OUT_OF_BOUNDS" && finding.nodeRef === "figure:7:0",
+        finding.code === "P0_OUT_OF_BOUNDS" && finding.nodeRef === "figure:8:0",
     ),
     "PA-07 must report the out-of-bounds figure",
   );
@@ -220,7 +220,7 @@ test("acceptance 3 (division hunt): text occluded by figure is P0-overlap only",
     const figure = draft.figures.find((candidate) => candidate.mcid === 0);
     assert.ok(figure !== undefined);
     const template_run = draft.textRuns.find(
-      (candidate) => candidate.pageIndex === 7 && candidate.figureMcid === null,
+      (candidate) => candidate.pageIndex === 8 && candidate.figureMcid === null,
     );
     assert.ok(template_run !== undefined);
     // 非成员 run 完全落入 paintBBox（不骑缝）：PA-06B 判据下仍 P0_OVERLAP。
@@ -251,7 +251,7 @@ test("honest gate: *_REVIEW codes never appear in findings across all faults", (
     derive((draft) => {
       for (const run of draft.textRuns) {
         if (FIG1.captionRos.includes(run.readingOrder)) {
-          run.pageIndex = 8;
+          run.pageIndex = 9;
         }
       }
     }),

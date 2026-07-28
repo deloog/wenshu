@@ -10,9 +10,13 @@ import { test } from "node:test";
 
 import { importMarkdownDocument } from "@wenshu/markdown-import";
 import {
+  TOC_HEADING,
   assertPdfReconciled,
   buildExpectedPdfText,
+  collectTocEntries,
   extractSvgText,
+  measureTocPageNumbers,
+  stripStampsForReconcile,
 } from "@wenshu/pdf-export";
 
 import { extractEvidence } from "../src/extract-evidence.ts";
@@ -30,9 +34,10 @@ const baselinePath = resolve(
 );
 const fixtureRoot = resolve(repoRoot, "docs", "poc-a", "fixtures");
 
-/** PA-05 签署基线身份（附录 A 逐位确认）：防对错 PDF 出证据。 */
+/** PA-11A 重签基线身份（VM run1 附录逐位确认）：防对错 PDF 出证据。 */
 const SIGNED_BASELINE_SHA256 =
-  "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
+  "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828";
+const SIGNED_PAGE_COUNT = 21;
 const A4_PT = { width: 595.28, height: 841.89 } as const;
 const A4_TOLERANCE_PT = 1;
 
@@ -42,7 +47,7 @@ function loadEvidence(): WenshuPdfEvidence {
   assert.equal(
     createHash("sha256").update(baselineBytes).digest("hex"),
     SIGNED_BASELINE_SHA256,
-    "baseline pdf bytes must be the PA-05 signed artifact",
+    "baseline pdf bytes must be the PA-11A signed artifact",
   );
   const result = extractEvidence(baselineBytes);
   assert.ok(result.ok, "signed baseline must extract without failure");
@@ -54,12 +59,12 @@ const evidence = loadEvidence();
 test("evidence anchors source identity: sha256, page count, Skia producer", () => {
   assert.equal(evidence.evidenceVersion, "1.1.0");
   assert.equal(evidence.source.sha256, SIGNED_BASELINE_SHA256);
-  assert.equal(evidence.source.pageCount, 20);
+  assert.equal(evidence.source.pageCount, SIGNED_PAGE_COUNT);
   assert.match(evidence.source.producer, /^Skia\/PDF/);
 });
 
-test("all 20 pages carry A4 media boxes within the PA-05 tolerance", () => {
-  assert.equal(evidence.pages.length, 20);
+test("all 21 pages carry A4 media boxes within the PA-05 tolerance", () => {
+  assert.equal(evidence.pages.length, SIGNED_PAGE_COUNT);
   for (const page of evidence.pages) {
     assert.ok(
       Math.abs(page.widthPt - A4_PT.width) <= A4_TOLERANCE_PT,
@@ -114,13 +119,14 @@ test("figures carry vector bboxes inside the page and structure-tree captions", 
 });
 
 test("figure membership and painted extent are parse-time facts (decision #10)", () => {
-  // PA-06B 形态事实（实测针定）：两个 figure 的 bbox 都是版心全域（SVG 根
-  // clip 矩形撑起），绘制框 paintBBox 只是图表区；图表标签是 span 成员，
-  // 正文 run 全部非成员，且没有任何非成员 run 与 paintBBox 显著重叠——
-  // 这是 PA-07 成员制豁免下基线仍 0 P0 的证据侧前提。
+  // PA-11A 重签后形态事实（探针 probe-pa11a-baseline.ts 实测）：目录独立成页
+  // 使两 figure 页位 +1（7→8、9→10）；bbox 仍是版心全域（SVG 根 clip 矩形
+  // 撑起），绘制框 paintBBox 只是图表区；图表标签是 span 成员，正文 run
+  // 全部非成员，且没有任何非成员 run 与 paintBBox 显著重叠——这是 PA-07
+  // 成员制豁免下基线仍 0 P0 的证据侧前提。
   const expected = new Map([
     [
-      7,
+      8,
       {
         mcid: 0,
         members: 58,
@@ -128,7 +134,7 @@ test("figure membership and painted extent are parse-time facts (decision #10)",
       },
     ],
     [
-      9,
+      10,
       {
         mcid: 4,
         members: 80,
@@ -175,7 +181,7 @@ test("figure membership and painted extent are parse-time facts (decision #10)",
   // figure 页之外没有任何成员标记。
   assert.ok(
     evidence.textRuns.every(
-      (run) => run.figureMcid === null || run.pageIndex === 7 || run.pageIndex === 9,
+      (run) => run.figureMcid === null || run.pageIndex === 8 || run.pageIndex === 10,
     ),
   );
 });
@@ -199,11 +205,36 @@ test("evidence text reconciles verbatim with the document text (PA-05 rule)", as
       extractSvgText(readFileSync(resolve(fixtureRoot, original), "utf8")),
     ),
   );
-  const expected = buildExpectedPdfText(imported.document, svgTexts);
-  const extracted = [...evidence.textRuns]
-    .sort((a, b) => a.readingOrder - b.readingOrder)
-    .map((run) => run.text)
-    .join("");
+  // PA-11A 口径：目录页码从签署基线大纲实测注入期望文本（页码禁手写）；
+  const tocEntries = collectTocEntries(imported.document);
+  const expected = buildExpectedPdfText(imported.document, svgTexts, {
+    heading: TOC_HEADING,
+    entries: tocEntries,
+    pages: measureTocPageNumbers(baselineBytes, tocEntries),
+  });
+  // 证据 run 逐页拼接（页内按阅读序），压印页眉页脚以位置锚定剥离后对账——
+  // 与管线终稿自核验同一口径（stamp spec 全部由冻结模板/文档元数据派生）。
+  const template = JSON.parse(
+    readFileSync(resolve(fixtureRoot, "formal-business.template.json"), "utf8"),
+  ) as { page: { margin_mm: { top: number; bottom: number; left: number } } };
+  const MM_TO_PT = 72 / 25.4;
+  const firstPage = evidence.pages[0];
+  assert.ok(firstPage !== undefined);
+  const pageTexts = evidence.pages.map((page) =>
+    evidence.textRuns
+      .filter((run) => run.pageIndex === page.index)
+      .sort((a, b) => a.readingOrder - b.readingOrder)
+      .map((run) => run.text)
+      .join(""),
+  );
+  const extracted = stripStampsForReconcile(pageTexts, {
+    headerText: imported.metadata["short_title"] ?? "",
+    pageWidthPt: firstPage.widthPt,
+    pageHeightPt: firstPage.heightPt,
+    marginTopPt: template.page.margin_mm.top * MM_TO_PT,
+    marginBottomPt: template.page.margin_mm.bottom * MM_TO_PT,
+    marginLeftPt: template.page.margin_mm.left * MM_TO_PT,
+  });
   // 归一口径（部首→CJK、合字、NFKC、去空白/Cf、跨页重绘表头跳过）逐字对账。
   assertPdfReconciled(extracted, expected.text, expected.repeatables);
 });

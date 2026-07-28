@@ -19,7 +19,7 @@ const baselinePath = resolve(
   "golden-report-baseline.pdf",
 );
 const SIGNED_BASELINE_SHA256 =
-  "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
+  "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828";
 
 test("independent oracle confirms page boxes, text line geometry and figure boxes", async () => {
   const bytes = new Uint8Array(readFileSync(baselinePath));
@@ -28,7 +28,7 @@ test("independent oracle confirms page boxes, text line geometry and figure boxe
     SIGNED_BASELINE_SHA256,
   );
   const report = await crosscheckGeometry(bytes);
-  assert.equal(report.pagesChecked, 20);
+  assert.equal(report.pagesChecked, 21);
   assert.ok(report.linesChecked > 300, `lines=${report.linesChecked}`);
   assert.equal(report.figuresChecked, 2);
   assert.deepEqual(report.mismatches, []);

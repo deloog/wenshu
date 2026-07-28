@@ -39,6 +39,13 @@ function failStamp(message: string): never {
 }
 
 /**
+ * 压印字体资源 tag 统一前缀（解析期事实，ADR-0010）：压印在页资源中以
+ * 确定性 tag 登记所用既有字体；下游（report-checks 排除口径、oracle
+ * 排除口径）以此识别压印 run，禁止几何启发式猜测。
+ */
+export const STAMP_FONT_TAG_PREFIX = "PA11F";
+
+/**
  * 压印页眉页脚：封面（物理页 1）豁免，其余页压 页眉 short_title + 页脚 N / total。
  * 失败码 PDF_EXPORT_STAMP_FAILED；任何前提不满足即拒绝产出。
  */
@@ -66,7 +73,7 @@ export function stampRunningHeaders(bytes: Uint8Array, spec: StampSpec): Uint8Ar
     (a, b) => a - b,
   );
   const tags = new Map<number, string>(
-    fontIds.map((id, index) => [id, `PA11F${index + 1}`]),
+    fontIds.map((id, index) => [id, `${STAMP_FONT_TAG_PREFIX}${index + 1}`]),
   );
   const fontEntries = fontIds.map((id) => `/${tags.get(id) ?? ""} ${id} 0 R`).join("");
 

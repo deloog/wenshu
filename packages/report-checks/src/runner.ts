@@ -10,6 +10,7 @@ import { p0BoundsRule } from "./rules/p0-bounds.ts";
 import { p0ContentRule } from "./rules/p0-content.ts";
 import { p0OverlapRule } from "./rules/p0-overlap.ts";
 import { p0PageSizeRule } from "./rules/p0-page-size.ts";
+import { stripStampRuns } from "./stamp-scope.ts";
 import { CHECK_REPORT_VERSION_1_0_0, validateCheckReport } from "./validate-report.ts";
 
 export const P0_RULES: readonly P0Rule[] = Object.freeze([
@@ -46,9 +47,14 @@ export function runP0Checks(
     );
   }
   const executed = P0_RULES.filter((rule) => !disabled.has(rule.id));
+  // 压印 run（页眉页脚受控补偿）不进任何 P0 判定（PA-11A 口径，单一收口）。
+  const scopedInput: P0CheckInput = {
+    ...input,
+    evidence: stripStampRuns(input.evidence),
+  };
   const findings: Finding[] = [];
   for (const rule of executed) {
-    findings.push(...rule.check(input));
+    findings.push(...rule.check(scopedInput));
   }
   findings.sort(
     (a, b) =>

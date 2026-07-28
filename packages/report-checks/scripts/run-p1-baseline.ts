@@ -18,7 +18,7 @@ import { runP1Checks } from "../src/p1-runner.ts";
 import { extractSvgAspectRatio } from "../src/svg-source.ts";
 
 const SIGNED_BASELINE_SHA256 =
-  "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
+  "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828";
 const repoRoot = resolve(import.meta.dirname, "..", "..", "..");
 const fixtureRoot = resolve(repoRoot, "docs", "poc-a", "fixtures");
 
