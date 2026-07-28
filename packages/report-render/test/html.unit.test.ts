@@ -110,7 +110,9 @@ test("semantic structure: heading levels, labelled sections, table scope, figure
 test("toc block renders nav with level 1-2 entries and page placeholders", () => {
   const html = renderDocumentHtml(DOCUMENT);
   assert.equal(
-    html.includes('<nav class="toc" aria-label="目录"><h2 class="toc-heading">目录</h2><ol>'),
+    html.includes(
+      '<nav class="toc" aria-label="目录"><h2 class="toc-heading">目录</h2><ol>',
+    ),
     true,
   );
   assert.equal(

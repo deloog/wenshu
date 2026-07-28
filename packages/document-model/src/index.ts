@@ -105,7 +105,11 @@ function validateTable(
   });
 }
 
-function visitBlock(block: SupportedBlock, path: string, context: IntegrityContext): void {
+function visitBlock(
+  block: SupportedBlock,
+  path: string,
+  context: IntegrityContext,
+): void {
   recordId(context, block.id, `${path}/id`);
   switch (block.type) {
     case "section":

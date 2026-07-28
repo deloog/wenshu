@@ -211,7 +211,13 @@ function visitBlocks(
             false,
             "toc-marker",
           );
-          pushBlock(out, `${ref}/entries/${entryIndex}`, entry.title, false, "toc-entry");
+          pushBlock(
+            out,
+            `${ref}/entries/${entryIndex}`,
+            entry.title,
+            false,
+            "toc-entry",
+          );
         });
         break;
       }

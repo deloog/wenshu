@@ -105,4 +105,6 @@ await writeFile(
 console.log(`baseline pdf: ${pdfPath}`);
 console.log(`sha256: ${sha256}`);
 console.log(`browser: ${output.browserProduct}`);
-console.log(`pages: ${inspection.pageCount}, toc entries: ${output.tocPages.size}, reconcile: ok`);
+console.log(
+  `pages: ${inspection.pageCount}, toc entries: ${output.tocPages.size}, reconcile: ok`,
+);

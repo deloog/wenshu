@@ -347,7 +347,7 @@
             "project": { "const": "0.1.0" },
             "knowledge_package": { "const": "0.1.0" },
             "semantic_audit": { "const": "0.1.0" },
-    "document": { "const": "0.2.0" },
+            "document": { "const": "0.2.0" },
             "template": { "const": "0.1.0" }
           }
         },

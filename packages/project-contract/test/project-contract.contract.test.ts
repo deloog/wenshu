@@ -149,10 +149,9 @@ test("upstream versions and ID rules are executable cross-package contracts", as
   const documentReference = asRecord(definitions["DocumentReference"]);
   const documentProperties = asRecord(documentReference["properties"]);
   // 项目可钉定 reader 支持集内任一文档版本（0.1.0 历史真源或 0.2.0 当前产物，ADR-0010）。
-  assert.deepEqual(
-    asRecord(documentProperties["schema_version"])["enum"],
-    [...SUPPORTED_DOCUMENT_SCHEMA_VERSIONS],
-  );
+  assert.deepEqual(asRecord(documentProperties["schema_version"])["enum"], [
+    ...SUPPORTED_DOCUMENT_SCHEMA_VERSIONS,
+  ]);
   const templateReference = asRecord(definitions["TemplateReference"]);
   const templateProperties = asRecord(templateReference["properties"]);
   assert.equal(

@@ -115,7 +115,11 @@ function renderBlocks(
 
 /** 语义 HTML：标题层级、表格 scope、figure/figcaption 关联、引用出处；不含任何表现层 CSS（PA-04）。 */
 export function renderDocumentHtml(document: WenshuDocument): string {
-  const body = renderBlocks(document.blocks, document.assets, collectTocEntries(document));
+  const body = renderBlocks(
+    document.blocks,
+    document.assets,
+    collectTocEntries(document),
+  );
   return [
     "<!doctype html>",
     `<html lang="${escapeHtml(document.language)}">`,
