@@ -103,19 +103,24 @@ function walkFontGeometries(
       fontObjectIds.add(id);
     }
   }
-  const tagByFontId = new Map<number, string>();
+  // PA-11A：同一字体对象可被多个 tag 引用（压印增补统一 tag），逐 tag 登记。
+  const tagFontPairs: { readonly tag: string; readonly id: number }[] = [];
   for (const pageDict of pageDicts) {
     for (const match of pageDict.dict.matchAll(/\/([A-Za-z0-9]+)\s+(\d+)\s+0\s+R/g)) {
       const refId = Number(match[2]);
-      if (fontObjectIds.has(refId)) {
-        tagByFontId.set(refId, match[1] ?? "");
+      const tag = match[1] ?? "";
+      if (
+        fontObjectIds.has(refId) &&
+        !tagFontPairs.some((pair) => pair.tag === tag && pair.id === refId)
+      ) {
+        tagFontPairs.push(Object.freeze({ tag, id: refId }));
       }
     }
   }
   const fonts = new Map<string, Type3FontGeometry>();
-  for (const [id, object] of objects) {
-    const tag = tagByFontId.get(id);
-    if (tag === undefined) {
+  for (const { tag, id } of tagFontPairs) {
+    const object = objects.get(id);
+    if (object === undefined) {
       continue;
     }
     const firstCharRaw = /\/FirstChar\s+(\d+)/.exec(object.dict)?.[1];

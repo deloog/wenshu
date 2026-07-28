@@ -119,7 +119,7 @@ export async function importMarkdownDocument(
       .join("; ");
     throw new MarkdownImportError(
       "IMPORT_RECONCILE_FAILED",
-      `assembled document does not satisfy the v0.1.0 contract: ${detail}`,
+      `assembled document does not satisfy the document contract: ${detail}`,
     );
   }
   const reconciliation = buildReconciliation(parsed, document);
@@ -127,5 +127,6 @@ export async function importMarkdownDocument(
     document,
     reconciliation,
     renames: Object.freeze(renames),
+    metadata: parsed.metadata,
   });
 }

@@ -8,3 +8,5 @@ export * from "./reconcile.ts";
 export * from "./cmap-repair.ts";
 export * from "./pdf-patch.ts";
 export * from "./geometry.ts";
+export * from "./pagination.ts";
+export * from "./stamp.ts";

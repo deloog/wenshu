@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import test from "node:test";
 
-import { DOCUMENT_SCHEMA_VERSION } from "@wenshu/document-model";
+import {
+  DOCUMENT_SCHEMA_VERSION,
+  SUPPORTED_DOCUMENT_SCHEMA_VERSIONS,
+} from "@wenshu/document-model";
 
 import {
   mapTemplate,
@@ -47,7 +50,13 @@ test("formal-business fixture maps to a controlled template model", async () => 
   const model = result.value;
   assert.equal(model.templateId, "wenshu.poc-a.formal-business");
   assert.equal(model.version, "1.0.0");
-  assert.equal(model.documentSchema, `wenshu.report/${DOCUMENT_SCHEMA_VERSION}`);
+  // 声明值是模板攥写时针对的契约版本；reader 支持集（含冻结 0.1.0）内即受控。
+  const declaredVersion = model.documentSchema.slice("wenshu.report/".length);
+  assert.ok(
+    (SUPPORTED_DOCUMENT_SCHEMA_VERSIONS as readonly string[]).includes(declaredVersion),
+    model.documentSchema,
+  );
+  assert.equal(DOCUMENT_SCHEMA_VERSION, "0.2.0");
   assert.deepEqual(model.requiredSections, [
     "cover",
     "executive_summary",
@@ -127,9 +136,9 @@ test("document schema binding rejects mismatched declarations", async () => {
     template["supported_document_schema"] = declared;
     assert.equal(mapTemplate(template, fontSet).ok, false, declared);
   }
-  // 映射层绑定守卫自身的决定性：文档契约版本漂移时必须由本层拦截（注入模拟版本）。
+  // 映射层绑定守卫自身的决定性：reader 支持集漂移时必须由本层拦截（注入模拟支持集）。
   const template = await loadFixtureTemplate();
-  const drifted = mapTemplate(template, fontSet, "0.2.0");
+  const drifted = mapTemplate(template, fontSet, ["9.9.9"]);
   assert.equal(drifted.ok, false);
   if (!drifted.ok) {
     assert.equal(drifted.issues[0]?.code, "TEMPLATE_MAP_UNSUPPORTED_DOCUMENT_SCHEMA");
@@ -137,18 +146,22 @@ test("document schema binding rejects mismatched declarations", async () => {
   }
 });
 
-test("document contract versions agree across the two frozen contracts", async () => {
-  // G1-04 文档契约与 G1-05 模板 schema 的版本常量不得漂移。
+test("template declaration vocabulary stays inside the reader-supported set", async () => {
+  // G1-05 模板 schema 的声明词表必须是 document reader 实际支持的版本（ADR-0010）。
   const schemaPath = resolve(
     import.meta.dirname,
     "../../template-model/schema/template.schema.json",
   );
   const schema = JSON.parse(await readFile(schemaPath, "utf8")) as JsonObject;
   const properties = schema["properties"] as JsonObject;
-  assert.equal(
+  const declared =
     properties["supported_document_schema"] &&
-      (properties["supported_document_schema"] as JsonObject)["const"],
-    `wenshu.report/${DOCUMENT_SCHEMA_VERSION}`,
+    (properties["supported_document_schema"] as JsonObject)["const"];
+  assert.equal(typeof declared, "string");
+  const version = String(declared).slice("wenshu.report/".length);
+  assert.ok(
+    (SUPPORTED_DOCUMENT_SCHEMA_VERSIONS as readonly string[]).includes(version),
+    String(declared),
   );
 });
 

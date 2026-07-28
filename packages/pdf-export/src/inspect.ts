@@ -222,18 +222,21 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
   );
   // 先收齐字体对象 id，再整词解析资源字典的 `/Tag id 0 R` 对——
   // 避免 `46` 撞上 `/F146 146 0 R` 这类数字后缀误配（巡/既错码根因）。
+  // PA-11A：同一字体对象可被多个 tag 引用（压印在页资源中增补统一 tag），
+  // 每个 tag 都必须登记到同一字体与同一 ToUnicode（单 tag 字体行为不变）。
   const fontObjectIds = new Set<number>();
   for (const [id, object] of objects) {
     if (/\/Type\s*\/Font\b/.test(object.dict)) {
       fontObjectIds.add(id);
     }
   }
-  const tagByFontId = new Map<number, string>();
+  const tagsByFontId = new Map<number, string[]>();
   for (const pageDict of pageDicts) {
     for (const match of pageDict.dict.matchAll(/\/([A-Za-z0-9]+)\s+(\d+)\s+0\s+R/g)) {
       const refId = Number(match[2]);
-      if (fontObjectIds.has(refId)) {
-        tagByFontId.set(refId, match[1] ?? "");
+      const tag = match[1] ?? "";
+      if (fontObjectIds.has(refId) && !(tagsByFontId.get(refId) ?? []).includes(tag)) {
+        tagsByFontId.set(refId, [...(tagsByFontId.get(refId) ?? []), tag]);
       }
     }
   }
@@ -293,11 +296,16 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
     const toUnicodeRef = /\/ToUnicode\s+(\d+)\s+0\s+R/.exec(object.dict)?.[1];
     const toUnicodeObject =
       toUnicodeRef === undefined ? undefined : objects.get(Number(toUnicodeRef));
-    const tag = tagByFontId.get(id);
-    if (tag !== undefined) {
-      fontIdByTag.set(tag, id);
+    const tags = tagsByFontId.get(id) ?? [];
+    if (tags.length > 0) {
+      for (const tag of tags) {
+        fontIdByTag.set(tag, id);
+      }
       if (toUnicodeObject !== undefined) {
-        toUnicodeByTag.set(tag, parseToUnicode(inflate(toUnicodeObject, "tounicode")));
+        const cmap = parseToUnicode(inflate(toUnicodeObject, "tounicode"));
+        for (const tag of tags) {
+          toUnicodeByTag.set(tag, cmap);
+        }
       }
     }
   }

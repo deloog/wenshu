@@ -112,13 +112,20 @@ test("pdf text normalization maps radicals, ligatures, and fullwidth forms", () 
 
 test("reconciliation is exact and reports first diff without content echo", async () => {
   const { importMarkdownDocument } = await import("@wenshu/markdown-import");
+  const { TOC_HEADING, collectTocEntries } = await import("@wenshu/document-model");
   const imported = await importMarkdownDocument(fixture, fixtureRoot);
   const svgTexts = await Promise.all(
     Object.keys(imported.renames).map(async (original) =>
       extractSvgText(await readFile(resolve(fixtureRoot, original), "utf8")),
     ),
   );
-  const expected = buildExpectedPdfText(imported.document, svgTexts).text;
+  // 单元级合成页码（非基线）：只验证期望装配与对账判定，页码真值由两遍渲染管线钉。
+  const entries = collectTocEntries(imported.document);
+  const expected = buildExpectedPdfText(imported.document, svgTexts, {
+    heading: TOC_HEADING,
+    entries,
+    pages: new Map(entries.map((entry, index) => [entry.id, index + 2])),
+  }).text;
   // 自身恒等
   assert.doesNotThrow(() => assertPdfReconciled(expected, expected));
   // 丢一字即失败（只断言稳定 code 与位置提示，不锁定受归一影响的具体索引）。

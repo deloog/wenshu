@@ -68,12 +68,20 @@ function visitBlocks(
   figureSvgTexts: readonly string[],
   figureIndex: { value: number },
   repeatables?: string[],
+  toc?: TocExpectation,
 ): void {
   for (const block of blocks) {
     switch (block.type) {
       case "section":
         parts.push(block.title);
-        visitBlocks(block.children, parts, figureSvgTexts, figureIndex, repeatables);
+        visitBlocks(
+          block.children,
+          parts,
+          figureSvgTexts,
+          figureIndex,
+          repeatables,
+          toc,
+        );
         break;
       case "paragraph":
       case "quote":
@@ -111,6 +119,32 @@ function visitBlocks(
       }
       case "pageBreak":
         break;
+      case "toc": {
+        // 目录（PA-11A）：栏目标题 + 有序列表标记 + 条目标题 + 实测物理页码。
+        // 页码只能来自两遍渲染测量（禁手写）；缺测量表即 fail-closed。
+        if (toc === undefined) {
+          throw new PdfExportError(
+            "PDF_EXPORT_PAGINATION_FAILED",
+            "toc block requires measured page numbers",
+          );
+        }
+        toc.entries.forEach((entry, index) => {
+          const page = toc.pages.get(entry.id);
+          if (page === undefined) {
+            throw new PdfExportError(
+              "PDF_EXPORT_PAGINATION_FAILED",
+              "toc entry lacks a measured page number",
+            );
+          }
+          if (index === 0) {
+            parts.push(toc.heading);
+          }
+          parts.push(`${index + 1}.`);
+          parts.push(entry.title);
+          parts.push(`${page}`);
+        });
+        break;
+      }
     }
   }
 }
@@ -122,17 +156,37 @@ export interface ExpectedPdfText {
 }
 
 /**
+ * 目录期望（PA-11A）：栏目标题、收录条目（document-model 收录规则）与
+ * 两遍渲染实测页码由调用方装配注入——本模块保持自包含（PA-F3 变异机制
+ * 以临时副本导入本文件，不得新增运行时跨包依赖）。
+ */
+export interface TocExpectation {
+  readonly heading: string;
+  readonly entries: readonly { readonly id: string; readonly title: string }[];
+  readonly pages: ReadonlyMap<string, number>;
+}
+
+/**
  * PDF 对账期望文本（承接 PA-01/PA-03 口径）：
- * 文档文本序列 + 有序列表渲染标记 + 冻结 SVG 资产的内嵌文本（SHA-256 已锚）。
+ * 文档文本序列 + 有序列表渲染标记 + 冻结 SVG 资产的内嵌文本（SHA-256 已锚）
+ * + 目录块（PA-11A：栏目标题/条目/实测页码，页码来自两遍渲染测量）。
  * 表格表头单列 repeatables：跨页重绘属排版器设计行为，不计入源文本重复。
  */
 export function buildExpectedPdfText(
   document: WenshuDocument,
   figureSvgTexts: readonly string[],
+  toc?: TocExpectation,
 ): ExpectedPdfText {
   const parts: string[] = [document.title];
   const repeatables: string[] = [];
-  visitBlocks(document.blocks, parts, figureSvgTexts, { value: 0 }, repeatables);
+  visitBlocks(
+    document.blocks,
+    parts,
+    figureSvgTexts,
+    { value: 0 },
+    repeatables,
+    toc,
+  );
   return Object.freeze({
     text: parts.join(""),
     repeatables: Object.freeze(repeatables),

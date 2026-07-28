@@ -82,11 +82,11 @@ test("asset references escaping the import root are rejected before reading", as
   }
 });
 
-test("assembled document violating the v0.1.0 contract is rejected at the schema gate", async () => {
+test("assembled document violating the document contract is rejected at the schema gate", async () => {
   const root = await mkdtemp(join(tmpdir(), "wenshu-import-"));
   try {
     // 决策 #8 后的持久触发器：title 超过 ShortText maxLength 500，front matter 接受、
-    // v0.1.0 schema 必拒——与 ID 派生方案无关，门禁被删则该测试必然变红（防 PA-A1 回潮）。
+    // schema 必拒——与 ID 派生方案无关，门禁被删则该测试必然变红（防 PA-A1 回潮）。
     const source = ["---", `title: ${"长".repeat(501)}`, "---", "", "正文。"].join(
       "\n",
     );

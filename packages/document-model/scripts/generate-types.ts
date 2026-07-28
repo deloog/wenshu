@@ -1,7 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import { generatedPath, renderDocumentTypes } from "./render-types.ts";
+import { generatedPathOf, renderDocumentTypes, targets } from "./render-types.ts";
 
-await mkdir(dirname(generatedPath), { recursive: true });
-await writeFile(generatedPath, await renderDocumentTypes(), "utf8");
+for (const target of targets) {
+  const path = generatedPathOf(target);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, await renderDocumentTypes(target), "utf8");
+}

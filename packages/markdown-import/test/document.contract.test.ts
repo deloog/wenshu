@@ -36,13 +36,16 @@ function build() {
   return { parsed, document: assembleDocument(parsed, [], [], "test.md") };
 }
 
-test("assembled document satisfies the frozen v0.1.0 contract", () => {
+test("assembled document satisfies the current document contract", () => {
   const { document } = build();
   assert.equal(document.schemaVersion, DOCUMENT_SCHEMA_VERSION);
+  assert.equal(document.schemaVersion, "0.2.0");
   const result = validateDocument(document);
   assert.ok(result.ok);
   assert.equal(document.title, "测试报告");
   assert.equal(document.language, "zh-CN");
+  // [[TOC]] 原位产出 toc 块（0.2.0 additive 块）。
+  assert.equal(JSON.stringify(document.blocks).includes('"type":"toc"'), true);
 });
 
 test("stable ids are deterministic and unique even with repeated content", () => {

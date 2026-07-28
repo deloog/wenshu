@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://wenshu.local/schemas/document/0.1.0/document.schema.json",
+  "$id": "https://wenshu.local/schemas/document/0.2.0/document.schema.json",
   "title": "WenshuDocument",
-  "description": "Version 0 document truth model for the professional report proof of concept.",
+  "description": "Version 0.2.0 document truth model for the professional report proof of concept (additive over frozen 0.1.0: toc block).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,7 +15,7 @@
     "assets"
   ],
   "properties": {
-    "schemaVersion": { "const": "0.1.0" },
+    "schemaVersion": { "const": "0.2.0" },
     "documentId": { "$ref": "#/$defs/DocumentId" },
     "revision": { "type": "integer", "minimum": 0 },
     "title": { "$ref": "#/$defs/ShortText" },
@@ -80,7 +80,8 @@
         { "$ref": "#/$defs/Quote" },
         { "$ref": "#/$defs/Table" },
         { "$ref": "#/$defs/Figure" },
-        { "$ref": "#/$defs/PageBreak" }
+        { "$ref": "#/$defs/PageBreak" },
+        { "$ref": "#/$defs/Toc" }
       ]
     },
     "Section": {
@@ -228,6 +229,16 @@
         "id": { "$ref": "#/$defs/NodeId" },
         "type": { "const": "pageBreak" },
         "reason": { "enum": ["source", "section"] }
+      }
+    },
+    "Toc": {
+      "title": "Toc",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/NodeId" },
+        "type": { "const": "toc" }
       }
     },
     "Asset": {

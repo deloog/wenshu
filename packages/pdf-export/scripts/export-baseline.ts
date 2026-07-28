@@ -9,7 +9,6 @@ import {
   inspectPdf,
   normalizePdfText,
   produceBaselinePdf,
-  repairPdfTextLayer,
 } from "../src/index.ts";
 
 /**
@@ -34,13 +33,8 @@ const output = await produceBaselinePdf({
   browserPath,
 });
 
-const repair = repairPdfTextLayer(
-  output.pdfBytes,
-  output.expectedText,
-  output.repeatables,
-);
-const finalBytes = repair.pdfBytes;
-// 全部检查针对最终（修复后）PDF：元数据、A4、字体、逐字对账。
+const finalBytes = output.pdfBytes;
+// 全部检查针对终稿（两遍渲染页码 + 文本层修复 + 页眉页脚压印后）PDF。
 const inspection = inspectPdf(finalBytes);
 
 // 先留证后断言：即使检查失败，PDF 与初步证据也已落盘（可信失败留证）。
@@ -70,11 +64,7 @@ for (const font of inspection.fonts) {
     );
   }
 }
-assertPdfReconciled(
-  inspection.pages.map((page) => page.text).join(""),
-  output.expectedText,
-  output.repeatables,
-);
+assertPdfReconciled(output.extractedText, output.expectedText, output.repeatables);
 
 const sha256 = createHash("sha256").update(finalBytes).digest("hex");
 const evidence = {
@@ -92,11 +82,12 @@ const evidence = {
     bytes: finalBytes.length,
     sha256,
     repair: {
-      repairedHoles: repair.repairedHoles,
-      patchedFonts: repair.patchedObjects,
+      repairedHoles: output.repair.repairedHoles,
+      patchedObjects: output.repair.patchedObjects,
     },
     pageCount: inspection.pageCount,
     pageSizePt: inspection.pageSizePt,
+    tocEntries: output.tocPages.size,
   },
   fonts: inspection.fonts,
   metadata: inspection.metadata,
@@ -114,4 +105,4 @@ await writeFile(
 console.log(`baseline pdf: ${pdfPath}`);
 console.log(`sha256: ${sha256}`);
 console.log(`browser: ${output.browserProduct}`);
-console.log(`pages: ${inspection.pageCount}, reconcile: ok`);
+console.log(`pages: ${inspection.pageCount}, toc entries: ${output.tocPages.size}, reconcile: ok`);

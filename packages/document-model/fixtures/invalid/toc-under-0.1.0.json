@@ -1,0 +1,16 @@
+{
+  "expectedIssue": "DOCUMENT_SCHEMA",
+  "expectedPath": "/blocks/0",
+  "schemaVersion": "0.1.0",
+  "documentId": "doc_20000000000000000000000000000002",
+  "revision": 0,
+  "title": "冻结版本不得含目录块",
+  "language": "zh-CN",
+  "blocks": [
+    {
+      "id": "node_20000000000000000000000000000002",
+      "type": "toc"
+    }
+  ],
+  "assets": []
+}

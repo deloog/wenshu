@@ -5,10 +5,8 @@ import test from "node:test";
 import {
   assertMetadataPolicy,
   assertPdfReconciled,
-  inspectPdf,
   normalizePdfText,
   produceBaselinePdf,
-  repairPdfTextLayer,
 } from "../src/index.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
@@ -50,21 +48,28 @@ test("baseline export: A4, embedded fonts, metadata policy, verbatim reconciliat
     inspection.fonts.every((font) => font.subset),
     "fonts must be embedded subsets of the frozen OTF",
   );
-  // 文本层可搜索可复制：修复层（洞/错标修补）后独立抽取与文档文本逐字对账。
-  const repaired = repairPdfTextLayer(
-    output.pdfBytes,
-    output.expectedText,
-    output.repeatables,
-  );
-  const after = inspectPdf(repaired.pdfBytes);
+  // 文本层可搜索可复制：管线内两遍渲染页码 + 修复层 + 压印后，独立抽取
+  // （压印串位置锚定剥离）与文档文本逐字对账。
   assert.doesNotThrow(() =>
-    assertPdfReconciled(
-      after.pages.map((page) => page.text).join(""),
-      output.expectedText,
-      output.repeatables,
-    ),
+    assertPdfReconciled(output.extractedText, output.expectedText, output.repeatables),
   );
   assert.ok(normalizePdfText(output.extractedText).length > 10_000);
+  // PA-11A：目录页码全部实测（禁手写），页码在物理页范围内；页眉页脚压印
+  // 封面豁免、其余页页尾后缀可验。
+  assert.ok(output.tocPages.size > 10, "toc entries must be measured");
+  for (const page of output.tocPages.values()) {
+    assert.ok(page >= 2 && page <= inspection.pageCount, `toc page ${page}`);
+  }
+  const page2 = inspection.pages[1]?.text ?? "";
+  assert.ok(
+    normalizePdfText(page2).endsWith(`长文交付效率观察2/${inspection.pageCount}`),
+    "page 2 must carry stamped header and footer",
+  );
+  assert.equal(
+    normalizePdfText(inspection.pages[0]?.text ?? "").includes("长文交付效率观察"),
+    false,
+    "cover page must be exempt from stamping",
+  );
 });
 
 test("repeated export in the same environment is deterministic at content level", async () => {

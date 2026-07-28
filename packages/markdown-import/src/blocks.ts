@@ -16,7 +16,8 @@ export type IntermediateBlock =
       readonly rows: readonly (readonly string[])[];
     }
   | { readonly kind: "figure"; readonly alt: string; readonly source: string }
-  | { readonly kind: "pageBreak" };
+  | { readonly kind: "pageBreak" }
+  | { readonly kind: "toc" };
 
 export interface LineConsumption {
   readonly syntaxChars: number;
