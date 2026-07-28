@@ -11,9 +11,9 @@
 
 ## 既有承接项状态（随 PA-11B 更新）
 
-- PA-M2（PA-11A 登记，「PA-11B 待开工」）：**本任务即承接**——双向
-  对账、toc_page_numbers_match、页眉页脚一致性、实际页码红线均已
-  实施（F03 fault 的可注入化由 PA-12 fault 样本库统一承接）；随
-  PA-11B 审计签署后关闭。
+- PA-M2（PA-11A 登记，「PA-11B 待开工」）：**已关闭**——本任务承接：双向
+  对账、toc_page_numbers_match、页眉页脚一致性、实际页码红线均已实施，
+  经 Claude 独立审计 `PASS`（PR #21，审计报告 §1 明示关闭）。（F03
+  fault 的可注入化由 PA-12 fault 样本库统一承接。）
 - PA-J1 / PA-K1 / PA-L1～L4 / PA-M1 / PA-M3 / PA-M4 / PA-M5：不变，
   未关闭，PA-12 汇总闸门届时逐项复核。
