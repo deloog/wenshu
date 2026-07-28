@@ -35,4 +35,6 @@ export interface ImportResult {
   readonly reconciliation: ImportReconciliation;
   /** original reference -> normalized asset path (PA-00 provenance). */
   readonly renames: Readonly<Record<string, string>>;
+  /** front matter 元数据（PA-11A：页眉 short_title 等声明值；不进文档正文）。 */
+  readonly metadata: Readonly<Record<string, string>>;
 }

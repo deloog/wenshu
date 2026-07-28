@@ -9,6 +9,13 @@
  * - figure 框：路径 minMax 经 operator-list save/restore/transform 链换算，
  *   与证据 bbox 双向各边偏差 ≤2pt（y 向上空间，bbox.y 为顶边）。
  *
+ * 压印行排除口径（PA-11A）：本 oracle 验证的是引擎产出字节的几何；页眉页脚
+ * 压印行是自家追加算子（其正确性由后缀锚定剥离对账/交叠自检/压印单测覆盖），
+ * 且 pdf.js 对 Skia Type3 字体的行内位置启发式（isCharBBox 分支）会错位压印
+ * 行——两侧在比对前剥离：证据侧按资源 tag（/^PA11F\d+$/，解析期事实）过滤；
+ * oracle 侧按内容序尾部锚定剥离并逐串验证（页脚拼接/页眉单现不等即
+ * stamp-tail 失配，fail-closed）。
+ *
  * 用法：node scripts/oracle-crosscheck.ts <pdf 路径>。
  * 退出码：0 = 全部一致；1 = 存在超容差分歧或证据提取失败。
  */
@@ -19,7 +26,12 @@ import { normalizePdfText } from "@wenshu/pdf-export";
 
 import { extractEvidence } from "../src/extract-evidence.ts";
 import type { WenshuPdfEvidence } from "../src/generated/evidence.ts";
-import { bucketRuns, extractOracle, type OracleLine } from "./oracle-pdfjs.ts";
+import {
+  bucketRuns,
+  extractOracle,
+  type OracleLine,
+  type StampStripExpectation,
+} from "./oracle-pdfjs.ts";
 
 const PAGE_BOX_TOLERANCE_PT = 1;
 const LINE_BASELINE_TOLERANCE_PT = 0.5;
@@ -50,7 +62,7 @@ export interface CrosscheckReport {
 function evidenceLines(evidence: WenshuPdfEvidence, pageIndex: number): OracleLine[] {
   return bucketRuns(
     evidence.textRuns
-      .filter((run) => run.pageIndex === pageIndex)
+      .filter((run) => run.pageIndex === pageIndex && !/^PA11F\d+$/u.test(run.font.tag))
       .map((run) => ({
         x: run.bbox.x,
         baselineY: run.baselineY,
@@ -59,6 +71,41 @@ function evidenceLines(evidence: WenshuPdfEvidence, pageIndex: number): OracleLi
         hasActualText: run.viaActualText,
       })),
   );
+}
+
+/** 压印钉集装配：证据 PA11F 资源 tag（解析期事实）→ 每页页眉/页脚归一串。 */
+function collectStampExpectations(
+  evidence: WenshuPdfEvidence,
+  mismatches: Mismatch[],
+): Map<number, StampStripExpectation> {
+  const byPage = new Map<number, { header?: string; footer?: string; count: number }>();
+  for (const run of evidence.textRuns) {
+    if (!/^PA11F\d+$/u.test(run.font.tag)) {
+      continue;
+    }
+    const entry = byPage.get(run.pageIndex) ?? { count: 0 };
+    entry.count += 1;
+    const norm = normalizePdfText(run.text);
+    if (/^\d+\/\d+$/u.test(norm)) {
+      entry.footer = norm;
+    } else {
+      entry.header = norm;
+    }
+    byPage.set(run.pageIndex, entry);
+  }
+  const expectations = new Map<number, StampStripExpectation>();
+  for (const [pageIndex, entry] of byPage) {
+    if (entry.header === undefined || entry.footer === undefined || entry.count !== 2) {
+      mismatches.push({
+        kind: "stamp-shape",
+        pageIndex,
+        detail: `runs=${entry.count} header=${entry.header ?? "-"} footer=${entry.footer ?? "-"}`,
+      });
+      continue;
+    }
+    expectations.set(pageIndex, { header: entry.header, footer: entry.footer });
+  }
+  return expectations;
 }
 
 function failReport(code: string, location: string): CrosscheckReport {
@@ -139,9 +186,10 @@ export async function crosscheckGeometry(bytes: Uint8Array): Promise<CrosscheckR
     return failReport(extracted.issue.code, extracted.issue.location);
   }
   const evidence = extracted.evidence;
-  const oracle = await extractOracle(bytes);
   const mismatches: Mismatch[] = [];
   const actualTextDivergences: Mismatch[] = [];
+  const stampExpectations = collectStampExpectations(evidence, mismatches);
+  const oracle = await extractOracle(bytes, stampExpectations);
   let linesChecked = 0;
   let figuresChecked = 0;
 
@@ -171,6 +219,14 @@ export async function crosscheckGeometry(bytes: Uint8Array): Promise<CrosscheckR
         kind: "page-height",
         pageIndex: page.index,
         detail: `oracle=${viewH} evidence=${page.heightPt}`,
+      });
+    }
+
+    if (oraclePage.stampTailViolation !== null) {
+      mismatches.push({
+        kind: "stamp-tail",
+        pageIndex: page.index,
+        detail: oraclePage.stampTailViolation,
       });
     }
 

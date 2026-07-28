@@ -5,7 +5,7 @@
     "project": "0.1.0",
     "knowledge_package": "0.1.0",
     "semantic_audit": "0.1.0",
-    "document": "0.1.0",
+    "document": "0.2.0",
     "template": "0.1.0"
   },
   "unknown_version": "reject",

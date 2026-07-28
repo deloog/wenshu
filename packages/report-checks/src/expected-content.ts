@@ -11,6 +11,7 @@
  * 以 figureOrdinal 绑定同一张图，svg 块附源 viewBox 固有宽高比。
  */
 import type { Block, WenshuDocument } from "@wenshu/document-model";
+import { TOC_HEADING, collectTocEntries } from "@wenshu/document-model";
 import { normalizePdfText } from "@wenshu/pdf-export";
 
 /** 期望块类别：P1 分域检查的事实来源（文档侧语义，非几何启发式）。 */
@@ -27,7 +28,10 @@ export type ExpectedBlockKind =
   | "table-cell"
   | "figure-svg"
   | "figure-caption"
-  | "figure-source";
+  | "figure-source"
+  | "toc-heading"
+  | "toc-marker"
+  | "toc-entry";
 
 export interface ExpectedBlock {
   /** 稳定块定位：`/title`、`/blocks/<i>`、子路径 `/blocks/<i>/rows/<r>/cells/<c>` 等。 */
@@ -73,6 +77,7 @@ function pushBlock(
 }
 
 function visitBlocks(
+  document: WenshuDocument,
   blocks: readonly Block[],
   path: string,
   figureSvgTexts: readonly string[],
@@ -87,6 +92,7 @@ function visitBlocks(
       case "section":
         pushBlock(out, ref, block.title, false, "section-title");
         visitBlocks(
+          document,
           block.children,
           `${ref}/children`,
           figureSvgTexts,
@@ -193,6 +199,28 @@ function visitBlocks(
       }
       case "pageBreak":
         break;
+      case "toc": {
+        // 目录（PA-11A）：栏目标题 + 有序列表渲染标记 + 条目标题（与渲染器共用
+        // document-model 收录规则真源）；页码数字是渲染派生值，不进期望块。
+        pushBlock(out, ref, TOC_HEADING, false, "toc-heading");
+        collectTocEntries(document).forEach((entry, entryIndex) => {
+          pushBlock(
+            out,
+            `${ref}/entries/${entryIndex}/marker`,
+            `${entryIndex + 1}.`,
+            false,
+            "toc-marker",
+          );
+          pushBlock(
+            out,
+            `${ref}/entries/${entryIndex}`,
+            entry.title,
+            false,
+            "toc-entry",
+          );
+        });
+        break;
+      }
     }
   });
 }
@@ -205,6 +233,7 @@ export function buildExpectedBlocks(
   const out: ExpectedBlock[] = [];
   pushBlock(out, "/title", document.title, false, "cover-title");
   visitBlocks(
+    document,
     document.blocks,
     "/blocks",
     figureSvgTexts,

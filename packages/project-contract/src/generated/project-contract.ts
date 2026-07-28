@@ -29,7 +29,7 @@ export interface ProjectManifest {
   derived_data: DerivedDataDescriptor[];
 }
 export interface DocumentReference {
-  schema_version: "0.1.0";
+  schema_version: "0.1.0" | "0.2.0";
   document_id: string;
   revision: number;
   sha256: Sha256;
@@ -135,7 +135,7 @@ export interface CompatibilityManifest {
     project: "0.1.0";
     knowledge_package: "0.1.0";
     semantic_audit: "0.1.0";
-    document: "0.1.0";
+    document: "0.2.0";
     template: "0.1.0";
   };
   unknown_version: "reject";

@@ -23,7 +23,7 @@ import { runP1Checks } from "../src/p1-runner.ts";
 import { extractSvgAspectRatio } from "../src/svg-source.ts";
 
 const SIGNED_BASELINE_SHA256 =
-  "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
+  "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828";
 const repoRoot = resolve(import.meta.dirname, "..", "..", "..");
 const fixtureRoot = resolve(repoRoot, "docs", "poc-a", "fixtures");
 
@@ -86,7 +86,7 @@ function derive(mutate: (draft: WenshuPdfEvidence) => void): WenshuPdfEvidence {
   return draft;
 }
 
-/** 表 3（主要风险与首期处置）：基线唯一跨页表（p11→p12，探针实测）。 */
+/** 表 3（主要风险与首期处置）：基线唯一跨页表（p12→p13，探针实测）。 */
 const TABLE3_ROOT = "/blocks/7/children/2/children/2/children/0";
 
 test("acceptance 3: baseline tables attribute cleanly; exactly one cross-page table", () => {
@@ -110,7 +110,7 @@ test("acceptance 3: baseline tables attribute cleanly; exactly one cross-page ta
   );
   const firstCrossPage = crossPage[0];
   assert.ok(firstCrossPage !== undefined);
-  assert.deepEqual(tablePages(analysis, firstCrossPage), [11, 12]);
+  assert.deepEqual(tablePages(analysis, firstCrossPage), [12, 13]);
 });
 
 test("acceptance 2: signed baseline yields zero table findings and zero structure reviews", () => {
@@ -121,13 +121,13 @@ test("acceptance 2: signed baseline yields zero table findings and zero structur
   assert.ok(
     report.manualChecks.every((manual) => manual.code !== "P1_TABLE_STRUCTURE_REVIEW"),
   );
-  // PA-08 钉数不回潮 + PA-10 诚实门：人工项 32（表格规则在基线零新增人工噪音；
-  // 图片清晰度 2 项为 PA-10 新增诚实门人工项，见 p1.integration 钉数说明）。
-  assert.equal(report.manualChecks.length, 32);
+  // PA-08 钉数不回潮 + PA-10 诚实门：人工项 33（PA-11A 重签后 21 页 →
+  // 逐页密度 21 + 标题灰区 10 + 图片清晰度 2；表格规则在基线零新增人工噪音）。
+  assert.equal(report.manualChecks.length, 33);
 });
 
 test("acceptance 1: header not repeated on continuation page is detected and located", () => {
-  // 找表 3 续页 p12 上位于首行数据之前的 run（= Chromium 重复的表头副本），
+  // 找表 3 续页 p13 上位于首行数据之前的 run（= Chromium 重复的表头副本），
   // 内存派生中删除它们（这些 run 是 repeatable 额外出现，不影响块归属）。
   const analysis = analyzeTables(baselineEvidence, expected);
   const table3 = analysis.tables.find((table) => table.root === TABLE3_ROOT);
@@ -135,15 +135,15 @@ test("acceptance 1: header not repeated on continuation page is detected and loc
   const dataOrders = table3.cells.flatMap((cell) =>
     cell.runIndexes.flatMap((runIndex) => {
       const run = analysis.orderedRuns[runIndex];
-      return run !== undefined && run.pageIndex === 12 ? [run.readingOrder] : [];
+      return run !== undefined && run.pageIndex === 13 ? [run.readingOrder] : [];
     }),
   );
   assert.ok(dataOrders.length > 0);
   const firstDataOrder = Math.min(...dataOrders);
   const removed = baselineEvidence.textRuns.filter(
-    (run) => run.pageIndex === 12 && run.readingOrder < firstDataOrder,
+    (run) => run.pageIndex === 13 && run.readingOrder < firstDataOrder,
   );
-  assert.ok(removed.length >= 10, "repeated header runs must exist on p12");
+  assert.ok(removed.length >= 10, "repeated header runs must exist on p13");
   const removedOrders = new Set(removed.map((run) => run.readingOrder));
   const fault = derive((draft) => {
     draft.textRuns = draft.textRuns.filter(
@@ -155,7 +155,7 @@ test("acceptance 1: header not repeated on continuation page is detected and loc
     (finding) => finding.code === "P1_TABLE_HEADER_NOT_REPEATED",
   );
   assert.equal(hits.length, 1, JSON.stringify(report.findings.slice(0, 5)));
-  assert.equal(hits[0]?.pageIndex, 12);
+  assert.equal(hits[0]?.pageIndex, 13);
   assert.equal(hits[0]?.nodeRef, TABLE3_ROOT);
   assert.equal(hits[0]?.basis.metrics["headersExpected"], 4);
   assert.equal(hits[0]?.basis.metrics["headersFound"], 0);
@@ -164,7 +164,7 @@ test("acceptance 1: header not repeated on continuation page is detected and loc
 });
 
 test("acceptance 1: row split across the page boundary is detected at table/row ref", () => {
-  // 把表 3 行 2（续页首数据行）首格 run 移回 p11 → 行 2 被页界切断。
+  // 把表 3 行 2（续页首数据行）首格 run 移回 p12 → 行 2 被页界切断。
   const analysis = analyzeTables(baselineEvidence, expected);
   const table3 = analysis.tables.find((table) => table.root === TABLE3_ROOT);
   assert.ok(table3 !== undefined);
@@ -176,14 +176,14 @@ test("acceptance 1: row split across the page boundary is detected at table/row 
     cell.runIndexes.map((runIndex) => {
       const run = analysis.orderedRuns[runIndex];
       assert.ok(run !== undefined);
-      assert.equal(run.pageIndex, 12);
+      assert.equal(run.pageIndex, 13);
       return run.readingOrder;
     }),
   );
   const fault = derive((draft) => {
     for (const run of draft.textRuns) {
       if (orders.has(run.readingOrder)) {
-        run.pageIndex = 11;
+        run.pageIndex = 12;
       }
     }
   });
@@ -192,9 +192,9 @@ test("acceptance 1: row split across the page boundary is detected at table/row 
     (finding) => finding.code === "P1_TABLE_ROW_SPLIT",
   );
   assert.equal(hits.length, 1, JSON.stringify(report.findings.slice(0, 5)));
-  assert.equal(hits[0]?.pageIndex, 11);
+  assert.equal(hits[0]?.pageIndex, 12);
   assert.equal(hits[0]?.nodeRef, `${TABLE3_ROOT}/rows/2`);
-  assert.equal(hits[0]?.basis.metrics["continuationPage"], 12);
+  assert.equal(hits[0]?.basis.metrics["continuationPage"], 13);
   assert.equal(hits[0]?.basis.metrics["templateRowBreakInsideAvoid"], 1);
   assert.equal(paginationRules.table_row_break_inside, "avoid");
 });
@@ -231,7 +231,7 @@ test("acceptance 5: per-rule rollback isolates table rules; output stays determi
   const fault = derive((draft) => {
     for (const run of draft.textRuns) {
       if (orders.has(run.readingOrder)) {
-        run.pageIndex = 11;
+        run.pageIndex = 12;
       }
     }
   });

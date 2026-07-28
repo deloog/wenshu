@@ -140,6 +140,7 @@ export function parseMarkdown(source: string): ParsedSource {
       continue;
     }
     if (line === "[[TOC]]") {
+      blocks.push({ kind: "toc" });
       consumed.push({
         line: lineNumber,
         kind: "marker-toc",

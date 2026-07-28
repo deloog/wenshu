@@ -23,7 +23,7 @@ import { runP1Checks } from "../src/p1-runner.ts";
 import { extractSvgAspectRatio } from "../src/svg-source.ts";
 
 const SIGNED_BASELINE_SHA256 =
-  "d18da69f4663c694f2dcea738ca9cabbaa2f16fac03d10eaf434efceaece6dfd";
+  "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828";
 const repoRoot = resolve(import.meta.dirname, "..", "..", "..");
 const baselinePath = resolve(
   repoRoot,
@@ -123,9 +123,10 @@ test("acceptance 2: signed baseline yields zero P1 findings; manual items bounde
   ]);
   // 有界人工核验（书面钉数，基线 sha 锚定故稳定）：标题保留下续灰区 10 项
   // （8 例标题后接 1 行子标题 + 2 例标题后接单行完整段落，均为 PA-04 注册
-  // 近似与模板 keepN=2 意图之差）；逐页密度证据 20 项（= 页数）；PA-10
-  // 图片诚实门新增 2 项清晰度人工核验（基线 2 图，无确定性判据如实降人工，
-  // PA-08 钉数 30 → 32，台账 PA-10-followups 承接 PA-J1）。
+  // 近似与模板 keepN=2 意图之差）；逐页密度证据 21 项（= 页数，PA-11A
+  // 重签后 20 → 21 页）；PA-10 图片诚实门 2 项清晰度人工核验（基线 2 图，
+  // 无确定性判据如实降人工，台账 PA-10-followups 承接 PA-J1）。
+  // 钉数：10 + 21 + 2 = 33。
   const headingReviews = report.manualChecks.filter(
     (manual) => manual.code === "P1_HEADING_KEEP_REVIEW",
   );
@@ -138,7 +139,7 @@ test("acceptance 2: signed baseline yields zero P1 findings; manual items bounde
   assert.equal(headingReviews.length, 10);
   assert.equal(densityReviews.length, baselineEvidence.pages.length);
   assert.equal(legibilityReviews.length, 2);
-  assert.equal(report.manualChecks.length, 32);
+  assert.equal(report.manualChecks.length, 33);
 });
 
 test("acceptance 3: gray zone is manual-only with static reasons, never disguised as pass", () => {
@@ -328,15 +329,18 @@ test("acceptance 1: zero-content page is detected as P1_EMPTY_PAGE at the right 
 
 test("acceptance 1+3: partial sparse fault stays manual with honest density evidence", () => {
   const baselineReport = runP1Checks(inputFor(baselineEvidence));
-  const baselinePage8 = baselineReport.manualChecks.find(
-    (manual) => manual.code === "P1_SPARSE_DENSITY_REVIEW" && manual.pageIndex === 8,
+  // PA-11A 重签后 p8 为图 1 所在页（图区覆盖率高，半数 run 移除不足以
+  // 诚实反映密度下降）；改在纯文本页 p9 注入（探针实测 coverageRatio
+  // 0.3036 → 0.1511 < 0.7 倍阈值）。
+  const baselinePage9 = baselineReport.manualChecks.find(
+    (manual) => manual.code === "P1_SPARSE_DENSITY_REVIEW" && manual.pageIndex === 9,
   );
-  assert.ok(baselinePage8 !== undefined);
+  assert.ok(baselinePage9 !== undefined);
   const fault = derive((draft) => {
-    // 移除 p8 半数文本 run：页变稀但不空——主观稀疏带，绝不出自动判定。
+    // 移除 p9 半数文本 run：页变稀但不空——主观稀疏带，绝不出自动判定。
     let seen = 0;
     draft.textRuns = draft.textRuns.filter((run) => {
-      if (run.pageIndex !== 8) {
+      if (run.pageIndex !== 9) {
         return true;
       }
       seen += 1;
@@ -346,10 +350,10 @@ test("acceptance 1+3: partial sparse fault stays manual with honest density evid
   const report = runP1Checks(inputFor(fault));
   assert.ok(report.findings.every((finding) => finding.ruleId !== "p1-sparse-page"));
   const review = report.manualChecks.find(
-    (manual) => manual.code === "P1_SPARSE_DENSITY_REVIEW" && manual.pageIndex === 8,
+    (manual) => manual.code === "P1_SPARSE_DENSITY_REVIEW" && manual.pageIndex === 9,
   );
-  assert.ok(review !== undefined, "density evidence must still locate page 8");
-  const before = baselinePage8.basis.metrics["coverageRatio"];
+  assert.ok(review !== undefined, "density evidence must still locate page 9");
+  const before = baselinePage9.basis.metrics["coverageRatio"];
   const after = review.basis.metrics["coverageRatio"];
   assert.ok(before !== undefined && after !== undefined);
   assert.ok(after < before * 0.7, `density must drop honestly (${after} vs ${before})`);
@@ -365,9 +369,13 @@ test("acceptance 5: per-rule rollback on multi-fault input; determinism; no cont
     for (const run of draft.textRuns) {
       if (orders.includes(run.readingOrder)) {
         run.pageIndex = 3;
+      } else if (run.pageIndex === 5) {
+        // 造空页用搬移而非删除：归属命门反向文档序游标在中段出现内容
+        // 空洞时 fail-closed 丢弃前序块（含 /blocks/1），标题检出会随之
+        // 消失——那是归属歧义的如实降级，非检出缺口；搬移保持游标完整。
+        run.pageIndex = 6;
       }
     }
-    draft.textRuns = draft.textRuns.filter((run) => run.pageIndex !== 5);
     draft.figures = draft.figures.filter((figure) => figure.pageIndex !== 5);
   });
   const full = runP1Checks(inputFor(fault));

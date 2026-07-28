@@ -1,3 +1,5 @@
+import type { TocEntry } from "@wenshu/document-model";
+
 import { PdfExportError } from "./errors.ts";
 
 /**
@@ -43,4 +45,38 @@ export function composePrintDocument(
     );
   }
   return documentHtml;
+}
+
+/**
+ * 第二遍填充：把实测物理页码写进目录条目的占位 span。
+ * 占位串由 report-render 固定生成；每条目必须恰好出现一次（防静默错位）。
+ */
+export function fillTocPageNumbers(
+  printHtml: string,
+  entries: readonly TocEntry[],
+  tocPages: ReadonlyMap<string, number>,
+): string {
+  let filled = printHtml;
+  for (const entry of entries) {
+    const placeholder = `<span class="toc-entry-page" data-toc-target="${entry.id}"></span>`;
+    const page = tocPages.get(entry.id);
+    if (page === undefined) {
+      throw new PdfExportError(
+        "PDF_EXPORT_PAGINATION_FAILED",
+        "toc entry lacks a measured page number",
+      );
+    }
+    const occurrences = filled.split(placeholder).length - 1;
+    if (occurrences !== 1) {
+      throw new PdfExportError(
+        "PDF_EXPORT_PAGINATION_FAILED",
+        "toc page placeholder must appear exactly once per entry",
+      );
+    }
+    filled = filled.replace(
+      placeholder,
+      `<span class="toc-entry-page" data-toc-target="${entry.id}">${page}</span>`,
+    );
+  }
+  return filled;
 }

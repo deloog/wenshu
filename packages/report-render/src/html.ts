@@ -1,4 +1,6 @@
 import type { Block, WenshuDocument } from "@wenshu/document-model";
+import { TOC_HEADING, collectTocEntries } from "@wenshu/document-model";
+import type { TocEntry } from "@wenshu/document-model";
 
 /** 全部文本经实体转义进入 HTML；v0 文档没有也不允许原始 HTML 注入。 */
 export function escapeHtml(text: string): string {
@@ -19,9 +21,21 @@ function renderList(
   return `<${tag}>${entries}</${tag}>`;
 }
 
+function renderToc(entries: readonly TocEntry[]): string {
+  const items = entries
+    .map(
+      (entry) =>
+        `<li class="toc-level-${entry.level}"><a href="#${escapeHtml(entry.id)}"><span class="toc-entry-title">${escapeHtml(entry.title)}</span><span class="toc-entry-page" data-toc-target="${escapeHtml(entry.id)}"></span></a></li>`,
+    )
+    .join("");
+  // 页码位由 pdf-export 两遍渲染机制按实测页填充（data-toc-target 锚定章节 id）。
+  return `<nav class="toc" aria-label="${TOC_HEADING}"><h2 class="toc-heading">${TOC_HEADING}</h2><ol>${items}</ol></nav>`;
+}
+
 function renderBlocks(
   blocks: readonly Block[],
   assets: WenshuDocument["assets"],
+  tocEntries: readonly TocEntry[],
 ): string {
   const parts: string[] = [];
   for (const block of blocks) {
@@ -30,7 +44,7 @@ function renderBlocks(
         // 文档标题占 h1，章节标题从 h2 起，标题层级不跳级。
         const level = Math.min(block.level + 1, 6);
         const heading = `<h${level} id="${escapeHtml(block.id)}">${escapeHtml(block.title)}</h${level}>`;
-        const children = renderBlocks(block.children, assets);
+        const children = renderBlocks(block.children, assets, tocEntries);
         parts.push(
           `<section aria-labelledby="${escapeHtml(block.id)}">${heading}${children}</section>`,
         );
@@ -91,6 +105,9 @@ function renderBlocks(
           `<div class="page-break" role="separator" data-reason="${escapeHtml(block.reason)}"></div>`,
         );
         break;
+      case "toc":
+        parts.push(renderToc(tocEntries));
+        break;
     }
   }
   return parts.join("");
@@ -98,7 +115,11 @@ function renderBlocks(
 
 /** 语义 HTML：标题层级、表格 scope、figure/figcaption 关联、引用出处；不含任何表现层 CSS（PA-04）。 */
 export function renderDocumentHtml(document: WenshuDocument): string {
-  const body = renderBlocks(document.blocks, document.assets);
+  const body = renderBlocks(
+    document.blocks,
+    document.assets,
+    collectTocEntries(document),
+  );
   return [
     "<!doctype html>",
     `<html lang="${escapeHtml(document.language)}">`,
@@ -151,6 +172,13 @@ export function documentTextSequence(document: WenshuDocument): string[] {
           break;
         case "pageBreak":
           break;
+        case "toc": {
+          sequence.push(TOC_HEADING);
+          for (const entry of collectTocEntries(document)) {
+            sequence.push(entry.title);
+          }
+          break;
+        }
       }
     }
   };

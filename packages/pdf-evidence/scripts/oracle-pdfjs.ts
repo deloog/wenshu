@@ -8,6 +8,8 @@
  */
 import { getDocument, OPS } from "pdfjs-dist/legacy/build/pdf.mjs";
 
+import { normalizePdfText } from "@wenshu/pdf-export";
+
 const LINE_BUCKET_PT = 2;
 
 type Matrix = readonly [number, number, number, number, number, number];
@@ -34,6 +36,20 @@ export interface OracleLine {
   readonly maxX: number;
   readonly text: string;
   readonly hasActualText: boolean;
+}
+
+/**
+ * 压印行剥离钉（PA-11A）：某页期望在提取尾部出现的页眉/页脚归一串。
+ * 压印流以 /Contents 追加，内容序必居页尾（位置锚定事实）；pdf.js 对
+ * Skia Type3 字体的行内位置启发式（worker 41572 isCharBBox 分支）会错位
+ * 压印行，故两侧在比对前剥离——压印几何由对账链（后缀锚定剥离/交叠自检/
+ * 压印单测）覆盖，不属于本 oracle 域（引擎产出字节的几何交叉验证）。
+ */
+export interface StampStripExpectation {
+  /** 归一化页眉串（如 short_title）。 */
+  readonly header: string;
+  /** 归一化页脚串（如 "2/21"）。 */
+  readonly footer: string;
 }
 
 export interface OracleFigure {
@@ -66,6 +82,8 @@ export interface OraclePage {
   readonly view: readonly number[];
   readonly lines: readonly OracleLine[];
   readonly figures: readonly OracleFigure[];
+  /** 压印尾部剥离违规（fail-closed 记录；无压印钉的页为 null）。 */
+  readonly stampTailViolation: string | null;
 }
 
 /** 行聚合的输入 run（两侧各自从自己的解析结果投影而来）。 */
@@ -221,17 +239,67 @@ function collectFigures(
 }
 
 /** pdf.js 独立解析：逐页页框 + 文本行 + figure 路径框。 */
-export async function extractOracle(bytes: Uint8Array): Promise<OraclePage[]> {
+export async function extractOracle(
+  bytes: Uint8Array,
+  stampsByPage?: ReadonlyMap<number, StampStripExpectation>,
+): Promise<OraclePage[]> {
   const document = await getDocument({ data: bytes }).promise;
   const pages: OraclePage[] = [];
   for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
     const page = await document.getPage(pageNumber);
     const textContent = await page.getTextContent();
-    const runs: LineRun[] = [];
+    interface TextItem {
+      readonly str: string;
+      readonly transform: readonly number[];
+      readonly width: number;
+    }
+    const items: TextItem[] = [];
     for (const item of textContent.items) {
       if (!("str" in item)) {
         continue;
       }
+      items.push(item as TextItem);
+    }
+    // 尾部锚定剥离压印项（仅在本方证据钉定该页有压印时启用），fail-closed：
+    // 页脚项拼接不等于期望页脚串、或页眉项不等于期望页眉串，都记违规。
+    const stampExpectation = stampsByPage?.get(pageNumber - 1);
+    let stampTailViolation: string | null = null;
+    let end = items.length;
+    if (stampExpectation !== undefined) {
+      const footerChars: string[] = [];
+      let headerDropped = 0;
+      while (end > 0) {
+        const item = items[end - 1];
+        const norm = normalizePdfText(item?.str ?? "");
+        if (norm.length === 0) {
+          end -= 1;
+          continue;
+        }
+        // 页脚未集齐前只收数字/斜杠项；恰好拼出期望页脚即封停（防吃掉
+        // 目录页码等同形正文项——实测 pageIndex 3 目录尾项 "21" 场景）。
+        if (
+          footerChars.join("") !== stampExpectation.footer &&
+          /^[0-9/]+$/u.test(norm)
+        ) {
+          footerChars.unshift(norm);
+          end -= 1;
+          continue;
+        }
+        if (norm === stampExpectation.header) {
+          headerDropped += 1;
+          end -= 1;
+          continue;
+        }
+        break;
+      }
+      if (headerDropped !== 1) {
+        stampTailViolation = `header items=${headerDropped}`;
+      } else if (footerChars.join("") !== stampExpectation.footer) {
+        stampTailViolation = `footer=${footerChars.join("")}`;
+      }
+    }
+    const runs: LineRun[] = [];
+    for (const item of items.slice(0, end)) {
       const text = item.str.replaceAll(/\s/g, "");
       if (text.length === 0) {
         continue;
@@ -249,6 +317,7 @@ export async function extractOracle(bytes: Uint8Array): Promise<OraclePage[]> {
       view: page.view,
       lines: bucketRuns(runs),
       figures: collectFigures(operatorList.fnArray, operatorList.argsArray),
+      stampTailViolation,
     });
   }
   return pages;

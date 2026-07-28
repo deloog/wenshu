@@ -1,5 +1,5 @@
 import { cloneAndFreeze } from "@wenshu/contract-runtime";
-import { DOCUMENT_SCHEMA_VERSION } from "@wenshu/document-model";
+import { SUPPORTED_DOCUMENT_SCHEMA_VERSIONS } from "@wenshu/document-model";
 import { validateTemplate, type TemplateIssue } from "@wenshu/template-model";
 
 import type { ApprovedFontSet } from "./font-registry.ts";
@@ -27,12 +27,13 @@ function failure(code: TemplateMapIssueCode, path: string): TemplateMapResult {
 /**
  * 把不可信模板 JSON 映射为受控模板模型（PA-02：只做声明式绑定，不做布局/渲染）。
  * 先经 G1-05 安全校验（未知字段、DSL 版本、执行面、预算），再绑定文档契约与受控字体注册表。
- * documentSchemaVersion 默认取 document-model 冻结常量；测试可注入以验证绑定守卫的决定性。
+ * documentSchemaVersions 默认取 document-model reader 支持集（ADR-0010 additive 纪律）；
+ * 测试可注入以验证绑定守卫的决定性。
  */
 export function mapTemplate(
   input: unknown,
   fontSet: ApprovedFontSet,
-  documentSchemaVersion: string = DOCUMENT_SCHEMA_VERSION,
+  documentSchemaVersions: readonly string[] = SUPPORTED_DOCUMENT_SCHEMA_VERSIONS,
 ): TemplateMapResult {
   const validation = validateTemplate(input);
   if (!validation.ok) {
@@ -40,9 +41,12 @@ export function mapTemplate(
   }
   const template = validation.value;
 
-  // 绑定一：模板声明的文档契约必须精确匹配 PA-01 冻结的 v0.1.0。
-  const expectedSchema = `wenshu.report/${documentSchemaVersion}`;
-  if (template.supported_document_schema !== expectedSchema) {
+  // 绑定一：模板声明的文档契约必须是 reader 实际支持的版本（0.2.0 additive 升级后
+  // 仍接受冻结 0.1.0 声明；未知/未来版本精确拒绝，ADR-0010）。
+  const acceptedSchemas = new Set(
+    documentSchemaVersions.map((version) => `wenshu.report/${version}`),
+  );
+  if (!acceptedSchemas.has(template.supported_document_schema)) {
     return failure(
       "TEMPLATE_MAP_UNSUPPORTED_DOCUMENT_SCHEMA",
       "/supported_document_schema",

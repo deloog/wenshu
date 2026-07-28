@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
+import { TOC_HEADING, collectTocEntries } from "@wenshu/document-model";
 import { importMarkdownDocument } from "@wenshu/markdown-import";
 import {
   launchBrowser,
@@ -12,10 +13,21 @@ import {
 import { renderTemplateCss } from "@wenshu/template-css";
 import { mapTemplate, parseApprovedFontSet } from "@wenshu/template-map";
 
-import { composePrintDocument } from "./compose.ts";
+import { composePrintDocument, fillTocPageNumbers } from "./compose.ts";
+import { repairPdfTextLayer } from "./cmap-repair.ts";
 import { inspectPdf, type PdfInspection } from "./inspect.ts";
-import { buildExpectedPdfText, extractSvgText } from "./reconcile.ts";
+import { measureTocPageNumbers, resolveStableTocPages } from "./pagination.ts";
+import {
+  buildExpectedPdfText,
+  extractSvgText,
+  assertPdfReconciled,
+} from "./reconcile.ts";
 import { buildPrintParams, type PrintParams } from "./print-params.ts";
+import {
+  stampRunningHeaders,
+  stripStampsForReconcile,
+  type StampSpec,
+} from "./stamp.ts";
 
 export interface BaselineInput {
   readonly fixture: string;
@@ -30,15 +42,23 @@ export interface BaselineOutput {
   readonly browserProduct: string;
   readonly printParams: PrintParams;
   readonly inspection: PdfInspection;
+  /** 终稿提取文本（压印页眉页脚已位置锚定剥离），可直接逐字对账。 */
   readonly extractedText: string;
   readonly expectedText: string;
   /** 跨页重绘表头（CSS table-header-group 设计行为，对账跳过）。 */
   readonly repeatables: readonly string[];
+  /** 目录条目锚定章节 id → 实测物理页码（两遍渲染测量，PA-11A）。 */
+  readonly tocPages: ReadonlyMap<string, number>;
+  /** 文本层修复统计（洞/错标修补在管线内完成；签署基线预期 0 触发）。 */
+  readonly repair: { readonly repairedHoles: number; readonly patchedObjects: number };
 }
+
+const MM_TO_PT = 72 / 25.4;
 
 /**
  * PA-05 基线导出管线：固定 fixture → 语义 HTML → 白名单 CSS → 真实 Chromium printToPDF。
- * 只产出与检查，不写文件；调用方负责留证。
+ * PA-11A 扩展：目录页码两遍渲染测量注入（页码=实测物理页，禁手写，≤3 轮不动点）、
+ * 文本层修复、页眉页脚 PDF 层压印（受控补偿）与终稿自核验。只产出与检查，不写文件。
  */
 export async function produceBaselinePdf(
   input: BaselineInput,
@@ -75,7 +95,7 @@ export async function produceBaselinePdf(
       );
     }
   }
-  const printHtml = composePrintDocument(
+  const basePrintHtml = composePrintDocument(
     renderDocumentHtml(imported.document),
     css,
     (assetPath) => {
@@ -89,8 +109,11 @@ export async function produceBaselinePdf(
     },
   );
   const printParams = buildPrintParams(model);
+  const tocEntries = collectTocEntries(imported.document);
 
-  const documents: Record<string, string | Uint8Array> = { "/print.html": printHtml };
+  const documents: Record<string, string | Uint8Array> = {
+    "/print.html": basePrintHtml,
+  };
   for (const [original, normalized] of Object.entries(imported.renames)) {
     documents[`/${normalized}`] = await readFile(resolve(input.fixtureRoot, original));
   }
@@ -101,10 +124,26 @@ export async function produceBaselinePdf(
   const browser = await launchBrowser(input.browserPath);
   let pdfBytes: Uint8Array;
   let browserProduct: string;
+  let tocPages: ReadonlyMap<string, number> = new Map();
   try {
-    await browser.navigate(`${server.origin}/print.html`);
     browserProduct = await browser.productVersion();
-    pdfBytes = await browser.printToPdf({ ...printParams });
+    if (tocEntries.length === 0) {
+      await browser.navigate(`${server.origin}/print.html`);
+      pdfBytes = await browser.printToPdf({ ...printParams });
+    } else {
+      // 第一遍：页码占位为空，测量各条目锚定章节的实测物理页码。
+      await browser.navigate(`${server.origin}/print.html`);
+      pdfBytes = await browser.printToPdf({ ...printParams });
+      tocPages = measureTocPageNumbers(pdfBytes, tocEntries);
+      tocPages = await resolveStableTocPages(tocPages, async (pages) => {
+        documents["/print.html"] = fillTocPageNumbers(basePrintHtml, tocEntries, pages);
+        await browser.navigate(`${server.origin}/print.html`);
+        const candidate = await browser.printToPdf({ ...printParams });
+        const remeasured = measureTocPageNumbers(candidate, tocEntries);
+        pdfBytes = candidate;
+        return remeasured;
+      });
+    }
   } finally {
     await browser.close();
     await server.close();
@@ -115,15 +154,46 @@ export async function produceBaselinePdf(
       extractSvgText(await readFile(resolve(input.fixtureRoot, original), "utf8")),
     ),
   );
-  const inspection = inspectPdf(pdfBytes);
-  const expected = buildExpectedPdfText(imported.document, svgTexts);
+  const expected = buildExpectedPdfText(
+    imported.document,
+    svgTexts,
+    tocEntries.length === 0
+      ? undefined
+      : { heading: TOC_HEADING, entries: tocEntries, pages: tocPages },
+  );
+
+  // 文本层修复（洞/错标）→ 页眉页脚压印 → 终稿逐项自核验。
+  const repair = repairPdfTextLayer(pdfBytes, expected.text, expected.repeatables);
+  const margins = model.page.margin_mm;
+  const pageSize = inspectPdf(repair.pdfBytes).pageSizePt;
+  const stampSpec: StampSpec = Object.freeze({
+    headerText: imported.metadata["short_title"] ?? "",
+    pageWidthPt: pageSize[0] ?? 0,
+    pageHeightPt: pageSize[1] ?? 0,
+    marginTopPt: margins.top * MM_TO_PT,
+    marginBottomPt: margins.bottom * MM_TO_PT,
+    marginLeftPt: margins.left * MM_TO_PT,
+  });
+  const finalBytes = stampRunningHeaders(repair.pdfBytes, stampSpec);
+  const inspection = inspectPdf(finalBytes);
+  const strippedText = stripStampsForReconcile(
+    inspection.pages.map((page) => page.text),
+    stampSpec,
+  );
+  assertPdfReconciled(strippedText, expected.text, expected.repeatables);
+
   return Object.freeze({
-    pdfBytes,
+    pdfBytes: finalBytes,
     browserProduct,
     printParams,
     inspection,
-    extractedText: inspection.pages.map((page) => page.text).join(""),
+    extractedText: strippedText,
     expectedText: expected.text,
     repeatables: expected.repeatables,
+    tocPages,
+    repair: Object.freeze({
+      repairedHoles: repair.repairedHoles,
+      patchedObjects: repair.patchedObjects,
+    }),
   });
 }

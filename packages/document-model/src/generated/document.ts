@@ -2,7 +2,8 @@
 
 export type DocumentId = string;
 export type ShortText = string;
-export type Block = Section | Paragraph | List | Quote | Table | Figure | PageBreak;
+export type Block =
+  Section | Paragraph | List | Quote | Table | Figure | PageBreak | Toc;
 export type NodeId = string;
 export type BodyText = string;
 export type ItemId = string;
@@ -12,10 +13,10 @@ export type CellId = string;
 export type AssetId = string;
 
 /**
- * Version 0 document truth model for the professional report proof of concept.
+ * Version 0.2.0 document truth model for the professional report proof of concept (additive over frozen 0.1.0: toc block).
  */
 export interface WenshuDocument {
-  schemaVersion: "0.1.0";
+  schemaVersion: "0.2.0";
   documentId: DocumentId;
   revision: number;
   title: ShortText;
@@ -101,6 +102,10 @@ export interface PageBreak {
   id: NodeId;
   type: "pageBreak";
   reason: "source" | "section";
+}
+export interface Toc {
+  id: NodeId;
+  type: "toc";
 }
 export interface Asset {
   id: AssetId;

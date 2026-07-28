@@ -83,7 +83,8 @@ test("golden report renders semantically with verified real fonts", async (t) =>
       SEMANTIC_SUMMARY_EXPRESSION,
     );
     assert.equal(semantics.title, result.document.title);
-    assert.equal(semantics.headings, 41);
+    // 41 个源文章节标题 + 1 个目录块生成的“目录”栏目标题（PA-11A）。
+    assert.equal(semantics.headings, 42);
     assert.equal(semantics.sectionsLabeled, true);
     assert.equal(semantics.tables, 5);
     assert.equal(semantics.thScoped, true);

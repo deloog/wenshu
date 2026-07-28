@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-import { DOCUMENT_SCHEMA_VERSION, validateDocument } from "../src/index.ts";
+import {
+  DOCUMENT_SCHEMA_VERSION,
+  SUPPORTED_DOCUMENT_SCHEMA_VERSIONS,
+  validateDocument,
+} from "../src/index.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -18,8 +22,9 @@ async function fixtureFiles(kind: "invalid" | "valid"): Promise<URL[]> {
   return names.map((name) => new URL(name, directory));
 }
 
-test("v0 schema version is frozen", () => {
-  assert.equal(DOCUMENT_SCHEMA_VERSION, "0.1.0");
+test("document schema versions follow the additive freeze discipline", () => {
+  assert.equal(DOCUMENT_SCHEMA_VERSION, "0.2.0");
+  assert.deepEqual([...SUPPORTED_DOCUMENT_SCHEMA_VERSIONS], ["0.1.0", "0.2.0"]);
 });
 
 test("all valid document fixtures pass", async (context) => {
@@ -110,12 +115,17 @@ test("validation diagnostics never echo document content", () => {
 });
 
 test("generated declarations avoid the forbidden type and identify their source", async () => {
-  const generated = await readFile(
-    new URL("../src/generated/document.ts", import.meta.url),
-    "utf8",
-  );
   const forbiddenTypePattern = new RegExp(`\\b${"a" + "ny"}\\b`, "u");
-
-  assert.match(generated, /Generated from schema\/document\.schema\.json/u);
-  assert.doesNotMatch(generated, forbiddenTypePattern);
+  const banners: [string, RegExp][] = [
+    ["../src/generated/document.ts", /Generated from schema\/document\.schema\.json/u],
+    [
+      "../src/generated/document-0.1.0.ts",
+      /Generated from schema\/document-0\.1\.0\.schema\.json/u,
+    ],
+  ];
+  for (const [relative, banner] of banners) {
+    const generated = await readFile(new URL(relative, import.meta.url), "utf8");
+    assert.match(generated, banner);
+    assert.doesNotMatch(generated, forbiddenTypePattern);
+  }
 });

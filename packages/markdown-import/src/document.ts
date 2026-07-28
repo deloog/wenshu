@@ -187,6 +187,12 @@ export function assembleDocument(
           reason: "source",
         });
         break;
+      case "toc":
+        appendBlock({
+          id: stableId("node", `${ordinal}`, "toc", "toc"),
+          type: "toc",
+        });
+        break;
     }
   }
   while (stack.length > 0) {
@@ -194,7 +200,7 @@ export function assembleDocument(
   }
 
   return {
-    schemaVersion: "0.1.0",
+    schemaVersion: "0.2.0",
     documentId,
     revision: 0,
     title,
