@@ -46,6 +46,10 @@ export const targets: readonly CheckReportTypeTarget[] = Object.freeze([
     schemaFile: "check-report-1.0.0.schema.json",
     generatedFile: "src/generated/check-report-1.0.0.ts",
   }),
+  Object.freeze({
+    schemaFile: "gate-report.schema.json",
+    generatedFile: "src/generated/gate-report.ts",
+  }),
 ]);
 
 const packageRoot = resolve(import.meta.dirname, "..");

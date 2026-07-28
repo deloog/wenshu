@@ -9,7 +9,8 @@
   "wenshu": {
     "generatedFiles": [
       "src/generated/check-report.ts",
-      "src/generated/check-report-1.0.0.ts"
+      "src/generated/check-report-1.0.0.ts",
+      "src/generated/gate-report.ts"
     ]
   },
   "scripts": {

@@ -14,6 +14,40 @@ export {
 export type { P0Code, P0RuleId, P1Code, P1RuleId } from "./finding.ts";
 export type * from "./generated/check-report.ts";
 export type { WenshuCheckReportV1_0_0 } from "./generated/check-report-1.0.0.ts";
+export type {
+  FaultSample,
+  GateEvaluation,
+  GateSample,
+  GateSource,
+  GateThresholds,
+  ManualChecklistItem,
+  NormalSample,
+  WenshuGateReport,
+} from "./generated/gate-report.ts";
+export { buildManualChecklist, MANUAL_CHECKLIST_ITEM_IDS } from "./gate-checklist.ts";
+export { evaluateGate, GATE_THRESHOLDS } from "./gate-evaluate.ts";
+export type { EvaluatedSample, GateFailureCode } from "./gate-evaluate.ts";
+export { buildGateSamples, GATE_FAULT_SAMPLES } from "./gate-faults.ts";
+export type {
+  GateCheckContext,
+  GateExemption,
+  GateFaultContext,
+  GateFaultSpec,
+  GateInput,
+  GateRunOptions,
+  GateSampleInput,
+} from "./gate-input.ts";
+export { runGate } from "./gate-runner.ts";
+export {
+  GATE_REPORT_VERSION,
+  SUPPORTED_GATE_REPORT_VERSIONS,
+  validateGateReport,
+} from "./validate-gate-report.ts";
+export type {
+  GateReportIssue,
+  GateReportIssueCode,
+  GateReportValidationResult,
+} from "./validate-gate-report.ts";
 export {
   A4_HEIGHT_PT,
   A4_WIDTH_PT,
