@@ -77,7 +77,13 @@ const contentBox = contentBoxFromMargins(
 const paginationRules = templateResult.value.pagination_rules;
 
 function inputFor(evidence: WenshuPdfEvidence) {
-  return { evidence, expected, contentBox, paginationRules };
+  return {
+    evidence,
+    expected,
+    contentBox,
+    paginationRules,
+    headerText: imported.metadata["short_title"],
+  };
 }
 
 function derive(mutate: (draft: WenshuPdfEvidence) => void): WenshuPdfEvidence {
@@ -208,6 +214,7 @@ test("acceptance 2: no-table expectation over the same evidence yields zero tabl
     expected: noTableExpected,
     contentBox,
     paginationRules,
+    headerText: imported.metadata["short_title"],
   });
   assert.ok(
     report.findings.every((finding) => !finding.ruleId.startsWith("p1-table-")),

@@ -79,6 +79,7 @@ function inputFor(evidence: WenshuPdfEvidence) {
     expected,
     contentBox,
     paginationRules: template.pagination_rules,
+    headerText: imported.metadata["short_title"],
   };
 }
 

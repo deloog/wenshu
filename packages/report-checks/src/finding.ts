@@ -21,7 +21,10 @@ export type P1RuleId =
   | "p1-figure-source"
   | "p1-figure-aspect"
   | "p1-figure-fidelity"
-  | "p1-figure-legibility";
+  | "p1-figure-legibility"
+  | "p1-toc-reconcile"
+  | "p1-toc-page-match"
+  | "p1-stamp-consistency";
 
 /** P1_*_REVIEW 为人工核验码段：只出现在 manualChecks，绝不作为自动发现。 */
 export type P1Code =
@@ -42,7 +45,19 @@ export type P1Code =
   | "P1_FIGURE_CAPTION_REVIEW"
   | "P1_FIGURE_SOURCE_REVIEW"
   | "P1_FIGURE_ASPECT_REVIEW"
-  | "P1_FIGURE_LEGIBILITY_REVIEW";
+  | "P1_FIGURE_LEGIBILITY_REVIEW"
+  | "P1_TOC_ENTRY_MISSING"
+  | "P1_TOC_ENTRY_EXTRA"
+  | "P1_TOC_RECONCILE_REVIEW"
+  | "P1_TOC_PAGE_MISMATCH"
+  | "P1_TOC_PAGE_REVIEW"
+  | "P1_FOOTER_MISSING"
+  | "P1_STAMP_ON_COVER"
+  | "P1_FOOTER_PAGE_MISMATCH"
+  | "P1_FOOTER_INCONSISTENT"
+  | "P1_HEADER_MISSING"
+  | "P1_HEADER_INCONSISTENT"
+  | "P1_STAMP_REVIEW";
 
 export const P0_RULE_IDS: readonly P0RuleId[] = Object.freeze([
   "p0-page-size",
@@ -63,6 +78,9 @@ export const P1_RULE_IDS: readonly P1RuleId[] = Object.freeze([
   "p1-figure-aspect",
   "p1-figure-fidelity",
   "p1-figure-legibility",
+  "p1-toc-reconcile",
+  "p1-toc-page-match",
+  "p1-stamp-consistency",
 ]);
 
 export function runRef(readingOrder: number): string {

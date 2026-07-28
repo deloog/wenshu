@@ -76,6 +76,7 @@ const report = runP1Checks({
   expected,
   contentBox,
   paginationRules: templateResult.value.pagination_rules,
+  headerText: imported.metadata["short_title"],
 });
 const headingReviews = report.manualChecks.filter(
   (manual) => manual.code === "P1_HEADING_KEEP_REVIEW",

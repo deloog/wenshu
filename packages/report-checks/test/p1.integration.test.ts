@@ -73,7 +73,14 @@ const contentBox = contentBoxFromMargins(
 const paginationRules = template.pagination_rules;
 
 function inputFor(evidence: WenshuPdfEvidence) {
-  return { evidence, expected, contentBox, paginationRules };
+  return {
+    evidence,
+    expected,
+    contentBox,
+    paginationRules,
+    // PA-11B：页眉文本对账的声明值溯源（front matter short_title）。
+    headerText: imported.metadata["short_title"],
+  };
 }
 
 /** 内存派生 fault：深拷贝后注入缺陷，冻结基线证据不受影响。 */
@@ -120,6 +127,9 @@ test("acceptance 2: signed baseline yields zero P1 findings; manual items bounde
     "p1-figure-aspect",
     "p1-figure-fidelity",
     "p1-figure-legibility",
+    "p1-toc-reconcile",
+    "p1-toc-page-match",
+    "p1-stamp-consistency",
   ]);
   // 有界人工核验（书面钉数，基线 sha 锚定故稳定）：标题保留下续灰区 10 项
   // （8 例标题后接 1 行子标题 + 2 例标题后接单行完整段落，均为 PA-04 注册
@@ -320,9 +330,11 @@ test("acceptance 1: zero-content page is detected as P1_EMPTY_PAGE at the right 
     draft.figures = draft.figures.filter((figure) => figure.pageIndex !== 5);
   });
   const report = runP1Checks(inputFor(fault));
+  // 空页检出 + 该页压印随 fault 移除而缺失（PA-11B 如实副作用：页 5
+  // 物理上确无页眉页脚）。
   assert.deepEqual(
     report.findings.map((finding) => `${finding.code}@${finding.pageIndex}`),
-    ["P1_EMPTY_PAGE@5"],
+    ["P1_EMPTY_PAGE@5", "P1_FOOTER_MISSING@5", "P1_HEADER_MISSING@5"],
     JSON.stringify(report.findings.slice(0, 5)),
   );
 });
