@@ -1,4 +1,4 @@
-import type { WenshuPdfEvidence } from "@wenshu/pdf-evidence";
+import type { TextRun, WenshuPdfEvidence } from "@wenshu/pdf-evidence";
 import { STAMP_FONT_TAG_PREFIX } from "@wenshu/pdf-export";
 
 const STAMP_TAG_PATTERN = new RegExp(`^${STAMP_FONT_TAG_PREFIX}\\d+$`, "u");
@@ -16,3 +16,20 @@ export function stripStampRuns(evidence: WenshuPdfEvidence): WenshuPdfEvidence {
     textRuns: evidence.textRuns.filter((run) => !STAMP_TAG_PATTERN.test(run.font.tag)),
   });
 }
+
+/** 压印 run 识别（解析期事实：font tag 前缀；与排除口径同一单源）。 */
+export function isStampRun(run: TextRun): boolean {
+  return STAMP_TAG_PATTERN.test(run.font.tag);
+}
+
+/**
+ * 选中压印 run（PA-11B 口径，ADR-0011 §4）：P0/P1 内容规则排除压印，
+ * 而页眉页脚一致性检查的本职正是核验压印——两个方向共用本模块同一
+ * 识别依据，禁止几何启发式（位置/字号猜测）另立口径。
+ */
+export function selectStampRuns(evidence: WenshuPdfEvidence): readonly TextRun[] {
+  return Object.freeze(evidence.textRuns.filter(isStampRun));
+}
+
+/** 页脚压印文本归一后形态：`N/total`（归一去空白；原渲染为 `N / total`）。 */
+export const FOOTER_TEXT_PATTERN = /^([0-9]+)\/([0-9]+)$/u;

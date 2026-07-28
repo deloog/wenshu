@@ -20,10 +20,13 @@ import { p1FigureLegibilityRule } from "./rules/p1-figure-legibility.ts";
 import { p1FigureSourceRule } from "./rules/p1-figure-source.ts";
 import { p1OrphanRule } from "./rules/p1-orphan.ts";
 import { p1SparsePageRule } from "./rules/p1-sparse-page.ts";
+import { p1StampConsistencyRule } from "./rules/p1-stamp-consistency.ts";
 import { p1TableHeaderRepeatRule } from "./rules/p1-table-header-repeat.ts";
 import { p1TableRowSplitRule } from "./rules/p1-table-row-split.ts";
+import { p1TocPageMatchRule } from "./rules/p1-toc-page-match.ts";
+import { p1TocReconcileRule } from "./rules/p1-toc-reconcile.ts";
 import { p1WidowRule } from "./rules/p1-widow.ts";
-import { stripStampRuns } from "./stamp-scope.ts";
+import { selectStampRuns, stripStampRuns } from "./stamp-scope.ts";
 import { CHECK_REPORT_VERSION, validateCheckReport } from "./validate-report.ts";
 
 export const P1_RULES: readonly P1Rule[] = Object.freeze([
@@ -38,6 +41,9 @@ export const P1_RULES: readonly P1Rule[] = Object.freeze([
   p1FigureAspectRule,
   p1FigureFidelityRule,
   p1FigureLegibilityRule,
+  p1TocReconcileRule,
+  p1TocPageMatchRule,
+  p1StampConsistencyRule,
 ]);
 
 export interface P1RunOptions {
@@ -78,10 +84,13 @@ export function runP1Checks(
     );
   }
   const executed = P1_RULES.filter((rule) => !disabled.has(rule.id));
-  // 压印 run（页眉页脚受控补偿）不进任何 P1 判定（PA-11A 口径，单一收口）。
+  // 压印 run（页眉页脚受控补偿）不进任何 P1 内容判定（PA-11A 口径，单一
+  // 收口）；同时以同一 stamp-scope 单源口径选中压印注入输入，供
+  // p1-stamp-consistency 核验压印本身（PA-11B，方向相反而口径同源）。
   const scopedInput: P1CheckInput = {
     ...input,
     evidence: stripStampRuns(input.evidence),
+    stampRuns: selectStampRuns(input.evidence),
   };
   const findings: Finding[] = [];
   const manualChecks: ManualCheck[] = [];

@@ -46,6 +46,12 @@ export interface ExpectedBlock {
   readonly figureOrdinal?: number;
   /** 源 SVG 固有宽高比（PA-10，viewBox 宽/高）：仅 figure-svg 块；解析失败为 null。 */
   readonly figureAspect?: number | null;
+  /**
+   * 目录收录序号（PA-11B，ADR-0011 §2）：toc-entry 块与对应 section-title
+   * 块钉同一 collectTocEntries 文档序序号——目录项↔正文标题同源配对，
+   * 禁文本猜测；未收录块无此字段。
+   */
+  readonly tocIndex?: number;
 }
 
 /** 来源块前缀（归一后）：「图N来源」（golden-report 声明的题注来源约定）。 */
@@ -59,6 +65,7 @@ function pushBlock(
   kind: ExpectedBlockKind,
   figureOrdinal?: number,
   figureAspect?: number | null,
+  tocIndex?: number,
 ): void {
   const text = normalizePdfText(rawText);
   if (text.length === 0) {
@@ -72,6 +79,7 @@ function pushBlock(
       kind,
       ...(figureOrdinal === undefined ? {} : { figureOrdinal }),
       ...(figureAspect === undefined ? {} : { figureAspect }),
+      ...(tocIndex === undefined ? {} : { tocIndex }),
     }),
   );
 }
@@ -84,13 +92,23 @@ function visitBlocks(
   figureAspects: readonly (number | null)[],
   figureIndex: { value: number },
   out: ExpectedBlock[],
+  tocIndexById?: ReadonlyMap<string, number>,
 ): void {
   blocks.forEach((block, index) => {
     const ref = `${path}/${index}`;
     const previous = index > 0 ? blocks[index - 1] : undefined;
     switch (block.type) {
       case "section":
-        pushBlock(out, ref, block.title, false, "section-title");
+        pushBlock(
+          out,
+          ref,
+          block.title,
+          false,
+          "section-title",
+          undefined,
+          undefined,
+          tocIndexById?.get(block.id),
+        );
         visitBlocks(
           document,
           block.children,
@@ -99,6 +117,7 @@ function visitBlocks(
           figureAspects,
           figureIndex,
           out,
+          tocIndexById,
         );
         break;
       case "paragraph": {
@@ -217,6 +236,9 @@ function visitBlocks(
             entry.title,
             false,
             "toc-entry",
+            undefined,
+            undefined,
+            entryIndex,
           );
         });
         break;
@@ -231,6 +253,11 @@ export function buildExpectedBlocks(
   figureAspects: readonly (number | null)[] = [],
 ): readonly ExpectedBlock[] {
   const out: ExpectedBlock[] = [];
+  // 目录收录序号映射（PA-11B）：section id → collectTocEntries 文档序序号，
+  // 与 toc 块装配共用同一收录真源。
+  const tocIndexById = new Map<string, number>(
+    collectTocEntries(document).map((entry, entryIndex) => [entry.id, entryIndex]),
+  );
   pushBlock(out, "/title", document.title, false, "cover-title");
   visitBlocks(
     document,
@@ -240,6 +267,7 @@ export function buildExpectedBlocks(
     figureAspects,
     { value: 0 },
     out,
+    tocIndexById,
   );
   return Object.freeze(out);
 }

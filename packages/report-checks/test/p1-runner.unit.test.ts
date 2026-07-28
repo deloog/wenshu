@@ -119,12 +119,16 @@ test("p1 runner: report is 1.1.0, self-validates, rules listed in fixed order", 
     "p1-figure-aspect",
     "p1-figure-fidelity",
     "p1-figure-legibility",
+    "p1-toc-reconcile",
+    "p1-toc-page-match",
+    "p1-stamp-consistency",
   ]);
   assert.equal(report.source.evidenceSha256, SHA);
-  // 标题后继块缺失（P0 域）→ 标题规则跳过；空页命中；每页有人工密度项。
+  // 标题后继块缺失（P0 域）→ 标题规则跳过；空页命中；合成页无压印 →
+  // 非封面页页眉/页脚缺失如实发现（PA-11B）；每页有人工密度项。
   assert.deepEqual(
     report.findings.map((finding) => finding.code),
-    ["P1_EMPTY_PAGE"],
+    ["P1_EMPTY_PAGE", "P1_FOOTER_MISSING", "P1_HEADER_MISSING"],
   );
   assert.equal(report.manualChecks.length, 2);
   assert.ok(Object.isFrozen(report));
@@ -142,9 +146,10 @@ test("p1 runner: heading separation fault is detected via the runner", () => {
     eb("/blocks/0/children/0", "正文", "paragraph"),
   ];
   const report = runP1Checks(makeInput(evidence, expected));
+  // 页 1 正文存在但无压印 → 页眉/页脚缺失一并如实发现。
   assert.deepEqual(
     report.findings.map((finding) => `${finding.code}@${finding.pageIndex}`),
-    ["P1_HEADING_SEPARATED@0"],
+    ["P1_HEADING_SEPARATED@0", "P1_FOOTER_MISSING@1", "P1_HEADER_MISSING@1"],
   );
 });
 
@@ -167,6 +172,9 @@ test("p1 runner: per-rule rollback suppresses findings and manualChecks of that 
     "p1-figure-aspect",
     "p1-figure-fidelity",
     "p1-figure-legibility",
+    "p1-toc-reconcile",
+    "p1-toc-page-match",
+    "p1-stamp-consistency",
   ]);
   assert.ok(
     rolledBack.findings.every((finding) => finding.ruleId !== "p1-sparse-page"),
