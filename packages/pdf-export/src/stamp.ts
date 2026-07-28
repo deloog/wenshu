@@ -1,27 +1,28 @@
 import { deflateSync } from "node:zlib";
 
 import { PdfExportError } from "./errors.ts";
-import { extractGeometry } from "./geometry.ts";
-import { inflate, inspectPdf, parseObjects, parseToUnicode } from "./inspect.ts";
+import { parseObjects } from "./inspect.ts";
 import { normalizePdfText } from "./reconcile.ts";
+import { STAMP_FONT_SIZE, resolveStampReps, stampLine } from "./stamp-glyphs.ts";
+import {
+  assertStampBandsClear,
+  buildStampUpdate,
+  listPages,
+  type StampAddition,
+} from "./stamp-update.ts";
 
 /**
  * 页眉页脚 PDF 层压印（PA-11A 受控补偿，ADR-0010）：Chromium 不支持
  * @page 页边盒与 target-counter（能力触顶已书面登记），页眉 short_title
  * 与页脚「N / total」由本模块在打印产物上以增量更新压印。
  * 受控性来源：
- * - 字形表示逐字复刻引擎自身产物：优先复用已内嵌子集字体 ToUnicode
- *   单字符映射（部首码位视同归一后等价）；无单字符映射的字（如「文」）
- *   复刻检查器 origins 记录的引擎原始（字体对象, 字形码, ActualText）
- *   表示——画的是同一字形，文本层标注与引擎一致，绝不虚构字形；
+ * - 字形表示逐字复刻引擎自身产物（stamp-glyphs.ts：ToUnicode 单字映射优先，
+ *   origins ActualText 引擎原表示兜底，绝不虚构字形）；
  * - 位置钉在模板上边距/下边距带内（公式唯一，不逐页写死）；
- * - 压印带与既有内容包围盒零交叠（几何自检，交叠即失败）；
+ * - 压印带与既有内容包围盒零交叠（stamp-update.ts 几何自检，交叠即失败）；
  * - 封面（物理第 1 页）豁免；
  * - 压印后重新提取：逐页剥离压印串再逐字对账（位置锚定，非计数猜测）。
  */
-
-/** 压印字号（pt）：模板无页眉页脚 token，补偿层钉定常量（ADR-0010）。 */
-export const STAMP_FONT_SIZE = 9;
 
 export interface StampSpec {
   /** 页眉文本（front matter short_title）。 */
@@ -35,265 +36,6 @@ export interface StampSpec {
 
 function failStamp(message: string): never {
   throw new PdfExportError("PDF_EXPORT_STAMP_FAILED", message);
-}
-
-interface PageEntry {
-  readonly objectId: number;
-  readonly dict: string;
-}
-
-function listPages(
-  objects: Map<number, { readonly dict: string }>,
-): readonly PageEntry[] {
-  return [...objects.entries()]
-    .filter(
-      ([, object]) =>
-        /\/Type\s*\/Page\b/.test(object.dict) && !/\/Type\s*\/Pages\b/.test(object.dict),
-    )
-    .map(([objectId, object]) => Object.freeze({ objectId, dict: object.dict }));
-}
-
-/** 单字符表示：普通 Tj 或 ActualText 复刻（引擎原表示）。 */
-interface CharRep {
-  readonly fontObjectId: number;
-  readonly code: number;
-  readonly codeLength: number;
-  /** 需要 ActualText 包装时的标注字符（无单字符 ToUnicode 映射的引擎原表示）。 */
-  readonly actualText: string | null;
-}
-
-/**
- * 逐字解析压印字符的复刻表示：
- * A. 子集字体 ToUnicode 单字符映射（归一等价：部首码位 NFKC 归位后同字即可）；
- * B. 检查器 origins 的引擎原表示（同字体同码，ActualText 单字来源）；
- * 两路均无即 fail-closed（宁缺印，不虚构）。
- */
-export function resolveStampReps(
-  bytes: Uint8Array,
-  chars: readonly string[],
-): ReadonlyMap<string, CharRep> {
-  const objects = parseObjects(bytes);
-  const wanted = new Set(chars);
-  const reps = new Map<string, CharRep>();
-  // A 路：字体对象号升序保证确定性。
-  for (const [fontObjectId, object] of [...objects.entries()].sort(
-    (a, b) => a[0] - b[0],
-  )) {
-    if (!/\/Type\s*\/Font\b/.test(object.dict)) {
-      continue;
-    }
-    const ref = /\/ToUnicode\s+(\d+)\s+0\s+R/.exec(object.dict)?.[1];
-    const toUnicodeObject = ref === undefined ? undefined : objects.get(Number(ref));
-    if (toUnicodeObject === undefined) {
-      continue;
-    }
-    const cmap = parseToUnicode(inflate(toUnicodeObject, "stamp tounicode"));
-    for (const [code, value] of [...cmap.map.entries()].sort((a, b) => a[0] - b[0])) {
-      if ([...value].length !== 1) {
-        continue;
-      }
-      for (const char of wanted) {
-        if (reps.has(char)) {
-          continue;
-        }
-        if (value === char || normalizePdfText(value) === normalizePdfText(char)) {
-          reps.set(
-            char,
-            Object.freeze({
-              fontObjectId,
-              code,
-              codeLength: cmap.codeLength,
-              actualText: null,
-            }),
-          );
-        }
-      }
-    }
-  }
-  // B 路：origins 复刻（仅补 A 路缺口）。
-  const missing = [...wanted].filter((char) => !reps.has(char));
-  if (missing.length > 0) {
-    const inspection = inspectPdf(bytes);
-    const fullText = inspection.pages.map((page) => page.text).join("");
-    const chars = [...fullText];
-    for (const char of missing) {
-      for (let index = 0; index < chars.length; index += 1) {
-        if (chars[index] !== char) {
-          continue;
-        }
-        const origin = inspection.origins[index];
-        if (origin === null || origin === undefined || !origin.viaActualText) {
-          continue;
-        }
-        const font = objects.get(origin.fontObjectId);
-        const ref =
-          font === undefined
-            ? undefined
-            : /\/ToUnicode\s+(\d+)\s+0\s+R/.exec(font.dict)?.[1];
-        const toUnicodeObject =
-          ref === undefined ? undefined : objects.get(Number(ref));
-        // 码长取该字体 codespace（无 ToUnicode 时按 Skia 惯例 2 字节，下方守卫再验）。
-        const codeLength =
-          toUnicodeObject === undefined
-            ? 2
-            : parseToUnicode(inflate(toUnicodeObject, "stamp tounicode")).codeLength;
-        reps.set(
-          char,
-          Object.freeze({
-            fontObjectId: origin.fontObjectId,
-            code: origin.code,
-            codeLength,
-            actualText: char,
-          }),
-        );
-        break;
-      }
-      if (!reps.has(char)) {
-        failStamp("stamp character has no faithful glyph representation");
-      }
-    }
-  }
-  return reps;
-}
-
-/** 压印带与既有内容的零交叠自检（几何事实，非阈值发明）。 */
-function assertStampBandsClear(
-  bytes: Uint8Array,
-  spec: StampSpec,
-  pageCount: number,
-): void {
-  const geometry = extractGeometry(bytes);
-  if (geometry.pages.length !== pageCount) {
-    failStamp("geometry page count drifted during stamping");
-  }
-  const headerBottom = spec.pageHeightPt - spec.marginTopPt;
-  for (const run of geometry.textRuns) {
-    if (run.pageIndex === 0) {
-      continue;
-    }
-    const runTop = run.bbox.y;
-    const runBottom = run.bbox.y - run.bbox.height;
-    const hitsHeader = runBottom < spec.pageHeightPt && runTop > headerBottom;
-    const hitsFooter = runTop > 0 && runBottom < spec.marginBottomPt;
-    if (hitsHeader || hitsFooter) {
-      failStamp(
-        `stamp band overlaps existing content on page ${run.pageIndex + 1} (band ${
-          hitsHeader ? "header" : "footer"
-        })`,
-      );
-    }
-  }
-}
-
-interface StampAddition {
-  readonly objectId: number;
-  readonly body: string;
-}
-
-/** 增量更新写出（压印专用）：新内容流对象 + 页字典重写（/Contents 追加 + /Font 增补）。 */
-function buildStampUpdate(
-  original: Uint8Array,
-  additions: readonly StampAddition[],
-): Uint8Array {
-  const text = Buffer.from(original).toString("latin1");
-  const prevStart = /startxref\s+(\d+)\s*%%EOF\s*$/u.exec(text)?.[1];
-  if (prevStart === undefined) {
-    failStamp("original pdf lacks startxref");
-  }
-  const trailerMatch = /trailer\s*<<([\s\S]*?)>>\s*startxref/u.exec(text);
-  const rootRef = /\/Root\s+(\d+\s+0\s+R)/u.exec(trailerMatch?.[1] ?? "")?.[1];
-  const infoRef = /\/Info\s+(\d+\s+0\s+R)/u.exec(trailerMatch?.[1] ?? "")?.[1];
-  if (rootRef === undefined) {
-    failStamp("original trailer lacks /Root");
-  }
-
-  const sorted = [...additions].sort((a, b) => a.objectId - b.objectId);
-  const parts: string[] = [];
-  const offsets = new Map<number, number>();
-  let cursor = original.length;
-  for (const addition of sorted) {
-    const chunk = `${addition.objectId} 0 obj\n${addition.body}\nendobj\n`;
-    offsets.set(addition.objectId, cursor);
-    parts.push(chunk);
-    cursor += Buffer.byteLength(chunk, "latin1");
-  }
-  const xrefStart = cursor;
-  const xrefLines: string[] = [];
-  let index = 0;
-  while (index < sorted.length) {
-    const startId = sorted[index]?.objectId ?? 0;
-    let end = index;
-    while (
-      end + 1 < sorted.length &&
-      (sorted[end + 1]?.objectId ?? 0) === (sorted[end]?.objectId ?? 0) + 1
-    ) {
-      end += 1;
-    }
-    const entries = sorted
-      .slice(index, end + 1)
-      .map(
-        (addition) =>
-          `${(offsets.get(addition.objectId) ?? 0).toString().padStart(10, "0")} 00000 n \n`,
-      )
-      .join("");
-    xrefLines.push(`${startId} ${end - index + 1}\n${entries}`);
-    index = end + 1;
-  }
-  const existingMax = [...parseObjects(original).keys()].reduce(
-    (max, id) => Math.max(max, id),
-    0,
-  );
-  const maxId = Math.max(existingMax, sorted[sorted.length - 1]?.objectId ?? 0);
-  const trailer =
-    `trailer\n<</Size ${maxId + 1} /Root ${rootRef}` +
-    (infoRef === undefined ? "" : ` /Info ${infoRef}`) +
-    ` /Prev ${prevStart}>>\nstartxref\n${xrefStart}\n%%EOF\n`;
-  const update = `${parts.join("")}xref\n${xrefLines.join("")}${trailer}`;
-  const out = new Uint8Array(original.length + Buffer.byteLength(update, "latin1"));
-  out.set(original, 0);
-  out.set(Buffer.from(update, "latin1"), original.length);
-  return out;
-}
-
-function encodeChar(rep: CharRep): string {
-  return rep.code.toString(16).toUpperCase().padStart(rep.codeLength * 2, "0");
-}
-
-function actualTextHex(char: string): string {
-  return `FEFF${[...char]
-    .map((part) => (part.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, "0"))
-    .join("")}`;
-}
-
-/** 一行压印内容：逐字 Tf 切换 + 必要时 ActualText 包装（字形推进由字体宽度表完成）。 */
-function stampLine(
-  text: string,
-  reps: ReadonlyMap<string, CharRep>,
-  tags: ReadonlyMap<number, string>,
-  x: number,
-  y: number,
-): string {
-  const segments: string[] = [];
-  let firstTag: string | undefined;
-  for (const char of text) {
-    const rep = reps.get(char);
-    if (rep === undefined) {
-      failStamp("stamp line contains an unresolved character");
-    }
-    const tag = tags.get(rep.fontObjectId);
-    if (tag === undefined) {
-      failStamp("stamp font is not registered on the page");
-    }
-    firstTag ??= tag;
-    const show = `/${tag} ${STAMP_FONT_SIZE} Tf <${encodeChar(rep)}> Tj`;
-    segments.push(
-      rep.actualText === null
-        ? show
-        : `/Span <</ActualText <${actualTextHex(rep.actualText)}>>> BDC ${show} EMC`,
-    );
-  }
-  // Tf 先于 Tm：几何解析器要求 Tm 落点时已激活字体（与 Skia 自身流序一致）。
-  return `BT 0 g /${firstTag ?? ""} ${STAMP_FONT_SIZE} Tf 1 0 0 1 ${x} ${y.toFixed(2)} Tm ${segments.join(" ")} ET`;
 }
 
 /**
@@ -326,9 +68,7 @@ export function stampRunningHeaders(bytes: Uint8Array, spec: StampSpec): Uint8Ar
   const tags = new Map<number, string>(
     fontIds.map((id, index) => [id, `PA11F${index + 1}`]),
   );
-  const fontEntries = fontIds
-    .map((id) => `/${tags.get(id) ?? ""} ${id} 0 R`)
-    .join("");
+  const fontEntries = fontIds.map((id) => `/${tags.get(id) ?? ""} ${id} 0 R`).join("");
 
   const existingMax = [...objects.keys()].reduce((max, id) => Math.max(max, id), 0);
   const additions: StampAddition[] = [];

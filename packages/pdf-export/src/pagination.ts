@@ -21,11 +21,52 @@ function failPagination(message: string): never {
   throw new PdfExportError("PDF_EXPORT_PAGINATION_FAILED", message);
 }
 
+/** 两遍渲染不动点上限：页码填充不应改变分页；超限不收敛即 fail-closed。 */
+const MAX_PAGINATION_ROUNDS = 3;
+
+function mapsEqual(
+  left: ReadonlyMap<string, number>,
+  right: ReadonlyMap<string, number>,
+): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const [key, value] of left) {
+    if (right.get(key) !== value) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * 两遍渲染不动点求解（纯函数，不触浏览器）：以第一遍实测页码起步，每轮让
+ * 调用方按当前页码重渲染并重测，页码集合不再变化即收敛；超限不收敛拒绝产出。
+ */
+export async function resolveStableTocPages(
+  initial: ReadonlyMap<string, number>,
+  renderAndMeasure: (
+    pages: ReadonlyMap<string, number>,
+  ) => Promise<ReadonlyMap<string, number>>,
+): Promise<ReadonlyMap<string, number>> {
+  let current = initial;
+  for (let round = 0; round < MAX_PAGINATION_ROUNDS; round += 1) {
+    const remeasured = await renderAndMeasure(current);
+    if (mapsEqual(remeasured, current)) {
+      return remeasured;
+    }
+    current = remeasured;
+  }
+  failPagination(
+    `toc page numbers did not converge within ${MAX_PAGINATION_ROUNDS} rounds`,
+  );
+}
+
 /** 解析 /Outlines 链表（先序遍历：根 /First 起步，兄弟 /Next，子级 /First）。 */
 function collectOutlineItems(bytes: Uint8Array): readonly OutlineItem[] {
   const objects = parseObjects(bytes);
   let outlinesId: number | undefined;
-  for (const [id, object] of objects) {
+  for (const [, object] of objects) {
     if (/\/Type\s*\/Catalog/.test(object.dict)) {
       const ref = /\/Outlines\s+(\d+)\s+0\s+R/.exec(object.dict)?.[1];
       if (ref !== undefined) {
@@ -49,9 +90,7 @@ function collectOutlineItems(bytes: Uint8Array): readonly OutlineItem[] {
       if (node === undefined) {
         failPagination(`outline item ${current} is missing`);
       }
-      const titleRaw = /\/Title\s*(<[^>]*>|\((?:[^()\\]|\\.)*\))/u.exec(
-        node.dict,
-      )?.[1];
+      const titleRaw = /\/Title\s*(<[^>]*>|\((?:[^()\\]|\\.)*\))/u.exec(node.dict)?.[1];
       const dest = /\/Dest\s*\[\s*(\d+)\s+0\s+R\s+\/XYZ/u.exec(node.dict)?.[1];
       if (titleRaw === undefined || dest === undefined) {
         failPagination(`outline item ${current} lacks title or XYZ dest`);
@@ -83,7 +122,8 @@ function pageIndexByObjectId(bytes: Uint8Array): ReadonlyMap<number, number> {
   const pageIds = [...objects.entries()]
     .filter(
       ([, object]) =>
-        /\/Type\s*\/Page\b/.test(object.dict) && !/\/Type\s*\/Pages\b/.test(object.dict),
+        /\/Type\s*\/Page\b/.test(object.dict) &&
+        !/\/Type\s*\/Pages\b/.test(object.dict),
     )
     .map(([id]) => id);
   return new Map(pageIds.map((id, index) => [id, index]));

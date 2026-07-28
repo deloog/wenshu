@@ -15,10 +15,13 @@ import { mapTemplate, parseApprovedFontSet } from "@wenshu/template-map";
 
 import { composePrintDocument, fillTocPageNumbers } from "./compose.ts";
 import { repairPdfTextLayer } from "./cmap-repair.ts";
-import { PdfExportError } from "./errors.ts";
 import { inspectPdf, type PdfInspection } from "./inspect.ts";
-import { measureTocPageNumbers } from "./pagination.ts";
-import { buildExpectedPdfText, extractSvgText, assertPdfReconciled } from "./reconcile.ts";
+import { measureTocPageNumbers, resolveStableTocPages } from "./pagination.ts";
+import {
+  buildExpectedPdfText,
+  extractSvgText,
+  assertPdfReconciled,
+} from "./reconcile.ts";
 import { buildPrintParams, type PrintParams } from "./print-params.ts";
 import {
   stampRunningHeaders,
@@ -51,18 +54,6 @@ export interface BaselineOutput {
 }
 
 const MM_TO_PT = 72 / 25.4;
-/** 两遍渲染不动点上限：页码填充不应改变分页；3 轮不收敛即 fail-closed。 */
-const MAX_PAGINATION_ROUNDS = 3;
-
-function mapsEqual(
-  left: ReadonlyMap<string, number>,
-  right: ReadonlyMap<string, number>,
-): boolean {
-  return (
-    left.size === right.size &&
-    [...left.entries()].every(([key, value]) => right.get(key) === value)
-  );
-}
 
 /**
  * PA-05 基线导出管线：固定 fixture → 语义 HTML → 白名单 CSS → 真实 Chromium printToPDF。
@@ -144,29 +135,14 @@ export async function produceBaselinePdf(
       await browser.navigate(`${server.origin}/print.html`);
       pdfBytes = await browser.printToPdf({ ...printParams });
       tocPages = measureTocPageNumbers(pdfBytes, tocEntries);
-      let converged = false;
-      for (let round = 0; round < MAX_PAGINATION_ROUNDS && !converged; round += 1) {
-        documents["/print.html"] = fillTocPageNumbers(
-          basePrintHtml,
-          tocEntries,
-          tocPages,
-        );
+      tocPages = await resolveStableTocPages(tocPages, async (pages) => {
+        documents["/print.html"] = fillTocPageNumbers(basePrintHtml, tocEntries, pages);
         await browser.navigate(`${server.origin}/print.html`);
         const candidate = await browser.printToPdf({ ...printParams });
         const remeasured = measureTocPageNumbers(candidate, tocEntries);
         pdfBytes = candidate;
-        if (mapsEqual(remeasured, tocPages)) {
-          converged = true;
-        } else {
-          tocPages = remeasured;
-        }
-      }
-      if (!converged) {
-        throw new PdfExportError(
-          "PDF_EXPORT_PAGINATION_FAILED",
-          `toc page numbers did not converge within ${MAX_PAGINATION_ROUNDS} rounds`,
-        );
-      }
+        return remeasured;
+      });
     }
   } finally {
     await browser.close();
@@ -187,7 +163,8 @@ export async function produceBaselinePdf(
   );
 
   // 文本层修复（洞/错标）→ 页眉页脚压印 → 终稿逐项自核验。
-  const repair = repairPdfTextLayer(pdfBytes, expected.text, expected.repeatables);  const margins = model.page.margin_mm;
+  const repair = repairPdfTextLayer(pdfBytes, expected.text, expected.repeatables);
+  const margins = model.page.margin_mm;
   const pageSize = inspectPdf(repair.pdfBytes).pageSizePt;
   const stampSpec: StampSpec = Object.freeze({
     headerText: imported.metadata["short_title"] ?? "",

@@ -10,3 +10,4 @@ export * from "./pdf-patch.ts";
 export * from "./geometry.ts";
 export * from "./pagination.ts";
 export * from "./stamp.ts";
+export * from "./stamp-glyphs.ts";

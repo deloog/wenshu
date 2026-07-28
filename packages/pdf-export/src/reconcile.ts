@@ -179,14 +179,7 @@ export function buildExpectedPdfText(
 ): ExpectedPdfText {
   const parts: string[] = [document.title];
   const repeatables: string[] = [];
-  visitBlocks(
-    document.blocks,
-    parts,
-    figureSvgTexts,
-    { value: 0 },
-    repeatables,
-    toc,
-  );
+  visitBlocks(document.blocks, parts, figureSvgTexts, { value: 0 }, repeatables, toc);
   return Object.freeze({
     text: parts.join(""),
     repeatables: Object.freeze(repeatables),
