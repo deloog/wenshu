@@ -1,0 +1,107 @@
+{
+  "gateReportVersion": "1.0.0",
+  "source": {
+    "baselineSha256": "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828"
+  },
+  "thresholds": {
+    "faultSampleCount": 12,
+    "minDetectedFaults": 10,
+    "maxNormalFalsePositives": 2
+  },
+  "executedRules": [
+    "p0-page-size",
+    "p0-bounds",
+    "p0-overlap",
+    "p0-content",
+    "p1-heading-keep",
+    "p1-orphan",
+    "p1-widow",
+    "p1-sparse-page",
+    "p1-table-header-repeat",
+    "p1-table-row-split",
+    "p1-figure-caption",
+    "p1-figure-source",
+    "p1-figure-aspect",
+    "p1-figure-fidelity",
+    "p1-figure-legibility",
+    "p1-toc-reconcile",
+    "p1-toc-page-match",
+    "p1-stamp-consistency"
+  ],
+  "samples": [
+    {
+      "sampleId": "normal-baseline",
+      "kind": "normal",
+      "summary": "签署基线正常样本（最小自洽示例）。",
+      "evidenceSha256": "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828",
+      "findings": [],
+      "manualChecks": [
+        {
+          "ruleId": "p1-sparse-page",
+          "code": "P1_SPARSE_DENSITY_REVIEW",
+          "pageIndex": 0,
+          "nodeRef": "page:0",
+          "reason": "模板无密度阈值定义，逐页密度证据降人工",
+          "basis": {
+            "metrics": {
+              "coverageRatio": 0.5
+            }
+          }
+        }
+      ],
+      "falsePositives": 0
+    },
+    {
+      "sampleId": "fault-demo",
+      "kind": "fault",
+      "severity": "P1",
+      "domain": "p1-stamp-consistency",
+      "summary": "页脚错码 fault（最小自洽示例）。",
+      "expectedCodes": ["P1_FOOTER_PAGE_MISMATCH"],
+      "evidenceSha256": "5d7c06bcc7443dce871b5dddf040cb2e3ea5e3d357450b05c6b42395bb3d0828",
+      "findings": [
+        {
+          "ruleId": "p1-stamp-consistency",
+          "code": "P1_FOOTER_PAGE_MISMATCH",
+          "pageIndex": 4,
+          "nodeRef": "run:2668",
+          "basis": {
+            "metrics": {
+              "expectedPage": 5,
+              "actualPage": 6
+            }
+          }
+        }
+      ],
+      "manualChecks": [],
+      "detected": true
+    }
+  ],
+  "evaluation": {
+    "faultSampleCount": 1,
+    "detectedFaults": 1,
+    "p0FaultSampleCount": 0,
+    "p0DetectedFaults": 0,
+    "p0DetectionRate": 1,
+    "normalFalsePositives": 0,
+    "verdict": "fail",
+    "failureCodes": ["GATE_DETECTION_BELOW_THRESHOLD"]
+  },
+  "exemptions": [
+    {
+      "ruleId": "p0-overlap",
+      "reason": "试图豁免 P0 规则"
+    }
+  ],
+  "manualChecklist": [
+    {
+      "itemId": "PA-J1",
+      "disposition": "carried",
+      "summary": "诚实降级人工核验项真实承接（最小自洽示例）。",
+      "reference": "docs/audits/PA-08-followups.md",
+      "relatedCount": 1
+    }
+  ],
+  "expectedIssue": "GATE_REPORT_SEMANTIC",
+  "expectedPath": "/exemptions/0/ruleId"
+}

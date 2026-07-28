@@ -26,7 +26,10 @@ export class ReportChecksError extends Error {
   public readonly code:
     | "REPORT_CHECKS_UNKNOWN_RULE"
     | "REPORT_CHECKS_INTERNAL"
-    | "REPORT_CHECKS_UNSUPPORTED_EVIDENCE";
+    | "REPORT_CHECKS_UNSUPPORTED_EVIDENCE"
+    | "GATE_P0_EXEMPTION_REJECTED"
+    | "GATE_FAULT_ANCHOR"
+    | "GATE_INTERNAL";
 
   public constructor(code: ReportChecksError["code"], message: string) {
     super(message);

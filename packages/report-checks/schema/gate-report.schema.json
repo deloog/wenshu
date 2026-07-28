@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/report-checks/1.0.0/gate-report.schema.json",
+  "title": "WenshuGateReport",
+  "description": "Version 1.0.0 PoC-A summary gate report (PA-12). Aggregates the real outputs of the full check family (P0: PA-07; P1: PA-08/09/10/11B) over the normal sample plus 12 fault samples: per-sample findings/manualChecks (location + numeric basis only, never document content), threshold evaluation (P0 detection rate, detected faults / 12, normal-sample false positives counted from real findings only), pass/fail verdict, exemptions with reasons (P0 rules can never be exempted), and the manual checklist carrying PA-A7/J1/K1/L1~L4/M1~M5/N1/N2. manualChecks are listed for human review but are never counted as automatic detections. Thresholds are pinned as schema constants so lowering them requires a contract version bump.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "gateReportVersion",
+    "source",
+    "thresholds",
+    "executedRules",
+    "samples",
+    "evaluation",
+    "exemptions",
+    "manualChecklist"
+  ],
+  "properties": {
+    "gateReportVersion": { "const": "1.0.0" },
+    "source": { "$ref": "#/$defs/GateSource" },
+    "thresholds": { "$ref": "#/$defs/GateThresholds" },
+    "executedRules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+      "description": "Rule ids actually executed for every sample: the full P0+P1 registry minus rules absent via declared exemptions. Skipping a rule without a declared exemption violates the semantic contract."
+    },
+    "samples": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/GateSample" }
+    },
+    "evaluation": { "$ref": "#/$defs/GateEvaluation" },
+    "exemptions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/GateExemption" },
+      "description": "Declared per-rule exemptions (P1 only, each with a recorded reason). A P0 exemption attempt is rejected by the gate and can never appear here."
+    },
+    "manualChecklist": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ManualChecklistItem" },
+      "description": "Manual checklist carrying the audit followups PA-A7/J1/K1/L1~L4/M1~M5/N1/N2 item by item. Listed for human review; never merged into automatic detection counts."
+    }
+  },
+  "$defs": {
+    "GateSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baselineSha256"],
+      "properties": {
+        "baselineSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the PA-05 signed baseline PDF the normal sample and all fault derivations anchor to."
+        }
+      }
+    },
+    "GateThresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["faultSampleCount", "minDetectedFaults", "maxNormalFalsePositives"],
+      "properties": {
+        "faultSampleCount": {
+          "const": 12,
+          "description": "Pinned fault sample count (roadmap PA-12). Changing it requires a contract version bump."
+        },
+        "minDetectedFaults": {
+          "const": 10,
+          "description": "Pinned minimum P0+P1 fault samples that must be detected (of 12), counting real findings only."
+        },
+        "maxNormalFalsePositives": {
+          "const": 2,
+          "description": "Pinned maximum findings tolerated on the normal (signed baseline) sample, honestly counted."
+        }
+      }
+    },
+    "GateSample": {
+      "oneOf": [{ "$ref": "#/$defs/NormalSample" }, { "$ref": "#/$defs/FaultSample" }]
+    },
+    "NormalSample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sampleId",
+        "kind",
+        "summary",
+        "evidenceSha256",
+        "findings",
+        "manualChecks",
+        "falsePositives"
+      ],
+      "properties": {
+        "sampleId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "kind": { "const": "normal" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Static sample description. Never document content."
+        },
+        "evidenceSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Finding" }
+        },
+        "manualChecks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ManualCheck" }
+        },
+        "falsePositives": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Honest count of findings on the normal sample (semantically equals findings.length; nothing may be hidden or reclassified)."
+        }
+      }
+    },
+    "FaultSample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sampleId",
+        "kind",
+        "severity",
+        "domain",
+        "summary",
+        "expectedCodes",
+        "evidenceSha256",
+        "findings",
+        "manualChecks",
+        "detected"
+      ],
+      "properties": {
+        "sampleId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "kind": { "const": "fault" },
+        "severity": {
+          "enum": ["P0", "P1"],
+          "description": "Severity of the injected real defect. P0 faults must all be detected; a P0 miss fails the gate and cannot be exempted away."
+        },
+        "domain": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Rule id of the domain the injected defect belongs to."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Static description of the injected defect. Never document content."
+        },
+        "expectedCodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^P[0-9]_[A-Z0-9_]+$" },
+          "description": "Finding codes the injected defect must produce. Detection is judged against findings only; manualChecks never count."
+        },
+        "evidenceSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the baseline PDF the fault was deterministically derived from (in-memory derivation; frozen artifacts untouched)."
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Finding" }
+        },
+        "manualChecks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ManualCheck" }
+        },
+        "detected": {
+          "type": "boolean",
+          "description": "True iff every expected code appears in findings (semantically recomputed; manualChecks presence never satisfies detection)."
+        }
+      }
+    },
+    "GateEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "faultSampleCount",
+        "detectedFaults",
+        "p0FaultSampleCount",
+        "p0DetectedFaults",
+        "p0DetectionRate",
+        "normalFalsePositives",
+        "verdict",
+        "failureCodes"
+      ],
+      "properties": {
+        "faultSampleCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Actual number of fault samples in this run."
+        },
+        "detectedFaults": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Fault samples whose every expected code appears in real findings. manualChecks are never counted."
+        },
+        "p0FaultSampleCount": { "type": "integer", "minimum": 0 },
+        "p0DetectedFaults": { "type": "integer", "minimum": 0 },
+        "p0DetectionRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "p0DetectedFaults / p0FaultSampleCount (1 when no P0 sample exists). Must be 1 for the gate to pass."
+        },
+        "normalFalsePositives": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Sum of findings over all normal samples, honestly counted."
+        },
+        "verdict": { "enum": ["pass", "fail"] },
+        "failureCodes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "GATE_P0_MISSED",
+              "GATE_DETECTION_BELOW_THRESHOLD",
+              "GATE_FALSE_POSITIVE_OVERFLOW"
+            ]
+          },
+          "description": "Stable failure codes; verdict is pass iff this list is empty."
+        }
+      }
+    },
+    "GateExemption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "reason"],
+      "properties": {
+        "ruleId": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Exempted P1 rule id (expressed as absence from executedRules). P0 rule ids are rejected by the gate and forbidden here."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Recorded reason for the exemption. Static text only."
+        }
+      }
+    },
+    "ManualChecklistItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemId", "disposition", "summary"],
+      "properties": {
+        "itemId": {
+          "type": "string",
+          "pattern": "^PA-[A-Z][0-9]+$",
+          "description": "Audit followup id (PA-A7/J1/K1/L1~L4/M1~M5/N1/N2)."
+        },
+        "disposition": {
+          "enum": ["carried", "registered", "closed", "external"],
+          "description": "carried: truly carried by this report; registered: recorded in the risk register/manual list; closed: already closed with evidence; external: owned outside this gate."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Static carry-over statement. Never document content."
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Authoritative doc path for the followup (ledger/audit report/decision)."
+        },
+        "relatedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Dynamic count when the item pins a real quantity (e.g. manualChecks total for PA-J1/PA-M1/PA-N2)."
+        }
+      }
+    },
+    "ManualCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "code", "pageIndex", "nodeRef", "reason", "basis"],
+      "properties": {
+        "ruleId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "code": {
+          "type": "string",
+          "pattern": "^P[0-9]_[A-Z0-9_]+$"
+        },
+        "pageIndex": { "type": "integer", "minimum": 0 },
+        "nodeRef": { "type": "string", "minLength": 1 },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Static explanation of why automatic determination is impossible. Never document content."
+        },
+        "basis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metrics"],
+          "properties": {
+            "metrics": {
+              "type": "object",
+              "additionalProperties": { "type": "number" },
+              "minProperties": 1
+            },
+            "relatedNodeRef": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "code", "pageIndex", "nodeRef", "basis"],
+      "properties": {
+        "ruleId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "code": {
+          "type": "string",
+          "pattern": "^P[0-9]_[A-Z0-9_]+$"
+        },
+        "pageIndex": { "type": "integer", "minimum": 0 },
+        "nodeRef": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic node locator: run:<readingOrder>, figure:<pageIndex>:<mcid>, page:<index>, or a document block path like /blocks/3."
+        },
+        "basis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metrics"],
+          "properties": {
+            "metrics": {
+              "type": "object",
+              "additionalProperties": { "type": "number" },
+              "minProperties": 1
+            },
+            "relatedNodeRef": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}
