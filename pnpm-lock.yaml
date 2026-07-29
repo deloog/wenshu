@@ -160,6 +160,28 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
+  packages/editor-diff:
+    dependencies:
+      '@wenshu/document-model':
+        specifier: workspace:*
+        version: link:../document-model
+      '@wenshu/editor-transactions':
+        specifier: workspace:*
+        version: link:../editor-transactions
+      '@wenshu/semantic-editor':
+        specifier: workspace:*
+        version: link:../semantic-editor
+      '@wenshu/semantic-tools':
+        specifier: workspace:*
+        version: link:../semantic-tools
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
   packages/editor-transactions:
     dependencies:
       '@wenshu/document-model':
