@@ -160,6 +160,22 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
+  packages/editor-transactions:
+    dependencies:
+      '@wenshu/document-model':
+        specifier: workspace:*
+        version: link:../document-model
+      '@wenshu/semantic-editor':
+        specifier: workspace:*
+        version: link:../semantic-editor
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
   packages/host-contract:
     dependencies:
       '@wenshu/contract-runtime':
