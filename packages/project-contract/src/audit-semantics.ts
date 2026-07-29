@@ -11,36 +11,28 @@ export function isCanonicalTimestamp(value: string): boolean {
   return !Number.isNaN(parsed.valueOf()) && parsed.toISOString() === normalized;
 }
 
-function looksSensitiveIdentifier(value: string): boolean {
-  const normalized = value.toLowerCase();
-  return (
-    /^(?:sk[-_]|aiza|gh[pousr]_|xox[baprs]-)/u.test(normalized) ||
-    /(?:key|secret|token)/u.test(normalized.slice(0, 24))
-  );
-}
+export const SYSTEM_ALLOWED_ACTION = "template_applied" as const;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-export function validateModelIdentifierInput(
-  input: unknown,
+function validateHashSubjects(
+  event: SemanticAuditEvent,
 ): readonly ProjectContractIssue[] {
-  if (!isRecord(input) || input["contract_kind"] !== "semantic_audit_event") {
-    return Object.freeze([]);
+  if (event.schema_version === "0.1.0") {
+    return Object.freeze(
+      event.action === "template_applied"
+        ? [issue("PROJECT_AUDIT_HASH_INVALID", "/schema_version")]
+        : [],
+    );
   }
-  const context = input["subject_model_context"];
-  if (!isRecord(context)) {
-    return Object.freeze([]);
-  }
+  const expectedSubject = event.action === "template_applied" ? "template" : "document";
   const issues: ProjectContractIssue[] = [];
-  for (const field of ["provider", "model"] as const) {
-    const value = context[field];
-    if (typeof value === "string" && looksSensitiveIdentifier(value)) {
-      issues.push(
-        issue("PROJECT_MODEL_IDENTIFIER_INVALID", `/subject_model_context/${field}`),
-      );
-    }
+  if (
+    event.before_hash_subject !== expectedSubject ||
+    event.after_hash_subject !== expectedSubject
+  ) {
+    issues.push(issue("PROJECT_AUDIT_HASH_INVALID", "/before_hash_subject"));
+  }
+  if (event.before_sha256 === null || event.after_sha256 === null) {
+    issues.push(issue("PROJECT_AUDIT_HASH_INVALID", "/after_hash_subject"));
   }
   return Object.freeze(issues);
 }
@@ -71,17 +63,9 @@ export function validateAudit(
     hasBefore && hasAfter && event.before_sha256 !== event.after_sha256;
   const hashesMatch =
     hasBefore && hasAfter && event.before_sha256 === event.after_sha256;
-  if (event.subject_model_context !== null) {
-    if (looksSensitiveIdentifier(event.subject_model_context.provider)) {
-      issues.push(
-        issue("PROJECT_MODEL_IDENTIFIER_INVALID", "/subject_model_context/provider"),
-      );
-    }
-    if (looksSensitiveIdentifier(event.subject_model_context.model)) {
-      issues.push(
-        issue("PROJECT_MODEL_IDENTIFIER_INVALID", "/subject_model_context/model"),
-      );
-    }
+  issues.push(...validateHashSubjects(event));
+  if (event.actor === "system" && event.action !== SYSTEM_ALLOWED_ACTION) {
+    issues.push(issue("PROJECT_AUDIT_RESPONSIBILITY_INVALID", "/action"));
   }
 
   switch (event.action) {
@@ -130,20 +114,12 @@ export function validateAudit(
       }
       break;
     case "template_applied":
-      if (
-        event.actor !== "user" ||
-        hasModelSubject ||
-        hasAffectedNodes ||
-        event.source_refs.length > 0
-      ) {
-        const path =
-          event.actor !== "user"
-            ? "/actor"
-            : hasModelSubject
-              ? "/subject_model_context"
-              : hasAffectedNodes
-                ? "/affected_node_ids"
-                : "/source_refs";
+      if (hasModelSubject || hasAffectedNodes || event.source_refs.length > 0) {
+        const path = hasModelSubject
+          ? "/subject_model_context"
+          : hasAffectedNodes
+            ? "/affected_node_ids"
+            : "/source_refs";
         issues.push(issue("PROJECT_AUDIT_RESPONSIBILITY_INVALID", path));
       }
       if (!hashesDiffer) {

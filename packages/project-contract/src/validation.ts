@@ -9,11 +9,7 @@ import type {
   ProjectContract,
   ProjectManifest,
 } from "./generated/project-contract.ts";
-import {
-  isCanonicalTimestamp,
-  validateAudit,
-  validateModelIdentifierInput,
-} from "./audit-semantics.ts";
+import { isCanonicalTimestamp, validateAudit } from "./audit-semantics.ts";
 
 export const PROJECT_CONTRACT_VERSION = "0.1.0" as const;
 export const PROJECT_UPSTREAM_VERSIONS = Object.freeze({
@@ -28,7 +24,6 @@ export type ProjectContractIssueCode =
   | "PROJECT_BUDGET_EXCEEDED"
   | "PROJECT_COMPATIBILITY_MISMATCH"
   | "PROJECT_DUPLICATE_ID"
-  | "PROJECT_MODEL_IDENTIFIER_INVALID"
   | "PROJECT_PACKAGE_PATH_INVALID"
   | "PROJECT_REFERENCE_MISSING"
   | "PROJECT_SCHEMA"
@@ -226,10 +221,6 @@ export function validateProjectContract(
         ),
       ]),
     });
-  }
-  const identifierIssues = validateModelIdentifierInput(input);
-  if (identifierIssues.length > 0) {
-    return Object.freeze({ ok: false, issues: identifierIssues });
   }
   const validationErrors = shapeErrors(input);
   if (validationErrors !== null) {
