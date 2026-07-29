@@ -24,12 +24,21 @@ const repoRoot = resolve(import.meta.dirname, "../../..");
 const outDir = resolve(argValue("--out") ?? resolve(repoRoot, "test-results/pa-05"));
 const browserPath = argValue("--browser");
 const label = argValue("--label") ?? "development";
+const fixtureRoot = resolve(
+  argValue("--fixture-root") ?? resolve(repoRoot, "docs/poc-a/fixtures"),
+);
+const fixture = resolve(
+  argValue("--fixture") ?? resolve(fixtureRoot, "golden-report.md"),
+);
+const templatePath = resolve(
+  argValue("--template") ?? resolve(fixtureRoot, "formal-business.template.json"),
+);
 
 const output = await produceBaselinePdf({
-  fixture: resolve(repoRoot, "docs/poc-a/fixtures/golden-report.md"),
-  fixtureRoot: resolve(repoRoot, "docs/poc-a/fixtures"),
+  fixture,
+  fixtureRoot,
   fontDir: resolve(repoRoot, "assets/fonts/source-han-sans-cn/2.005R"),
-  templatePath: resolve(repoRoot, "docs/poc-a/fixtures/formal-business.template.json"),
+  templatePath,
   browserPath,
 });
 
@@ -89,6 +98,7 @@ const evidence = {
     pageSizePt: inspection.pageSizePt,
     tocEntries: output.tocPages.size,
   },
+  timings: output.timings,
   fonts: inspection.fonts,
   metadata: inspection.metadata,
   xmpPresent: inspection.xmp !== null,

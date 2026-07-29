@@ -1,9 +1,14 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import {
+  cleanupFailedLaunch,
+  killProcessTree,
+  removeProfileWithRetry,
+} from "./browser-process.ts";
 import { RenderCheckError } from "./errors.ts";
 
 const CHROMIUM_CANDIDATES: readonly string[] = (() => {
@@ -53,6 +58,8 @@ export function findChromium(executableOverride?: string): string {
 }
 
 export interface BrowserSession {
+  /** 浏览器子进程 PID（资源清理核验用；spawn 失败场景为 undefined）。 */
+  readonly pid: number | undefined;
   navigate(url: string): Promise<void>;
   /** 在页面上下文执行表达式（可含 Promise），按值返回结果。 */
   evaluate<T>(expression: string): Promise<T>;
@@ -62,6 +69,11 @@ export interface BrowserSession {
   /** 浏览器产品版本（CDP Browser.getVersion），锁定留证用。 */
   productVersion(): Promise<string>;
   close(): Promise<void>;
+}
+
+export interface LaunchOptions {
+  /** 取消信号（PA-13）：abort 后在途 CDP 命令与等待事件以 RENDER_CANCELLED 拒绝。 */
+  readonly signal?: AbortSignal | undefined;
 }
 
 interface CdpFrame {
@@ -74,10 +86,19 @@ interface CdpFrame {
 
 const COMMAND_TIMEOUT_MS = 30_000;
 
+function cancelledError(): RenderCheckError {
+  return new RenderCheckError("RENDER_CANCELLED", "browser operation cancelled");
+}
+
 /** 最小 CDP 客户端：真实 Chromium、真实 Font Loading API，无任何 mock。 */
 export async function launchBrowser(
   executableOverride?: string,
+  options?: LaunchOptions,
 ): Promise<BrowserSession> {
+  const signal = options?.signal;
+  if (signal?.aborted === true) {
+    throw cancelledError();
+  }
   const executable = findChromium(executableOverride);
   const profile = await mkdtemp(join(tmpdir(), "wenshu-render-"));
   const child: ChildProcess = spawn(
@@ -93,45 +114,101 @@ export async function launchBrowser(
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
-  const wsUrl = await new Promise<string>((resolveWs, rejectWs) => {
-    let buffer = "";
-    const timer = setTimeout(() => {
-      rejectWs(
-        new RenderCheckError(
-          "RENDER_BROWSER_UNAVAILABLE",
-          "browser did not expose its DevTools endpoint in time",
-        ),
-      );
-    }, COMMAND_TIMEOUT_MS);
-    child.stderr?.on("data", (chunk: Buffer) => {
-      buffer += chunk.toString("utf8");
-      const match = /DevTools listening on (ws:\/\/\S+)/u.exec(buffer);
-      if (match?.[1] !== undefined) {
+  // 启动段（等 DevTools 端点 → ws 连接 → 目标挂载）任一失败（含取消、超时）
+  // 必须杀子进程并清 profile，不留孤儿进程/临时目录（PA-13 资源清理红线）。
+  const launch = async (): Promise<WebSocket> => {
+    const wsUrl = await new Promise<string>((resolveWs, rejectWs) => {
+      let buffer = "";
+      const onAbort = (): void => {
         clearTimeout(timer);
-        resolveWs(match[1]);
-      }
+        rejectWs(cancelledError());
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
+        rejectWs(
+          new RenderCheckError(
+            "RENDER_BROWSER_UNAVAILABLE",
+            "browser did not expose its DevTools endpoint in time",
+          ),
+        );
+      }, COMMAND_TIMEOUT_MS);
+      signal?.addEventListener("abort", onAbort, { once: true });
+      child.stderr?.on("data", (chunk: Buffer) => {
+        buffer += chunk.toString("utf8");
+        const match = /DevTools listening on (ws:\/\/\S+)/u.exec(buffer);
+        if (match?.[1] !== undefined) {
+          signal?.removeEventListener("abort", onAbort);
+          clearTimeout(timer);
+          resolveWs(match[1]);
+        }
+      });
+      child.on("error", (error) => {
+        signal?.removeEventListener("abort", onAbort);
+        clearTimeout(timer);
+        rejectWs(error);
+      });
     });
-    child.on("error", (error) => {
-      clearTimeout(timer);
-      rejectWs(error);
-    });
-  });
 
-  const socket = new WebSocket(wsUrl);
-  await new Promise<void>((resolveOpen, rejectOpen) => {
-    socket.onopen = () => resolveOpen();
-    socket.onerror = () =>
-      rejectOpen(
-        new RenderCheckError("RENDER_BROWSER_UNAVAILABLE", "DevTools websocket failed"),
-      );
-  });
+    const socket = new WebSocket(wsUrl);
+    await new Promise<void>((resolveOpen, rejectOpen) => {
+      const onAbort = (): void => {
+        socket.close();
+        rejectOpen(cancelledError());
+      };
+      const clearAbort = (): void => signal?.removeEventListener("abort", onAbort);
+      signal?.addEventListener("abort", onAbort, { once: true });
+      socket.onopen = () => {
+        clearAbort();
+        resolveOpen();
+      };
+      socket.onerror = () => {
+        clearAbort();
+        rejectOpen(
+          new RenderCheckError(
+            "RENDER_BROWSER_UNAVAILABLE",
+            "DevTools websocket failed",
+          ),
+        );
+      };
+    });
+    if (signal?.aborted === true) {
+      socket.close();
+      throw cancelledError();
+    }
+    return socket;
+  };
+
+  let socket: WebSocket;
+  try {
+    socket = await launch();
+  } catch (error) {
+    await cleanupFailedLaunch(child, profile);
+    throw error;
+  }
 
   let nextId = 0;
   const pending = new Map<
     number,
     { resolve: (frame: CdpFrame) => void; reject: (error: Error) => void }
   >();
-  const eventWaiters: Array<{ method: string; resolve: () => void }> = [];
+  const eventWaiters: Array<{
+    method: string;
+    resolve: () => void;
+    reject: (error: Error) => void;
+  }> = [];
+  let aborted: boolean = signal?.aborted ?? false;
+  const onSessionAbort = (): void => {
+    aborted = true;
+    for (const waiter of pending.values()) {
+      waiter.reject(cancelledError());
+    }
+    pending.clear();
+    for (const waiter of eventWaiters) {
+      waiter.reject(cancelledError());
+    }
+    eventWaiters.length = 0;
+  };
+  signal?.addEventListener("abort", onSessionAbort, { once: true });
   socket.onmessage = (event) => {
     const frame = JSON.parse(String(event.data)) as CdpFrame;
     if (frame.id !== undefined) {
@@ -150,15 +227,25 @@ export async function launchBrowser(
     }
   };
   socket.onclose = () => {
+    signal?.removeEventListener("abort", onSessionAbort);
     for (const waiter of pending.values()) {
       waiter.reject(
         new RenderCheckError("RENDER_BROWSER_PROTOCOL", "browser disconnected"),
       );
     }
     pending.clear();
+    for (const waiter of eventWaiters) {
+      waiter.reject(
+        new RenderCheckError("RENDER_BROWSER_PROTOCOL", "browser disconnected"),
+      );
+    }
+    eventWaiters.length = 0;
   };
 
   function send(method: string, params: Record<string, unknown>, sessionId?: string) {
+    if (aborted) {
+      return Promise.reject(cancelledError());
+    }
     nextId += 1;
     const id = nextId;
     return new Promise<CdpFrame>((resolveSend, rejectSend) => {
@@ -194,22 +281,40 @@ export async function launchBrowser(
   }
 
   function waitEvent(method: string): Promise<void> {
-    return new Promise<void>((resolveEvent) => {
-      eventWaiters.push({ method, resolve: resolveEvent });
+    if (aborted) {
+      return Promise.reject(cancelledError());
+    }
+    return new Promise<void>((resolveEvent, rejectEvent) => {
+      eventWaiters.push({ method, resolve: resolveEvent, reject: rejectEvent });
     });
   }
 
-  const created = await send("Target.createTarget", { url: "about:blank" });
-  const targetId = String(created["targetId"]);
-  const attached = await send("Target.attachToTarget", { targetId, flatten: true });
-  const sessionId = String(attached["sessionId"]);
-  await send("Page.enable", {}, sessionId);
-  await send("Runtime.enable", {}, sessionId);
+  // 目标挂载期同样可能被取消/协议失败：失败必须杀进程清 profile，不交付半会话。
+  let sessionId: string;
+  try {
+    const created = await send("Target.createTarget", { url: "about:blank" });
+    const targetId = String(created["targetId"]);
+    const attached = await send("Target.attachToTarget", { targetId, flatten: true });
+    sessionId = String(attached["sessionId"]);
+    await send("Page.enable", {}, sessionId);
+    await send("Runtime.enable", {}, sessionId);
+  } catch (error) {
+    socket.close();
+    await cleanupFailedLaunch(child, profile);
+    throw error;
+  }
 
   return Object.freeze({
+    pid: child.pid ?? undefined,
     navigate: async (url: string) => {
       const loaded = waitEvent("Page.loadEventFired");
-      await send("Page.navigate", { url }, sessionId);
+      try {
+        await send("Page.navigate", { url }, sessionId);
+      } catch (error) {
+        // send 先失败（如取消）时 loaded 将随后被拒：挂吞掉器防未处理拒绝。
+        loaded.catch(() => {});
+        throw error;
+      }
       await loaded;
     },
     evaluate: async <T>(expression: string): Promise<T> => {
@@ -251,24 +356,18 @@ export async function launchBrowser(
         // 浏览器可能已断开，继续清理。
       }
       await new Promise<void>((resolveExit) => {
-        const timer = setTimeout(resolveExit, 5_000);
+        // 取消路径下浏览器可能正忙于打印：缩短优雅退出等待，尽快 kill 止损。
+        const timer = setTimeout(resolveExit, aborted ? 1_000 : 5_000);
         child.once("exit", () => {
           clearTimeout(timer);
           resolveExit();
         });
       });
       if (child.exitCode === null) {
-        child.kill();
+        await killProcessTree(child);
       }
       socket.close();
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        try {
-          await rm(profile, { recursive: true, force: true });
-          return;
-        } catch {
-          await new Promise((resolveRetry) => setTimeout(resolveRetry, 250));
-        }
-      }
+      await removeProfileWithRetry(profile);
       // 系统临时目录偶发锁定（杀毒/索引）不阻断测试；%TEMP% 由系统回收。
     },
   });
