@@ -1,4 +1,5 @@
 export * from "./compose.ts";
+export * from "./cancellation.ts";
 export * from "./errors.ts";
 export * from "./inspect.ts";
 export * from "./metadata-policy.ts";
