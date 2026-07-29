@@ -1,0 +1,22 @@
+{
+  "name": "@wenshu/semantic-tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wenshu/document-model": "workspace:*",
+    "@wenshu/editor-transactions": "workspace:*",
+    "@wenshu/semantic-editor": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
