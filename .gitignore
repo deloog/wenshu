@@ -9,6 +9,7 @@
 
 # Dependencies and package-manager caches
 node_modules/
+**/oh_modules/
 .pnpm-store/
 .npm/
 .yarn/

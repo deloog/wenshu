@@ -1,0 +1,9 @@
+{
+  name: "entry",
+  version: "0.0.1",
+  description: "PA-14H ArkWeb shell only",
+  main: "",
+  author: "",
+  license: "Apache-2.0",
+  dependencies: {},
+}

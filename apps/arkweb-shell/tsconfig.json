@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": ["*.ts", "entry/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["entry/build/**"]
+}

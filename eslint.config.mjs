@@ -5,6 +5,7 @@ export default tseslint.config(
   {
     ignores: [
       "**/node_modules/**",
+      "**/oh_modules/**",
       "**/dist/**",
       "**/build/**",
       "**/out/**",
@@ -12,6 +13,8 @@ export default tseslint.config(
       "**/test-results/**",
       "**/artifacts/**",
       "**/tmp/**",
+      // ArkTS/Hvigor files are compiled by the frozen DevEco toolchain, not ESLint.
+      "apps/arkweb-shell/**",
     ],
   },
   {
