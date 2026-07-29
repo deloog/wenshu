@@ -1,8 +1,8 @@
 # ADR-0022：PB-08 SQLite / OPFS 存储引擎选型
 
 - 日期：2026-07-29
-- 状态：已评估，待业主批准与 Claude 独立审计
-- 建议：以 SQLite 文件格式作为本地项目库候选；桌面使用原生 SQLite 文件，浏览器使用
+- 状态：业主批准；PB-08 已获 Claude 独立审计 PASS；PB-09 正在实现
+- 决定：以 SQLite 文件格式作为本地项目库基线；桌面使用原生 SQLite 文件，浏览器使用
   SQLite WASM 的 OPFS VFS。ArkWeb 能力未在设备验证，三端同格式仍为条件性目标，不宣称
   已经三端贯通。
 
@@ -50,17 +50,16 @@ integrity：
 
 `sha512-PfWPWN2n+/37doa8oh2/oUXk4OOsRYZsxc1W1sDXIGb/Pu5Yrb+f2eyYpgQMGITVX7HVgxhs9P18Rc6I97ym/g==`
 
-候选只存在于探针自己的 `package-lock.json` 和 `node_modules`，不属于 pnpm workspace，
-没有进入根 `pnpm-lock.yaml` 或 `sbom/sbom.json`。Node 自带 SQLite 仅作为桌面格式探针，
-不是新增生产包。本 ADR 只给出选型建议；在业主明确批准前，PB-09 不得把该候选写入生产
-供应链。
+PB-08 评估时，候选只存在于探针自己的 `package-lock.json` 和 `node_modules`。业主批准后，
+PB-09 将它以 `@wenshu/project-storage` 的直接依赖写入根 `pnpm-lock.yaml` 和 `sbom/sbom.json`；
+版本、来源与 integrity 保持与本 ADR 一致。Node 自带 SQLite 仍是桌面路径，不新增运行时包。
 
 ## 未选择与后续
 
 - 不选择 Map/JSON：不能提供真实事务、迁移、锁和标准数据库格式，违反 PB-08 命门。
-- 不在本任务实现生产 repository、迁移框架、云同步或 UI；这些不属于选型探针。
-- PB-09 若获批准，应版本化 schema/迁移契约，复用真实数据库集成测试，并补齐 Electron
-  运行时与 ArkWeb 设备矩阵。ArkWeb 设备验证最迟在宣称三端同格式之前完成。
+- PB-08 没有实现生产 repository、迁移框架、云同步或 UI；这些不属于选型探针。
+- PB-09 负责 v0→v1 迁移、真实库隔离、备份/恢复；Electron 运行时与 ArkWeb 设备矩阵仍由
+  后续平台验证完成。ArkWeb 设备验证最迟在宣称三端同格式之前完成。
 
 ## 复现
 
@@ -70,4 +69,3 @@ npm ci --ignore-scripts
 npm test
 npm audit --omit=dev
 ```
-

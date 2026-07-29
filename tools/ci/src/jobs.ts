@@ -33,6 +33,7 @@ export const CI_JOBS: Readonly<Record<CiJobName, readonly CiCommand[]>> = Object
     ]),
     contracts: Object.freeze([
       command("contracts", "contracts:check"),
+      command("project-storage", "--filter", "@wenshu/project-storage", "test"),
       command("fixtures", "fixtures:check"),
       command("environment", "environment:check"),
     ]),
