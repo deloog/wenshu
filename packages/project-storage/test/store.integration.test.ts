@@ -177,7 +177,7 @@ test("corruption restores the latest SQLite backup and never treats the damaged 
   });
 });
 
-test("real SQLite full and read-only failures retain previously committed data", async () => {
+test("real SQLite full preserves its diagnostic and committed data", async () => {
   await withStore("failure", async ({ db, backups }) => {
     const store = await openProjectStore({
       databasePath: db,
@@ -195,13 +195,23 @@ test("real SQLite full and read-only failures retain previously committed data",
       backupDirectory: backups,
       maxPageCount: pageCount + 1,
     });
-    assert.throws(() =>
+    let fullError: unknown;
+    try {
       constrained.insertProject({
         ...committed,
         id: "prj_00000000000000000000000000000002",
         documentJson: "x".repeat(1_000_000),
-      }),
-    );
+      });
+      assert.fail("PB09_SQLITE_FULL_EXPECTED");
+    } catch (error) {
+      fullError = error;
+    }
+    const fullMessage =
+      typeof fullError === "object" && fullError !== null && "message" in fullError
+        ? String(fullError.message)
+        : String(fullError);
+    assert.match(fullMessage, /full/i);
+    assert.doesNotMatch(fullMessage, /cannot rollback|no transaction is active/i);
     constrained.close();
     const readOnly = new DatabaseSync(db, { readOnly: true });
     assert.throws(() =>

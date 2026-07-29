@@ -211,7 +211,11 @@ class SqliteProjectStore implements ProjectStore {
         );
       this.database.exec("commit");
     } catch (error) {
-      this.database.exec("rollback");
+      try {
+        this.database.exec("rollback");
+      } catch {
+        // SQLite can auto-rollback a failed commit (for example, SQLITE_FULL).
+      }
       throw error;
     }
   }

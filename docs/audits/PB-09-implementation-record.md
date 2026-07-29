@@ -48,6 +48,13 @@ pnpm supply:check
 结果：类型检查通过；真实库集成 5/5 通过；contracts 作业通过且已将该 5/5 接入远程 CI；
 SBOM 由 170/13 更新为 171/14（包/直接依赖），许可门禁、integrity 与重建检查通过。
 
+## 审计 MINOR 整改（待复审）
+
+Claude 独立审计发现：`SQLITE_FULL` 可使 SQLite 在 `commit` 失败时自动回滚；此前通用
+`rollback` 会再抛出“无活动事务”，从而遮蔽原始的磁盘满诊断。`writeProject` 现与迁移路径
+一致，守卫补偿性 rollback 并始终重新抛出原始异常。真实页面配额对抗测试已改为显式捕获，
+要求诊断保留 `full`、且绝不为 rollback 的“无活动事务”；已提交项目的保留断言不变。
+
 ## 供应链与回滚
 
 业主已批准的 `@sqlite.org/sqlite-wasm@3.53.0-build1`（Apache-2.0）现在是
