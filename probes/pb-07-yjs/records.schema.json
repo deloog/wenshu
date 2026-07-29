@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/contracts/pb-07-records.schema.json",
+  "title": "PB-07 isolated record layers",
+  "$defs": {
+    "edit_history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transactionId", "actor", "command", "affectedNodeIds"],
+      "properties": {
+        "transactionId": { "type": "string", "pattern": "^tx_[a-z]+_[0-9]+$" },
+        "actor": { "enum": ["human", "ai"] },
+        "command": { "type": "string" },
+        "affectedNodeIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^node_[0-9a-f]{32}$" }
+        }
+      }
+    },
+    "crdt_merge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mergeId", "candidate", "stateVectorDigest", "updateDigest"],
+      "properties": {
+        "mergeId": { "type": "string", "pattern": "^merge_[0-9]+$" },
+        "candidate": { "const": "yjs@13.6.27" },
+        "stateVectorDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "updateDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "semantic_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventId", "actor", "action", "locator"],
+      "properties": {
+        "eventId": { "type": "string", "pattern": "^audit_[0-9]+$" },
+        "actor": { "const": "user" },
+        "action": { "const": "ai_change_decided" },
+        "locator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "nodeId"],
+          "properties": {
+            "kind": { "const": "node" },
+            "nodeId": { "type": "string", "pattern": "^node_[0-9a-f]{32}$" }
+          }
+        }
+      }
+    }
+  }
+}

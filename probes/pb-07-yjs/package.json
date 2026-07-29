@@ -1,0 +1,12 @@
+{
+  "name": "pb-07-yjs-isolated-probe",
+  "private": true,
+  "type": "module",
+  "description": "Isolated PB-07 candidate probe; not a production workspace package.",
+  "scripts": {
+    "test": "node --test probe.integration.test.ts"
+  },
+  "dependencies": {
+    "yjs": "13.6.27"
+  }
+}
