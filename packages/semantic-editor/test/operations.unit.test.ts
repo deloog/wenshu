@@ -3,16 +3,18 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
-  copyBlock,
-  deleteBlock,
   fromProseMirrorDocument,
-  insertBlock,
-  moveBlock,
-  rewriteBlock,
   toProseMirrorDocument,
   type IdAllocator,
   type IdPrefix,
 } from "../src/index.ts";
+import {
+  copyBlock,
+  deleteBlock,
+  insertBlock,
+  moveBlock,
+  rewriteBlock,
+} from "../src/operations.ts";
 import type { Block, SupportedDocument } from "@wenshu/document-model";
 
 class SequenceAllocator implements IdAllocator {
