@@ -11,6 +11,20 @@
       "requested_by": []
     },
     {
+      "name": "@electron-internal/extract-zip",
+      "version": "1.0.4",
+      "license": "BSD-2-Clause",
+      "direct": false,
+      "requested_by": []
+    },
+    {
+      "name": "@electron/get",
+      "version": "5.1.0",
+      "license": "MIT",
+      "direct": false,
+      "requested_by": []
+    },
+    {
       "name": "@emnapi/core",
       "version": "1.11.1",
       "license": "MIT",
@@ -386,6 +400,7 @@
         "@wenshu/config",
         "@wenshu/contract-runtime",
         "@wenshu/document-model",
+        "@wenshu/electron-shell",
         "@wenshu/environment",
         "@wenshu/fixtures",
         "@wenshu/fonts",
@@ -561,6 +576,22 @@
       "requested_by": []
     },
     {
+      "name": "electron",
+      "version": "43.1.1",
+      "license": "MIT",
+      "direct": true,
+      "requested_by": [
+        "@wenshu/electron-shell"
+      ]
+    },
+    {
+      "name": "env-paths",
+      "version": "3.0.0",
+      "license": "MIT",
+      "direct": false,
+      "requested_by": []
+    },
+    {
       "name": "escape-string-regexp",
       "version": "4.0.0",
       "license": "MIT",
@@ -706,6 +737,13 @@
     {
       "name": "glob-parent",
       "version": "6.0.2",
+      "license": "ISC",
+      "direct": false,
+      "requested_by": []
+    },
+    {
+      "name": "graceful-fs",
+      "version": "4.2.11",
       "license": "ISC",
       "direct": false,
       "requested_by": []
@@ -1030,6 +1068,13 @@
       ]
     },
     {
+      "name": "progress",
+      "version": "2.0.3",
+      "license": "MIT",
+      "direct": false,
+      "requested_by": []
+    },
+    {
       "name": "punycode",
       "version": "2.3.1",
       "license": "MIT",
@@ -1079,6 +1124,13 @@
       "requested_by": []
     },
     {
+      "name": "sumchecker",
+      "version": "3.0.1",
+      "license": "Apache-2.0",
+      "direct": false,
+      "requested_by": []
+    },
+    {
       "name": "tinyglobby",
       "version": "0.2.17",
       "license": "MIT",
@@ -1116,6 +1168,7 @@
         "@wenshu/config",
         "@wenshu/contract-runtime",
         "@wenshu/document-model",
+        "@wenshu/electron-shell",
         "@wenshu/environment",
         "@wenshu/fixtures",
         "@wenshu/fonts",
@@ -1144,6 +1197,13 @@
       "requested_by": [
         "wenshu"
       ]
+    },
+    {
+      "name": "undici",
+      "version": "7.29.0",
+      "license": "MIT",
+      "direct": false,
+      "requested_by": []
     },
     {
       "name": "undici-types",

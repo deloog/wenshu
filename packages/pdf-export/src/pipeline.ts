@@ -5,6 +5,7 @@ import { TOC_HEADING, collectTocEntries } from "@wenshu/document-model";
 import { importMarkdownDocument } from "@wenshu/markdown-import";
 import {
   launchBrowser,
+  type BrowserSession,
   parseFontPlan,
   renderDocumentHtml,
   startStaticServer,
@@ -35,6 +36,8 @@ export interface BaselineInput {
   readonly fontDir: string;
   readonly templatePath: string;
   readonly browserPath?: string | undefined;
+  /** 平台壳提供的真实浏览器会话（PA-14E）；未提供时保持既有 Chromium 启动路径。 */
+  readonly createBrowser?: (() => Promise<BrowserSession>) | undefined;
 }
 
 export interface BaselineOutput {
@@ -121,7 +124,9 @@ export async function produceBaselinePdf(
     [{ mount: "/fonts/", directory: input.fontDir }],
     documents,
   );
-  const browser = await launchBrowser(input.browserPath);
+  const browser = await (input.createBrowser === undefined
+    ? launchBrowser(input.browserPath)
+    : input.createBrowser());
   let pdfBytes: Uint8Array;
   let browserProduct: string;
   let tocPages: ReadonlyMap<string, number> = new Map();
