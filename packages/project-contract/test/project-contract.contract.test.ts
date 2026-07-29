@@ -82,7 +82,7 @@ test("a single missing project field has one precise schema path", async () => {
   });
 });
 
-test("future versions are rejected across all contract kinds", async () => {
+test("unknown future versions are rejected across all contract kinds", async () => {
   const versionFields = [
     ["project", "schema_version"],
     ["knowledge-package", "format_version"],
@@ -91,7 +91,7 @@ test("future versions are rejected across all contract kinds", async () => {
   ] as const;
   for (const [name, field] of versionFields) {
     const candidate = asRecord(await validFixture(name));
-    candidate[field] = "0.2.0";
+    candidate[field] = name === "semantic-audit-event" ? "0.3.0" : "0.2.0";
     assert.equal(validateProjectContract(candidate).ok, false, name);
   }
 });

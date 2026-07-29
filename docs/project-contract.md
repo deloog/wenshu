@@ -29,9 +29,11 @@
 
 `semantic_audit_event` 只记录具有责任意义的事件：AI 修改裁决、AI 后人工修改、来源关联、模板应用、正式版本批准。事件包含稳定 ID、项目 ID、连续 sequence、有效 UTC 时间、actor/action/decision、受影响节点、前后哈希、材料引用和最小模型元数据。
 
-`actor` 表示真正作出动作的责任主体，只允许 `user` 或有限的 `system` 行为；模型不是 actor，也不能接受修改或批准正式版本。`subject_model_context` 表示“被人类裁决或随后修改的 AI 产物来自哪个 provider/model/invocation”，因此人类裁决可以同时保留模型出处。`ai_change_decided` 和 `formal_version_approved` 强制 actor 为用户。
+`actor` 表示真正作出动作的责任主体。`system` 的权限集合只有一个 action：`template_applied`；其余四种 action 均只允许 `user`。模型不是 actor，也不能接受修改或批准正式版本。`subject_model_context` 表示“被人类裁决或随后修改的 AI 产物来自哪个 provider/model/invocation”，因此人类裁决可以同时保留模型出处。`ai_change_decided` 和 `formal_version_approved` 强制 actor 为用户。
 
-action、decision、受影响节点和前后哈希具有可执行组合规则：接受 AI 修改必须有节点且前后哈希不同；拒绝必须有节点且前后哈希相同；AI 后人工修改与来源关联必须产生哈希变化；正式版本批准必须保持被批准文档哈希一致。Schema 不提供正文、prompt、密钥、原始模型响应、编辑器按键或 CRDT update 字段，未知字段一律拒绝。locator 使用节点 ID 或受控 anchor，provider/model 保留 G1-07 冻结的字符集和敏感形状负向约束；运行时在 Ajv 前用同一保守启发式返回专用模型标识问题码，使诊断细化不扩大 Schema 接受集合。结构化 provider/model 注册标识仍由 PB-05A 裁定。
+action、decision、受影响节点和前后哈希具有可执行组合规则：接受 AI 修改必须有节点且前后哈希不同；拒绝必须有节点且前后哈希相同；AI 后人工修改与来源关联必须产生哈希变化；正式版本批准必须保持被批准文档哈希一致。`template_applied` 的 0.2 事件以 `template` 为两侧 hash subject，绝不借用或伪造 document hash。0.1 非模板事件仍可读取；0.1 模板事件被拒，必须由未来真实迁移生成带明确 subject 的 0.2 事件。
+
+Schema 不提供正文、prompt、凭证、原始模型响应、编辑器按键或 CRDT update 字段，未知字段一律拒绝。`provider` 是结构化注册表值（`anthropic`、`google`、`local`、`openai`、`test`），`model` 是非秘密的产品标识；不会以关键词或高熵猜测来判定密钥，因此合法 `keystone`、`monkey`、`tokenizer` 不会被误杀。凭证只能在契约外的受控配置边界处理，不能作为 provider/model 或任何审计字段传入。
 
 编辑器事务、合并记录、语义审计事件保持三层分离；后续实现不得用本契约承载高频 undo/redo 或同步日志。
 
@@ -40,7 +42,7 @@ action、decision、受影响节点和前后哈希具有可执行组合规则：
 `compatibility` 对象固定五类 reader 的当前版本，并把以下原则做成可执行常量。项目包直接依赖 document/template 两个上游契约，运行时与测试同时断言 reader、项目引用 Schema 常量和上游导出版本一致；联合 fixture 还对账文档 ID 与模板 ID，避免兼容清单成为无人检查的副本。
 
 - 未知版本明确拒绝，不静默丢字段；
-- 同一主版本的行为变化也需要显式 adapter；
+- 0.x 新增语义使用显式版本和双读策略：当前 reader 接受审计事件 0.1/0.2，新的 hash-subject 语义只由 0.2 发出；
 - 删除、重命名或语义破坏必须升级主版本并写 ADR；
 - 旧 Schema 和迁移历史在产生真实数据后必须保留；
 - v0 `migration_paths` 必须为空，本任务不伪造尚未实现的迁移。
@@ -49,7 +51,7 @@ action、decision、受影响节点和前后哈希具有可执行组合规则：
 
 ## 6. 安全、诊断与证据
 
-输入最多 64 层、100,000 个对象/数组节点；拒绝函数、访问器、循环和非普通对象，成功后返回深复制、深冻结值。稳定问题码包括通用的 `PROJECT_SCHEMA`、`PROJECT_BUDGET_EXCEEDED`、`PROJECT_DUPLICATE_ID`、`PROJECT_REFERENCE_MISSING`、`PROJECT_TRUTH_DERIVED_MIXED`，以及 G1-09 拆分出的 `PROJECT_AUDIT_DECISION_INVALID`、`PROJECT_AUDIT_RESPONSIBILITY_INVALID`、`PROJECT_AUDIT_HASH_INVALID`、`PROJECT_TIMESTAMP_INVALID`、`PROJECT_PACKAGE_PATH_INVALID`、`PROJECT_COMPATIBILITY_MISMATCH`、`PROJECT_MODEL_IDENTIFIER_INVALID`。每个非法 fixture 同时断言问题码与精确 JSON path；诊断不回显正文或不可信值。
+输入最多 64 层、100,000 个对象/数组节点；拒绝函数、访问器、循环和非普通对象，成功后返回深复制、深冻结值。稳定问题码包括通用的 `PROJECT_SCHEMA`、`PROJECT_BUDGET_EXCEEDED`、`PROJECT_DUPLICATE_ID`、`PROJECT_REFERENCE_MISSING`、`PROJECT_TRUTH_DERIVED_MIXED`，以及 G1-09 拆分出的 `PROJECT_AUDIT_DECISION_INVALID`、`PROJECT_AUDIT_RESPONSIBILITY_INVALID`、`PROJECT_AUDIT_HASH_INVALID`、`PROJECT_TIMESTAMP_INVALID`、`PROJECT_PACKAGE_PATH_INVALID`、`PROJECT_COMPATIBILITY_MISMATCH`。每个非法 fixture 同时断言问题码与精确 JSON path；诊断不回显正文或不可信值。
 
 权威命令：
 

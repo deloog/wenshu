@@ -67,7 +67,7 @@ test("source and formal-version actions have explicit responsibility rules", asy
   assert.equal(validateProjectContract(formal).ok, false);
 });
 
-test("timestamps, locators, and model identifiers reject ambiguous content", async () => {
+test("timestamps and locators reject malformed values without inspecting model names", async () => {
   const fixture = asRecord(await validFixture("semantic-audit-event"));
   const badDate = structuredClone(fixture);
   badDate["occurred_at"] = "2026-02-31T12:00:00.000Z";
@@ -84,13 +84,17 @@ test("timestamps, locators, and model identifiers reject ambiguous content", asy
   asRecord(refs[0])["locator"] = "这里是一段正文而不是定位符";
   assert.equal(validateProjectContract(badLocator).ok, false);
 
-  const badProvider = structuredClone(fixture);
-  asRecord(badProvider["subject_model_context"])["provider"] = "sk-live-secret-shape";
-  assert.equal(validateProjectContract(badProvider).ok, false);
-  const uppercaseSecret = structuredClone(fixture);
-  asRecord(uppercaseSecret["subject_model_context"])["model"] =
-    "TOKEN-production-shape";
-  assert.equal(validateProjectContract(uppercaseSecret).ok, false);
+  for (const model of ["keystone", "monkey", "tokenizer"]) {
+    const candidate = structuredClone(fixture);
+    asRecord(candidate["subject_model_context"])["model"] = model;
+    assert.equal(validateProjectContract(candidate).ok, true, model);
+  }
+  const unregisteredProvider = structuredClone(fixture);
+  asRecord(unregisteredProvider["subject_model_context"])["provider"] = "other";
+  assert.equal(validateProjectContract(unregisteredProvider).ok, false);
+  const credentialField = structuredClone(fixture);
+  asRecord(credentialField["subject_model_context"])["credential"] = "not-a-field";
+  assert.equal(validateProjectContract(credentialField).ok, false);
 });
 
 test("semantic diagnostics identify the exact failed rule and JSON path", async () => {
@@ -122,12 +126,11 @@ test("semantic diagnostics identify the exact failed rule and JSON path", async 
     },
     {
       mutate: (candidate: Record<string, unknown>): void => {
-        asRecord(candidate["subject_model_context"])["model"] =
-          "token-production-shape";
+        candidate["before_hash_subject"] = "template";
       },
       issue: {
-        code: "PROJECT_MODEL_IDENTIFIER_INVALID",
-        path: "/subject_model_context/model",
+        code: "PROJECT_AUDIT_HASH_INVALID",
+        path: "/before_hash_subject",
       },
     },
   ] as const;
@@ -146,6 +149,84 @@ test("semantic diagnostics identify the exact failed rule and JSON path", async 
         JSON.stringify(result),
       );
     }
+  }
+});
+
+test("template application records template hashes rather than fabricated document hashes", async () => {
+  const fixture = asRecord(await validFixture("semantic-audit-event"));
+  fixture["actor"] = "system";
+  fixture["action"] = "template_applied";
+  fixture["decision"] = "applied";
+  fixture["affected_node_ids"] = [];
+  fixture["source_refs"] = [];
+  fixture["subject_model_context"] = null;
+  fixture["before_hash_subject"] = "template";
+  fixture["after_hash_subject"] = "template";
+  assert.equal(validateProjectContract(fixture).ok, true);
+
+  const fabricatedDocumentSubject = structuredClone(fixture);
+  fabricatedDocumentSubject["before_hash_subject"] = "document";
+  fabricatedDocumentSubject["after_hash_subject"] = "document";
+  assert.equal(validateProjectContract(fabricatedDocumentSubject).ok, false);
+
+  const missingSubject = structuredClone(fixture);
+  delete missingSubject["before_hash_subject"];
+  delete missingSubject["after_hash_subject"];
+  assert.equal(validateProjectContract(missingSubject).ok, false);
+
+  const legacyTemplateEvent = structuredClone(fixture);
+  legacyTemplateEvent["schema_version"] = "0.1.0";
+  delete legacyTemplateEvent["before_hash_subject"];
+  delete legacyTemplateEvent["after_hash_subject"];
+  assert.equal(validateProjectContract(legacyTemplateEvent).ok, false);
+});
+
+test("the 0.1 reader remains available for non-template historical audit events", async () => {
+  const legacy = asRecord(await validFixture("semantic-audit-event"));
+  legacy["schema_version"] = "0.1.0";
+  delete legacy["before_hash_subject"];
+  delete legacy["after_hash_subject"];
+  assert.equal(validateProjectContract(legacy).ok, true);
+});
+
+test("system has exactly one allowed action", async () => {
+  const fixture = asRecord(await validFixture("semantic-audit-event"));
+  const systemTemplate = structuredClone(fixture);
+  systemTemplate["actor"] = "system";
+  systemTemplate["action"] = "template_applied";
+  systemTemplate["decision"] = "applied";
+  systemTemplate["affected_node_ids"] = [];
+  systemTemplate["source_refs"] = [];
+  systemTemplate["subject_model_context"] = null;
+  systemTemplate["before_hash_subject"] = "template";
+  systemTemplate["after_hash_subject"] = "template";
+  assert.equal(validateProjectContract(systemTemplate).ok, true);
+
+  for (const action of [
+    "ai_change_decided",
+    "user_changed_after_ai",
+    "source_linked",
+    "formal_version_approved",
+  ] as const) {
+    const rejected = structuredClone(fixture);
+    rejected["action"] = action;
+    if (action === "user_changed_after_ai") {
+      rejected["decision"] = "applied";
+    }
+    if (action === "source_linked") {
+      rejected["decision"] = "applied";
+      rejected["subject_model_context"] = null;
+    }
+    if (action === "formal_version_approved") {
+      rejected["decision"] = "approved";
+      rejected["subject_model_context"] = null;
+      rejected["affected_node_ids"] = [];
+      rejected["source_refs"] = [];
+      rejected["after_sha256"] = rejected["before_sha256"];
+    }
+    assert.equal(validateProjectContract(rejected).ok, true, `${action}: user`);
+    rejected["actor"] = "system";
+    assert.equal(validateProjectContract(rejected).ok, false, action);
   }
 });
 

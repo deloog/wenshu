@@ -14,6 +14,31 @@ export type MaterialId = string;
 export type AuditEventId = string;
 export type FormalVersionId = string;
 export type Timestamp = string;
+export type SemanticAuditEvent = {
+  [k: string]: unknown;
+} & {
+  contract_kind: "semantic_audit_event";
+  schema_version: "0.1.0" | "0.2.0";
+  event_id: AuditEventId;
+  project_id: ProjectId;
+  sequence: number;
+  occurred_at: Timestamp;
+  actor: "user" | "system";
+  action:
+    | "ai_change_decided"
+    | "user_changed_after_ai"
+    | "source_linked"
+    | "template_applied"
+    | "formal_version_approved";
+  decision: "accepted" | "rejected" | "applied" | "approved";
+  affected_node_ids: string[];
+  before_sha256: Sha256 | null;
+  before_hash_subject?: "document" | "template";
+  after_sha256: Sha256 | null;
+  after_hash_subject?: "document" | "template";
+  source_refs: SourceReference[];
+  subject_model_context: ModelContext | null;
+};
 
 export interface ProjectManifest {
   contract_kind: "project";
@@ -97,34 +122,13 @@ export interface PackageEntry {
   size_bytes: number;
   rebuildable: boolean;
 }
-export interface SemanticAuditEvent {
-  contract_kind: "semantic_audit_event";
-  schema_version: "0.1.0";
-  event_id: AuditEventId;
-  project_id: ProjectId;
-  sequence: number;
-  occurred_at: Timestamp;
-  actor: "user" | "system";
-  action:
-    | "ai_change_decided"
-    | "user_changed_after_ai"
-    | "source_linked"
-    | "template_applied"
-    | "formal_version_approved";
-  decision: "accepted" | "rejected" | "applied" | "approved";
-  affected_node_ids: string[];
-  before_sha256: Sha256 | null;
-  after_sha256: Sha256 | null;
-  source_refs: SourceReference[];
-  subject_model_context: ModelContext | null;
-}
 export interface SourceReference {
   material_id: MaterialId;
   sha256: Sha256;
   locator: string | null;
 }
 export interface ModelContext {
-  provider: string;
+  provider: "anthropic" | "google" | "local" | "openai" | "test";
   model: string;
   invocation_id: string;
 }
