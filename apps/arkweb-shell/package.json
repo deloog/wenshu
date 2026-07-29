@@ -1,0 +1,20 @@
+{
+  "name": "@wenshu/arkweb-shell",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:probe": "node --experimental-strip-types ./scripts/prepare-static-probe.mjs",
+    "verify:probe": "node --experimental-strip-types ./scripts/verify-probe.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@wenshu/host-contract": "workspace:*",
+    "@wenshu/markdown-import": "workspace:*",
+    "@wenshu/pdf-export": "workspace:*",
+    "@wenshu/report-render": "workspace:*",
+    "@wenshu/template-css": "workspace:*",
+    "@wenshu/template-map": "workspace:*"
+  }
+}

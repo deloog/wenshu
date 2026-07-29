@@ -9,3 +9,4 @@
 **/*.md
 pnpm-lock.yaml
 sbom/
+apps/arkweb-shell/entry/src/main/resources/rawfile/probe/

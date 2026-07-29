@@ -45,6 +45,30 @@ importers:
         specifier: 8.64.0
         version: 8.64.0(eslint@10.7.0)(typescript@6.0.3)
 
+  apps/arkweb-shell:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      '@wenshu/host-contract':
+        specifier: workspace:*
+        version: link:../../packages/host-contract
+      '@wenshu/markdown-import':
+        specifier: workspace:*
+        version: link:../../packages/markdown-import
+      '@wenshu/pdf-export':
+        specifier: workspace:*
+        version: link:../../packages/pdf-export
+      '@wenshu/report-render':
+        specifier: workspace:*
+        version: link:../../packages/report-render
+      '@wenshu/template-css':
+        specifier: workspace:*
+        version: link:../../packages/template-css
+      '@wenshu/template-map':
+        specifier: workspace:*
+        version: link:../../packages/template-map
+
   apps/electron-shell:
     dependencies:
       '@wenshu/host-contract':
