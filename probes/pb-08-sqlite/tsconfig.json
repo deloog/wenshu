@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "typeRoots": ["../../packages/report-render/node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "pb-08-sqlite-isolated-probe",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test *.test.ts"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "3.53.0-build1"
+  }
+}
