@@ -253,11 +253,11 @@
       "properties": {
         "provider": {
           "type": "string",
-          "pattern": "^(?!sk[-_])(?!.{0,20}(?:key|secret|token))[a-z][a-z0-9.-]{0,39}$"
+          "enum": ["anthropic", "google", "local", "openai", "test"]
         },
         "model": {
           "type": "string",
-          "pattern": "^(?!sk[-_])(?!.{0,20}(?:key|secret|token))[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$"
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$"
         },
         "invocation_id": { "type": "string", "pattern": "^inv_[a-f0-9]{32}$" }
       }
@@ -283,7 +283,7 @@
       ],
       "properties": {
         "contract_kind": { "const": "semantic_audit_event" },
-        "schema_version": { "const": "0.1.0" },
+        "schema_version": { "enum": ["0.1.0", "0.2.0"] },
         "event_id": { "$ref": "#/$defs/AuditEventId" },
         "project_id": { "$ref": "#/$defs/ProjectId" },
         "sequence": { "type": "integer", "minimum": 0 },
@@ -307,7 +307,13 @@
         "before_sha256": {
           "oneOf": [{ "$ref": "#/$defs/Sha256" }, { "type": "null" }]
         },
+        "before_hash_subject": {
+          "enum": ["document", "template"]
+        },
         "after_sha256": { "oneOf": [{ "$ref": "#/$defs/Sha256" }, { "type": "null" }] },
+        "after_hash_subject": {
+          "enum": ["document", "template"]
+        },
         "source_refs": {
           "type": "array",
           "items": { "$ref": "#/$defs/SourceReference" }
@@ -315,7 +321,23 @@
         "subject_model_context": {
           "oneOf": [{ "$ref": "#/$defs/ModelContext" }, { "type": "null" }]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "schema_version": { "const": "0.2.0" } } },
+          "then": {
+            "properties": {
+              "before_hash_subject": {
+                "enum": ["document", "template"]
+              },
+              "after_hash_subject": {
+                "enum": ["document", "template"]
+              }
+            },
+            "required": ["before_hash_subject", "after_hash_subject"]
+          }
+        }
+      ]
     },
     "CompatibilityManifest": {
       "type": "object",
