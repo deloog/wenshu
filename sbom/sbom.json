@@ -396,6 +396,7 @@
       "license": "MIT",
       "direct": true,
       "requested_by": [
+        "@wenshu/arkweb-shell",
         "@wenshu/ci",
         "@wenshu/config",
         "@wenshu/contract-runtime",
