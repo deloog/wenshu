@@ -163,6 +163,10 @@ export async function launchBrowser(
       };
       socket.onerror = () => {
         clearAbort();
+        if (signal?.aborted === true) {
+          rejectOpen(cancelledError());
+          return;
+        }
         rejectOpen(
           new RenderCheckError(
             "RENDER_BROWSER_UNAVAILABLE",
