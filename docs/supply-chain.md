@@ -9,7 +9,7 @@
 
 - `pnpm sbom:build`：重建 `sbom/sbom.json`（契约 `0.1.0`，确定性输出、无时间戳，同一代码树在 Windows/Linux/macOS 字节级相同）。
 - `pnpm supply:check`：逐项重建并与已提交 SBOM 字节比对（漂移即失败）、执行许可政策门禁、校验声明依赖与 lockfile 解析一致；已接入根 `verify` 与 CI `security` 作业。
-- 当前清单：**147 个包（10 个直接、137 个传递）**，全部来自 npm 官方注册表、经 lockfile integrity 哈希锁定；`workspace:*` 内部包不计入。
+- 当前清单：**170 个包（13 个直接、157 个传递）**，全部来自 npm 官方注册表、经 lockfile integrity 哈希锁定；`workspace:*` 内部包不计入。
 - 许可数据来源：本机已安装包读其 manifest `license` 字段；27 个 os/cpu 专属可选二进制（`@rolldown/binding-*`、`lightningcss-*` 平台变体、`fsevents`）与 wasm32 链（`@emnapi/*`、`@napi-rs/wasm-runtime`、`@tybys/wasm-util`、`tslib`）并非在每个平台都安装，其许可登记在 `src/license-overrides.ts` 受审覆盖表；已安装时覆盖值必须与包内 manifest 一致，两者皆无则 fail-closed。
 
 ## 2. 直接依赖与用途
@@ -22,6 +22,7 @@
 | prettier | 3.9.5 | 格式门禁 | MIT |
 | ajv | 8.20.0 | 各契约包的 JSON Schema 校验 | MIT |
 | json-schema-to-typescript | 15.0.4 | 契约 Schema → 生成类型 | MIT |
+| prosemirror-model / orderedmap | 1.25.11 / 2.1.1 | PB-02 语义编辑文档树 / 有序映射传递依赖 | MIT / MIT |
 | yaml | 2.9.0 | `@wenshu/supply-chain` 解析冻结 lockfile | ISC |
 | @types/node | 24.13.3 | Node 类型声明（仅编译期） | MIT |
 

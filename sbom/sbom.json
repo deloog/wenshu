@@ -413,6 +413,7 @@
         "@wenshu/quality",
         "@wenshu/report-checks",
         "@wenshu/report-render",
+        "@wenshu/semantic-editor",
         "@wenshu/supply-chain",
         "@wenshu/template-css",
         "@wenshu/template-map",
@@ -995,6 +996,13 @@
       "requested_by": []
     },
     {
+      "name": "orderedmap",
+      "version": "2.1.1",
+      "license": "MIT",
+      "direct": false,
+      "requested_by": []
+    },
+    {
       "name": "p-limit",
       "version": "3.1.0",
       "license": "MIT",
@@ -1074,6 +1082,15 @@
       "license": "MIT",
       "direct": false,
       "requested_by": []
+    },
+    {
+      "name": "prosemirror-model",
+      "version": "1.25.11",
+      "license": "MIT",
+      "direct": true,
+      "requested_by": [
+        "@wenshu/semantic-editor"
+      ]
     },
     {
       "name": "punycode",
@@ -1181,6 +1198,7 @@
         "@wenshu/quality",
         "@wenshu/report-checks",
         "@wenshu/report-render",
+        "@wenshu/semantic-editor",
         "@wenshu/supply-chain",
         "@wenshu/template-css",
         "@wenshu/template-map",
