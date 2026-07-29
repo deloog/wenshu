@@ -8,5 +8,6 @@ catalog:
   ajv: 8.20.0
   json-schema-to-typescript: 15.0.4
   pdfjs-dist: 6.1.200
+  prosemirror-model: 1.25.11
   typescript: 6.0.3
   vite: 8.1.5
