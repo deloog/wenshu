@@ -10,7 +10,7 @@
 
 ## 1. 结论
 
-**PASS —— PB-09 通过,可合并 PR #39。** 无 BLOCKER/MAJOR。**一条 MINOR(错误掩盖,非数据安全,见 §4),不阻断签署,登记待修。** 门禁命门"已提交数据零丢失"独立坐实。
+**PASS —— PB-09 通过,可合并 PR #39。** 无 BLOCKER/MAJOR。**一条 MINOR(错误掩盖,非数据安全,见 §4)——已于 `46af40e` 修复,经我独立复审关闭(见 §6)。** 门禁命门"已提交数据零丢失"独立坐实。
 
 - **数据不丢(命门,我独立喂对抗)**:强杀未提交事务/真 `SQLITE_FULL` 磁盘满/只读拒绝下,**已提交数据逐条保留、库保持一致**;损坏主库时**从最近 SQLite 备份恢复、损坏文件被 quarantine 不当真源**。
 - **迁移幂等 + 库层 append-only + 篡改 fail-closed**:v0→v1 原子迁移,**重复运行不重复应用**;`schema_migrations` 由 **SQLite BEFORE UPDATE/DELETE 触发器** 强制 append-only;删触发器或改 checksum → `HISTORY_TAMPERED`。
@@ -56,3 +56,15 @@
 - **诚实说明**:审计中共享工作目录 D:/wenshu 停留在功能分支(实施者在同目录切分支干活、和/或 worktree add 副作用所致——较前几棒我更正归因,非单一 worktree DWIM);我核实树干净后已切回 main 才提交,报告确在 main、对产物与 main 无影响。本轮我探针②首次正则未抓准错误信息,精确复跑后反而定位到上述 MINOR,如实登记。
 
 按 CLAUDE.md,本报告由审计者给出结论,台账由 Codex 完成;实施者不自行关闭发现;MINOR 修复后由 Claude 复审关闭。
+
+---
+
+## 6. 复审记录 · MINOR 已关闭（2026-07-30）
+
+- **修复基线**:PR #39 更新至 `46af40e`(CI 8/8 绿,run `30471186758`)。
+- **修法核对(我读 diff)**:`store.ts:213-217` `writeProject` 的 rollback 已包 `try{ … }catch{}` 守卫(注释"SQLite can auto-rollback a failed commit, for example SQLITE_FULL"),`throw error` 让**原始 `SQLITE_FULL` 原样透出**——正是 §4 建议、镜像 `migrations.ts` 既有守卫。
+- **回归守卫已补**:磁盘满测试新增 `assert.match(msg, /full/i)` + **`assert.doesNotMatch(msg, /cannot rollback|no transaction is active/i)`**——补上了官方测试原先只 `assert.throws` 的缺口,掩盖若复发即测试失败。
+- **我独立复跑(修复后代码)**:`max_page_count` 满时抛 **"database or disk is full"**(真 `SQLITE_FULL`)、**不再是"cannot rollback"**、**p1 已提交仍在**(命门未回归)——**MINOR 关闭**。
+- **无越权改动核**:PR 分支上的本审计报告与我 main 版**逐字一致**(merge-base=我的报告提交),系 rebase 流入、**非实施者改动**;实施者未自行关闭发现。
+
+**结论:PB-09 §4 MINOR 已修复并经独立复审关闭,PR #39 可合并,无遗留。**
