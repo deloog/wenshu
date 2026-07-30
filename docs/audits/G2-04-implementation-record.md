@@ -130,6 +130,6 @@ Claude 独立审计结论 **CONDITIONAL PASS**（[审计报告](G2-04-claude-aud
 | 单元 `pnpm --filter @wenshu/quality test` | 35/35 pass |
 | 本任务 integration（三文件） | 31/31 pass |
 | `pnpm verify` | **exit=0（192s）**，门禁计数行 77/239/18/50/27/13（未解析行 0）；`roadmap-parse.ts` WARN 消除，其余 24 条 WARN 为既有可接受项（本机日志 `tmp/g204-ma01-mi01-verify.txt`，非项目真源） |
-| 远程 CI | （推送后按实际 run 更新） |
+| 远程 CI | run [`30543882134`](https://github.com/deloog/wenshu/actions/runs/30543882134)（ubuntu-24.04，PR #44，覆盖 `045d603`）**8/8 success**；static job 日志含门禁计数行 `77/239/18/50/27/13，未解析行 0`，ubuntu 上复现一致 |
 
 提交边界（可单独回退）：MA-01（解析器拆分 + §6 更正）`33ad9bb`；MI-01（路线图 v1.6 + ADR-0024/任务书增补 + 本节）`c60ba27`。
