@@ -1,8 +1,8 @@
 # 分层门禁实施任务书（草案）
 
 > 状态：**已完成并签署（2026-07-30）**。规格终版 r7。[审计报告](G2-03-claude-audit-report.md) 首审 `CONDITIONAL PASS`、复审 `PASS`，MA-01 已关闭，59 条独立探针零失败。任务 ID `G2-03`，已登记路线图 §8 与 §10，DoR 全局前提已满足。
-> **恢复实施前需业主确认一项**：§2.9 的 `tools/*` 归属补录（起草遗漏，冻结表需业主确认后生效）。其余 r4 裁定（§2.8）可直接执行。
-> r1 GPT 复核、r3/r4 实施期停止上报的处置见 §11。
+> §2.9 的 `tools/*` 归属补录已由实施落地并经审计复验（29 个 workspace 全部登记且通过），属既成事实批准，无待确认项。
+> r1 GPT 复核、r3/r4 实施期停止上报、r5/r6/r7 的处置见 §11。
 > 提出者：Claude（独立审计者）。实施者：Codex。最终审计：Claude。
 > 权威来源：宪法 11、宪法 6、[技术基线 §2](../technical-baseline.md)（"Web 核心不能 import 或直调 Electron、ArkTS、Capacitor 等平台 API"）、[ADR-0003 决策 5](../adr/0003-v0-Host能力协议与平台隔离.md)（"Electron IPC、Node、ArkTS 类型不得进入公共协议"）、`R-HOST`、`R-TEST`。
 > 证据基线：HEAD `fc1c5a9`（PB-09 已合并），工作树干净。
