@@ -219,6 +219,35 @@ function isUsedByScript(scripts: readonly string[], dependency: string): boolean
   return scripts.some((script) => script.includes(dependency));
 }
 
+function isConfiguredType(
+  owner: WorkspacePackage,
+  dependency: string,
+  files: readonly string[],
+): boolean {
+  if (!dependency.startsWith("@types/")) return false;
+  const typeName = dependency.slice("@types/".length);
+  return files
+    .filter(
+      (file) =>
+        belongsTo(owner.directory, file) && file.endsWith(`${sep}tsconfig.json`),
+    )
+    .some((file) => {
+      const parsed = ts.parseConfigFileTextToJson(file, requireText(file));
+      const options = parsed.config?.["compilerOptions"];
+      if (typeof options !== "object" || options === null || Array.isArray(options)) {
+        return false;
+      }
+      const types = (options as Record<string, unknown>)["types"];
+      return Array.isArray(types) && types.some((entry) => entry === typeName);
+    });
+}
+
+function requireText(filePath: string): string {
+  // tsconfig consumption is a synchronous local configuration lookup; source files
+  // remain asynchronously read below because they can be numerous.
+  return ts.sys.readFile(filePath) ?? "";
+}
+
 export async function checkUnusedProductionDependencies(
   workspaceRoot: string,
   files: readonly string[],
@@ -239,7 +268,7 @@ export async function checkUnusedProductionDependencies(
           entry.dependency === dependency,
       );
       if (
-        dependency.startsWith("@types/") ||
+        isConfiguredType(owner, dependency, files) ||
         resourceDependency ||
         isUsedByScript(owner.scripts, dependency)
       ) {

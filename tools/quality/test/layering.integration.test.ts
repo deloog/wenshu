@@ -49,6 +49,16 @@ test("layering checks real files for node, CJS, platform, and relative escapes",
         'import "../../report-render/src/index.ts";',
         "LAYER_DIRECTION_FORBIDDEN",
       ],
+      [
+        "packages/config/src/unregistered.ts",
+        'import "../../../probes/pb-08-sqlite/chromium-tabs.ts";',
+        "UNREGISTERED_PATH_TARGET",
+      ],
+      [
+        "packages/semantic-editor/test/electron.cjs",
+        'require("electron");',
+        "ELECTRON_FORBIDDEN",
+      ],
     ] as const;
     for (const [path, source, expected] of cases) {
       const file = join(fixture.root, path);
@@ -58,6 +68,28 @@ test("layering checks real files for node, CJS, platform, and relative escapes",
       assert.ok(result.findings.some((finding) => finding.message.includes(expected)));
       await rm(file);
     }
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("layering allows node builtins in auxiliary test and script files", async () => {
+  const fixture = await fixtureRoot();
+  try {
+    const files = [
+      ["packages/config/test/node.test.ts", 'import "node:test";'],
+      ["packages/config/scripts/generate.ts", 'import "node:fs";'],
+    ] as const;
+    const created: string[] = [];
+    for (const [path, source] of files) {
+      const file = join(fixture.root, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, source);
+      created.push(file);
+    }
+    const result = await checkLayering(fixture.root, [...fixture.files, ...created]);
+    assert.equal(result.findings.length, 0);
+    assert.equal(result.coverage.auxiliaryFiles, 2);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
