@@ -356,15 +356,6 @@
       "requested_by": []
     },
     {
-      "name": "@sqlite.org/sqlite-wasm",
-      "version": "3.53.0-build1",
-      "license": "Apache-2.0",
-      "direct": true,
-      "requested_by": [
-        "@wenshu/project-storage"
-      ]
-    },
-    {
       "name": "@tybys/wasm-util",
       "version": "0.10.3",
       "license": "MIT",
