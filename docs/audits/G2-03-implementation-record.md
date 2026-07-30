@@ -44,3 +44,18 @@
   R-COMPAT/供应链边界，不因具名扫描排除而视为解决。
 - 质量护栏对 `tools/quality/src/phantom-dependencies.ts` 的 300 行预警仍存在；未放宽
   护栏，也未在本任务作无关拆分。
+
+## MA-01 复测（r6）
+
+审计发现的 L3 无差别平台放行已按 r6 收口：平台前缀与拒绝规则由
+`layering-registry.ts` 的壳条目登记，检查器没有平台包名白名单。未登记前缀的壳默认
+拒绝已知平台命名空间。
+
+`node --test tools/quality/test/layering.integration.test.ts` 的 2×2 真实文件探针结果：
+
+| 来源壳 | `electron` | `@ohos.` / `@ohos/` |
+|---|---|---|
+| electron-shell | 通过（反例 16） | `ARKTS_FORBIDDEN`（反例 32） |
+| arkweb-shell | `ELECTRON_FORBIDDEN`（反例 7） | 通过（反例 33） |
+
+该复测不处理审计报告登记的 MI-01～MI-03、NO-01～NO-03。

@@ -1,8 +1,15 @@
 export type Layer = "L0" | "L1" | "L2" | "L3" | "web";
 
+export interface PlatformNamespace {
+  readonly prefix: string;
+  readonly forbiddenRule: "ELECTRON_FORBIDDEN" | "ARKTS_FORBIDDEN";
+}
+
 export interface LayeredWorkspace {
   readonly directory: string;
   readonly layer: Layer;
+  /** Platform APIs are allowed only when the owning shell lists their prefix here. */
+  readonly platformNamespaces?: readonly PlatformNamespace[];
   /** IDE-supplied Hvigor plugins are not npm dependencies; this list is deliberately exact. */
   readonly npmDependencyScanExclusions?: readonly string[];
 }
@@ -44,10 +51,20 @@ export const LAYERED_WORKSPACES: readonly LayeredWorkspace[] = Object.freeze([
   { directory: "tools/fonts", layer: "L2" },
   { directory: "tools/quality", layer: "L2" },
   { directory: "tools/supply-chain", layer: "L2" },
-  { directory: "apps/electron-shell", layer: "L3" },
+  {
+    directory: "apps/electron-shell",
+    layer: "L3",
+    platformNamespaces: Object.freeze<PlatformNamespace[]>([
+      { prefix: "electron", forbiddenRule: "ELECTRON_FORBIDDEN" },
+    ]),
+  },
   {
     directory: "apps/arkweb-shell",
     layer: "L3",
+    platformNamespaces: Object.freeze<PlatformNamespace[]>([
+      { prefix: "@ohos.", forbiddenRule: "ARKTS_FORBIDDEN" },
+      { prefix: "@ohos/", forbiddenRule: "ARKTS_FORBIDDEN" },
+    ]),
     npmDependencyScanExclusions: Object.freeze([
       "apps/arkweb-shell/hvigorfile.ts",
       "apps/arkweb-shell/entry/hvigorfile.ts",

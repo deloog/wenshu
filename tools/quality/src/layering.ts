@@ -6,7 +6,9 @@ import {
   EXCLUDED_TOP_LEVEL_DIRECTORIES,
   LAYERED_WORKSPACES,
   type Layer,
+  type PlatformNamespace,
 } from "./layering-registry.ts";
+import { platformViolation } from "./layering-platform.ts";
 import {
   CODE_EXTENSIONS,
   hasExactExtension,
@@ -48,6 +50,7 @@ interface Workspace {
   readonly directory: string;
   readonly layer: Layer;
   readonly packageName: string;
+  readonly platformNamespaces: readonly PlatformNamespace[];
 }
 
 function zeroCoverage(): MutableLayeringCoverage {
@@ -109,28 +112,6 @@ function allowsForRuleSet(source: Layer, target: Layer, ruleSet: RuleSet): boole
   return allows(source, target) || target === source || target === "L2";
 }
 
-function platformViolation(
-  source: Layer,
-  specifier: string,
-  ruleSet: RuleSet,
-): string | undefined {
-  if (
-    specifier.startsWith("node:") &&
-    ruleSet === "strict" &&
-    source !== "L2" &&
-    source !== "L3"
-  ) {
-    return "NODE_BUILTIN_FORBIDDEN";
-  }
-  if (specifier === "electron" || specifier.startsWith("electron/")) {
-    return source === "L3" ? undefined : "ELECTRON_FORBIDDEN";
-  }
-  if (specifier.startsWith("@ohos.") || specifier.startsWith("@ohos/")) {
-    return source === "L3" ? undefined : "ARKTS_FORBIDDEN";
-  }
-  return undefined;
-}
-
 function workspaceForPath(
   filePath: string,
   workspaces: readonly Workspace[],
@@ -189,7 +170,12 @@ async function workspacesFor(
       });
       continue;
     }
-    workspaces.push({ directory, layer: entry.layer, packageName: name });
+    workspaces.push({
+      directory,
+      layer: entry.layer,
+      packageName: name,
+      platformNamespaces: entry.platformNamespaces ?? [],
+    });
   }
   for (const [directory, manifest] of manifests) {
     const relativeDirectory = relative(workspaceRoot, directory).replaceAll("\\", "/");
@@ -246,7 +232,11 @@ export async function checkLayering(
       const form = formOf(imported.specifier);
       coverage.specifierForms[form] += 1;
       coverage.syntaxForms[imported.syntax] += 1;
-      const platform = platformViolation(source.layer, imported.specifier, ruleSet);
+      const platform = platformViolation(
+        source,
+        imported.specifier,
+        ruleSet === "strict",
+      );
       if (platform !== undefined) {
         findings.push({
           rule: "layering",

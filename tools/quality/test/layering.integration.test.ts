@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 
 import { checkLayering } from "../src/index.ts";
+import { platformViolation } from "../src/layering-platform.ts";
 import { LAYERED_WORKSPACES } from "../src/layering-registry.ts";
 
 async function fixtureRoot(): Promise<{
@@ -93,4 +94,52 @@ test("layering allows node builtins in auxiliary test and script files", async (
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
+});
+
+test("each L3 shell accepts only its registered platform namespace", async () => {
+  const fixture = await fixtureRoot();
+  try {
+    const cases = [
+      ["apps/electron-shell/src/own.cjs", 'require("electron");', undefined],
+      [
+        "apps/arkweb-shell/src/foreign-electron.ts",
+        'import "electron";',
+        "ELECTRON_FORBIDDEN",
+      ],
+      [
+        "apps/electron-shell/src/foreign-ark.ts",
+        'import "@ohos.web.webview";',
+        "ARKTS_FORBIDDEN",
+      ],
+      ["apps/arkweb-shell/src/own-ark.ts", 'import "@ohos.web.webview";', undefined],
+    ] as const;
+    for (const [path, source, expected] of cases) {
+      const file = join(fixture.root, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, source);
+      const result = await checkLayering(fixture.root, [...fixture.files, file]);
+      if (expected === undefined) {
+        assert.equal(result.findings.length, 0);
+      } else {
+        assert.ok(
+          result.findings.some((finding) => finding.message.includes(expected)),
+        );
+      }
+      await rm(file);
+    }
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("an L3 shell without a namespace registration fails closed", () => {
+  const unregisteredShell = { layer: "L3" as const, platformNamespaces: [] };
+  assert.equal(
+    platformViolation(unregisteredShell, "electron", true),
+    "ELECTRON_FORBIDDEN",
+  );
+  assert.equal(
+    platformViolation(unregisteredShell, "@ohos.web.webview", true),
+    "ARKTS_FORBIDDEN",
+  );
 });
