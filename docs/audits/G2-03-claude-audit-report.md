@@ -8,6 +8,10 @@
 
 ## 1. 结论
 
+> **最终结论：`PASS`（2026-07-30 复审签署）。** 首审 `CONDITIONAL PASS` 的唯一 MAJOR（MA-01）已由实施者修复，经我独立复审关闭，见 §9。复审新增一项 MINOR（MI-04），已登记为跟进项，不阻断签署。
+
+### 1.1 首审结论（保留原文）
+
 **CONDITIONAL PASS —— 1 项 MAJOR 未关闭，关闭后可签署。**
 
 31 条反例我全部独立构造并执行：**30 条通过，1 条失败（反例 7）**。门禁在真实仓库上确实拦得住 29 类违规，也确实不误伤 6 类现有合法模式。P-1/P-2/P-3 三项修复经独立复验全部成立。
@@ -122,9 +126,70 @@ if (specifier.startsWith("@ohos.") || specifier.startsWith("@ohos/")) {
 
 建议由 GPT 对本报告 §2 的方法与 §3 的反例构造做一次独立复核——尤其是反例 7 的 FAIL 与反例 12 的自我更正这两条，前者决定是否阻断，后者是我已发现并修正的自身缺陷。
 
-## 8. 关闭条件
+## 8. 关闭条件（首审提出，已全部满足，见 §9）
 
 1. MA-01 修复：`platformViolation` 按壳身份区分平台命名空间。
 2. 重跑反例 7 观察 `ELECTRON_FORBIDDEN`，并新增对称反例 32（`electron-shell` 导入 `@ohos.*` 须失败）；任务书矩阵 31 → 32。
 3. MI-01～MI-03、NO-01 登记为跟进项，由业主决定时点，不阻断本次签署。
 4. 上述完成后由我复核关闭 MA-01 并签署 G2-03。
+
+## 9. 复审：MA-01 关闭并签署（2026-07-30）
+
+被审对象：`agent/g2-03-layering` 修复提交 `2641b9f`（`fix: isolate L3 platform namespaces`）。
+
+### 9.1 实现复核
+
+平台命名空间以 `{ prefix, forbiddenRule }` 登记在 `layering-registry.ts` 的 L3 条目上（`electron-shell` → `electron`；`arkweb-shell` → `@ohos.` 与 `@ohos/`）；判定逻辑移入新模块 `layering-platform.ts`（39 行）。
+
+设计正确且符合 §2.11 裁定：「什么算平台说明符」由**全部登记项的并集**派生，来源 workspace 未登记该前缀即拦。因此不存在硬编码平台清单，例外落在 §5.5 的单一手写真源里；且来源侧天然 fail-closed——`platformNamespaces` 缺省为空数组，空集合无法匹配任何前缀。
+
+`matchesPlatformNamespace` 对以 `.`/`/` 结尾的前缀用 `startsWith`，否则要求精确相等或 `prefix/` 开头，因此 `electron` 匹配 `electron` 与 `electron/main` 但不误伤 `electron-store`（与修复前行为一致，无回归）。
+
+### 9.2 独立执行结果：29 条探针，零失败
+
+**2×2 平台矩阵（本轮承重）全部成立：**
+
+| | `electron` | `@ohos.` / `@ohos/` |
+|---|---|---|
+| `apps/electron-shell` | PASS 无发现（#16、#16b 子路径） | PASS `ARKTS_FORBIDDEN`（#32） |
+| `apps/arkweb-shell` | PASS `ELECTRON_FORBIDDEN`（#7） | PASS 无发现（#33、#33b 斜杠形式） |
+
+**平台回归**（全部经过被改动的 `platformViolation`）：#2、#3、#6、#10、#14、#22、#23、#30 —— 8/8 PASS，规则码与首审一致。
+
+**`node:*` 未被改动**（实施者声明的复核）：#1、#13、#15 触发 `NODE_BUILTIN_FORBIDDEN`；#29（L0 `test/`）、#29b（L2 `src`）、#29c（L3 `src`）均无发现 —— 6/6 PASS。
+
+**层级方向未回归**：#4、#5、#9、#11、#12、#31 —— 6/6 PASS。
+
+**fail-closed 独立构造验证**（实施者声明"未登记平台前缀的 L3 壳 fail-closed"）：临时向归属声明注入第三个 L3 条目 `apps/__probeshell` 且**故意不登记** `platformNamespaces`，执行后恢复原文 ——
+
+| 构造 | 期望 | 结果 |
+|---|---|---|
+| 未登记 L3 导入 `electron` | 失败 | PASS `ELECTRON_FORBIDDEN` |
+| 未登记 L3 导入 `@ohos.web.webview` | 失败 | PASS `ARKTS_FORBIDDEN` |
+| 未登记 L3 导入 `node:fs` | **通过** | PASS 无发现（`node:` 由层级而非命名空间登记决定，符合 §2.11） |
+
+**干净态全门禁**：`node scripts/check-repository.ts` → `exit=0`，`workspaces=29 sourceFiles=327 auxiliaryFiles=139 unclassifiedFiles=3 emptyImports=37 require=14 arkTsIgnored=3`。
+
+全部探针执行后已删除，`git status --short` 验证工作树干净。
+
+### 9.3 复审新增发现
+
+**MI-04（MINOR，已登记跟进）· 平台宇宙由"有壳登记"派生，无壳平台无法表达**
+
+`platformViolation` 的平台前缀集合是 `LAYERED_WORKSPACES.flatMap(w => w.platformNamespaces ?? [])`，即**只有被某个 workspace 登记为自有平台的前缀才算平台说明符**。因此一个仓内尚无对应壳的平台，无法表达为"处处禁止"。
+
+实测观察：L0 包 `src` 中 `import "@capacitor/core"` —— **零发现**。
+
+而宪法 11 与[技术基线 §2](../technical-baseline.md) 第 27 行均**明文点名 Capacitor**（"Web 核心不能 import 或直调 Electron、ArkTS、**Capacitor** 等平台 API"）。故任务书 §1"使宪法 11 与技术基线 §2 从人工审计事项变为机械门禁事项"这一表述，实际覆盖范围以已登记平台命名空间为界。
+
+**不阻断签署**，理由：Capacitor 不在依赖树中（当前暴露为零）；Android/iOS 由技术基线 §3 与[路线图 §1.2](../implementation-roadmap.md) 明确列为首战范围外；§3 冻结归属表本身也只列了 `node:*`、`electron`、`@ohos.`/`@ohos/` 三类，Capacitor 不在冻结规格内。修复前不是回归——修复前同样不覆盖。
+
+**建议处置**：数据模型增加"无主平台命名空间"表达（全局禁止列表，仍在同一手写真源内），并在引入任何新平台壳之前先登记。已同步收窄任务书 §1 的表述，避免规格自身夸大覆盖。
+
+### 9.4 签署
+
+MA-01 **关闭**。首审 30/31 + 复审 29/29，合计 59 条独立探针执行，除已关闭的 MA-01 外零失败。
+
+**G2-03 签署通过（`PASS`）。** 未关闭发现：无。跟进项：MI-01、MI-02、MI-03、MI-04、NO-01、NO-02、NO-03，均不阻断，由业主决定时点。
+
+**PB-10 的前置依赖（路线图 §8）由此满足，可按其 DoR 启动。**
