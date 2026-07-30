@@ -129,7 +129,7 @@ Claude 独立审计结论 **CONDITIONAL PASS**（[审计报告](G2-04-claude-aud
 | `pnpm quality:check` | 通过，计数行 77/239/18/50/27/13，`roadmap-parse.ts` WARN 消除（`roadmap-parse-regions.ts` 260 行、`roadmap-parse.ts` 131 行） |
 | 单元 `pnpm --filter @wenshu/quality test` | 35/35 pass |
 | 本任务 integration（三文件） | 31/31 pass |
-| `pnpm verify` | （提交前实跑结果见 §8 提交注记） |
+| `pnpm verify` | **exit=0（192s）**，门禁计数行 77/239/18/50/27/13（未解析行 0）；`roadmap-parse.ts` WARN 消除，其余 24 条 WARN 为既有可接受项（本机日志 `tmp/g204-ma01-mi01-verify.txt`，非项目真源） |
 | 远程 CI | （推送后按实际 run 更新） |
 
-提交边界（可单独回退）：MA-01（解析器拆分 + §6 更正）与 MI-01（路线图 v1.6 + ADR-0024/任务书增补 + 本节）各一独立提交。
+提交边界（可单独回退）：MA-01（解析器拆分 + §6 更正）`33ad9bb`；MI-01（路线图 v1.6 + ADR-0024/任务书增补 + 本节）`c60ba27`。
