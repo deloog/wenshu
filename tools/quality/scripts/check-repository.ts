@@ -6,10 +6,13 @@ import { discoverWorkspaceFiles } from "@wenshu/test-support";
 import {
   checkFileSize,
   checkForbiddenSyntax,
+  checkLayering,
   checkPhantomDependencies,
+  checkUnusedProductionDependencies,
   checkStrictBaseConfig,
   checkTypecheckCoverage,
   CODE_EXTENSIONS,
+  formatLayeringCoverage,
   hasExactExtension,
   hasNoncanonicalCodeExtension,
   inspectGeneratedFileRegistry,
@@ -44,6 +47,11 @@ for (const file of sourceFiles) {
 const coverage = await checkTypecheckCoverage(workspaceRoot, files);
 const strictConfig = await checkStrictBaseConfig(workspaceRoot);
 const phantomDependencies = await checkPhantomDependencies(workspaceRoot, files);
+const unusedProductionDependencies = await checkUnusedProductionDependencies(
+  workspaceRoot,
+  files,
+);
+const layering = await checkLayering(workspaceRoot, files);
 findings
   .filter((finding) => finding.severity === "warning")
   .forEach((finding) => {
@@ -69,6 +77,16 @@ phantomDependencies.forEach((finding) => {
     `ERROR phantom-dependency ${relative(workspaceRoot, finding.filePath)} ${finding.message}`,
   );
 });
+unusedProductionDependencies.forEach((finding) => {
+  console.error(
+    `ERROR unused-production-dependency ${relative(workspaceRoot, finding.filePath)} ${finding.message}`,
+  );
+});
+layering.findings.forEach((finding) => {
+  console.error(
+    `ERROR layering ${relative(workspaceRoot, finding.filePath)}:${finding.line} ${finding.message}`,
+  );
+});
 generatedRegistry.findings.forEach((finding) => {
   console.error(
     `ERROR generated-registry ${relative(workspaceRoot, finding.packageRoot)} ${finding.message}`,
@@ -80,10 +98,13 @@ if (
   coverage.length > 0 ||
   strictConfig.length > 0 ||
   phantomDependencies.length > 0 ||
+  unusedProductionDependencies.length > 0 ||
+  layering.findings.length > 0 ||
   generatedRegistry.findings.length > 0
 ) {
   process.exitCode = 1;
 } else {
+  console.log(formatLayeringCoverage(layering.coverage));
   console.log(
     `Quality guardrails passed: ${sourceFiles.length} source/config files, ${files.length} repository files.`,
   );

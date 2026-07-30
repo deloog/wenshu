@@ -1,5 +1,3 @@
-import { randomBytes } from "node:crypto";
-
 export type IdPrefix = "node" | "item" | "col" | "row" | "cell";
 
 export interface IdAllocator {
@@ -9,7 +7,8 @@ export interface IdAllocator {
 /** IDs are opaque random values; callers never pass document positions into it. */
 export class RandomIdAllocator implements IdAllocator {
   allocate(prefix: IdPrefix): string {
-    return `${prefix}_${randomBytes(16).toString("hex")}`;
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    return `${prefix}_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
   }
 }
 

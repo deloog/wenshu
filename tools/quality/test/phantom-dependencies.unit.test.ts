@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   checkPhantomDependencies,
+  checkUnusedProductionDependencies,
   collectModuleImports,
   packageNameOfSpecifier,
 } from "../src/index.ts";
@@ -30,20 +31,24 @@ test("specifier collection covers static, dynamic, re-export, and type reference
     'export { helper } from "./local.ts";',
     'export * from "prettier";',
     'const loaded = await import("typescript");',
+    'const common = require("node:fs");',
+    'import legacy = require("node:path");',
     'import "vite/client";',
     '// from "commented-out"',
   ].join("\n");
   const imports = collectModuleImports("sample.ts", text);
   assert.deepEqual(
-    imports.map(({ specifier, typeOnly }) => ({ specifier, typeOnly })),
+    imports.map(({ specifier, typeOnly, syntax }) => ({ specifier, typeOnly, syntax })),
     [
-      { specifier: "eslint", typeOnly: false },
-      { specifier: "ajv", typeOnly: true },
-      { specifier: "./local.ts", typeOnly: false },
-      { specifier: "prettier", typeOnly: false },
-      { specifier: "typescript", typeOnly: false },
-      { specifier: "vite/client", typeOnly: false },
-      { specifier: "node", typeOnly: true },
+      { specifier: "eslint", typeOnly: false, syntax: "esm" },
+      { specifier: "ajv", typeOnly: true, syntax: "esm" },
+      { specifier: "./local.ts", typeOnly: false, syntax: "export-from" },
+      { specifier: "prettier", typeOnly: false, syntax: "export-from" },
+      { specifier: "typescript", typeOnly: false, syntax: "dynamic" },
+      { specifier: "node:fs", typeOnly: false, syntax: "require" },
+      { specifier: "node:path", typeOnly: false, syntax: "import-equals" },
+      { specifier: "vite/client", typeOnly: false, syntax: "esm" },
+      { specifier: "node", typeOnly: true, syntax: "reference" },
     ],
   );
 });
@@ -119,6 +124,69 @@ test("a declared @types package never satisfies a value import", async () => {
     const findings = await checkPhantomDependencies(root, files);
     assert.equal(findings.length, 1);
     assert.match(findings[0]?.message ?? "", /some-lib/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("unused production dependencies fail while subpath imports count as use", async () => {
+  const root = await mkdtemp(join(tmpdir(), "wenshu-unused-production-"));
+  try {
+    const packageDirectory = join(root, "packages", "project-storage");
+    await mkdir(join(packageDirectory, "src"), { recursive: true });
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({ name: "root", private: true }),
+    );
+    await writeFile(
+      join(packageDirectory, "package.json"),
+      JSON.stringify({
+        name: "@wenshu/project-storage",
+        dependencies: { ajv: "8.20.0", unused: "1.0.0" },
+      }),
+    );
+    await writeFile(
+      join(packageDirectory, "src", "index.ts"),
+      'import "ajv/dist/2020.js";',
+    );
+    const files = [
+      join(root, "package.json"),
+      join(packageDirectory, "package.json"),
+      join(packageDirectory, "src", "index.ts"),
+    ];
+    const findings = await checkUnusedProductionDependencies(root, files);
+    assert.equal(findings.length, 1);
+    assert.match(findings[0]?.message ?? "", /unused/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("tsconfig compilerOptions.types consumes an @types production dependency", async () => {
+  const root = await mkdtemp(join(tmpdir(), "wenshu-configured-types-"));
+  try {
+    const packageDirectory = join(root, "packages", "project-storage");
+    await mkdir(join(packageDirectory, "src"), { recursive: true });
+    await writeFile(
+      join(packageDirectory, "package.json"),
+      JSON.stringify({
+        name: "@wenshu/project-storage",
+        dependencies: { "@types/node": "24.13.3" },
+      }),
+    );
+    const files = [
+      join(packageDirectory, "package.json"),
+      join(packageDirectory, "tsconfig.json"),
+    ];
+    const withoutConfiguration = await checkUnusedProductionDependencies(root, files);
+    assert.equal(withoutConfiguration.length, 1);
+    assert.match(withoutConfiguration[0]?.message ?? "", /@types\/node/u);
+    await writeFile(
+      join(packageDirectory, "tsconfig.json"),
+      JSON.stringify({ compilerOptions: { types: ["node"] } }),
+    );
+    const findings = await checkUnusedProductionDependencies(root, files);
+    assert.deepEqual(findings, []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
