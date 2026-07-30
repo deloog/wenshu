@@ -1,6 +1,8 @@
 # 文枢原子化实施路线图
 
-> 版本：1.2　日期：2026-07-20　状态：**GR 已通过**（v1.0 专项审计 0 项未关闭阻断；审计后依次依据独立复审新增 PA-00、PB-05A）
+> 版本：1.3　日期：2026-07-30　状态：**GR 已通过**（v1.0 专项审计 0 项未关闭阻断；审计后依次依据独立复审新增 PA-00、PB-05A、G2-03）
+>
+> **1.3 变更（业主批准，2026-07-30）**：① 新增 `G2-03` 分层门禁任务（§8、§10 `R-HOST`/`R-TEST` 验证列），并据其时序要求为 `PB-10` 增列 `G2-03` 依赖——**`PB-10` 须待 `G2-03` 完成后开工**；② 补录 §3.1 执行台账中缺失的 `PA-06`～`PB-09` 共 22 条记录（此前台账止于 `PA-05`，落后实际进度约 22 个任务，`PB-09` 等前置的完成证明只能在 `docs/audits/` 与 Git 历史中找到）。本次未重排台账既有 27 行的顺序，未改动任何已签署任务行的内容。
 > 权威上游：`CONSTITUTION.md`、冻结版立项纲领、`决策记录.md`、G0 专项规范与 `DEFINITION-OF-READY.md`。  
 > 本文件回答“按什么依赖顺序实施和验证”；它不改变产品范围，也不授权绕过 DoR、审批矩阵或后续闸门。
 
@@ -99,6 +101,28 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G2-01 | ✅ 已完成 | [DoD](../DEFINITION-OF-DONE.md)（七维度+反例映射）、[PR 模板](../.github/PULL_REQUEST_TEMPLATE.md)、[评审清单](review-checklist.md)、[缺陷证据标准](defect-evidence.md) 已冻结；Claude 审计 `PASS`（反例抽验与自构蒙混路径全被拦截） |
 | G1-16 | ✅ 已签署（2026-07-21） | **G1 工程底座已由 Claude 独立审计签署**（[报告](audits/G1-16-claude-audit-report.md)）：SG-01 三项处置核验到位、干净树可复现（空 store 冷装 116/116）、11 份审计报告终局全 PASS、五道承重检查双侧执行、零功能实现；PA 系列可按各自 DoR 启动；承接项：NF-03/FX-06→PA-00、PB-05A、G1-12 审计推迟（决策 #6）、Win11 VM 评估期/Chromium 为 PA-05 前置 |
 | G1-15 | ✅ 已完成 | [供应链基线](supply-chain.md)：Claude 首审 `FAIL`（SM-01 MAJOR：安装树平台依赖）后复审 `PASS`，SM-01/SM-02 全部关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条受审许可覆盖经 npm 核验）；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成 |
+| PA-06 | ✅ 已完成 | [@wenshu/pdf-evidence](../packages/pdf-evidence)：几何证据模型；含子拆分 PA-06B 证据契约 v1.1.0。[ADR-0005](adr/0005-PA-06几何证据独立oracle选型.md)、[ADR-0006](adr/0006-PA-06B证据契约v1.1.0成员标记与绘制框.md)；Claude 审计 [PA-06 `PASS`](audits/PA-06-claude-audit-report.md)、[PA-06B `PASS`](audits/PA-06B-claude-audit-report.md)；[实施记录](audits/PA-06-implementation-record.md) |
+| PA-07 | ✅ 已完成 | P0 内容/页面尺寸/越界/遮挡检查；Claude 审计 [`PASS`](audits/PA-07-claude-audit-report.md)；[实施记录](audits/PA-07-implementation-record.md)、[followups](audits/PA-07-followups.md) |
+| PA-08 | ✅ 已完成 | 标题/孤行寡行/异常空白 P1 检查；[ADR-0007](adr/0007-PA-08检出报告契约v1.1.0与P1诚实降级.md)（检出报告契约 v1.1.0 与 P1 诚实降级）；Claude 审计 [`PASS`](audits/PA-08-claude-audit-report.md)；[实施记录](audits/PA-08-implementation-record.md)、[followups](audits/PA-08-followups.md) |
+| PA-09 | ✅ 已完成 | 表格跨页/表头重复/行切断检查；[ADR-0008](adr/0008-PA-09表格跨页检查严重级与DOM对账归属.md)；Claude 审计 [`PASS`](audits/PA-09-claude-audit-report.md)；[实施记录](audits/PA-09-implementation-record.md)、[followups](audits/PA-09-followups.md) |
+| PA-10 | ✅ 已完成 | 图片/题注/来源/比例/越界检查；[ADR-0009](adr/0009-PA-10图片检查严重级与比例容差及转换红线.md)；Claude 审计 [`PASS`](audits/PA-10-claude-audit-report.md)；[实施记录](audits/PA-10-implementation-record.md)、[followups](audits/PA-10-followups.md) |
+| PA-11 | ✅ 已完成 | 目录/页眉页脚/实际页码生成与对账；实施拆为 PA-11A（两遍渲染与压印受控补偿，[ADR-0010](adr/0010-PA-11A目录页码两遍渲染与页眉页脚压印受控补偿.md)）与 PA-11B（严重级与配对口径，[ADR-0011](adr/0011-PA-11B目录页码与页眉页脚检查严重级与配对口径.md)）；Claude 审计 [PA-11A `PASS`](audits/PA-11A-claude-audit-report.md)、[PA-11B `PASS`](audits/PA-11B-claude-audit-report.md)；实施记录 [11A](audits/PA-11A-implementation-record.md)/[11B](audits/PA-11B-implementation-record.md) |
+| PA-12 | ✅ 已完成 | 正常样本与 12 个故障样本汇总门禁（validator runner + 门禁报告契约）；[ADR-0012](adr/0012-PA-12汇总闸门报告契约与门槛诚实性口径.md)；Claude 审计 [`PASS`](audits/PA-12-claude-audit-report.md)；[实施记录](audits/PA-12-implementation-record.md) |
+| PA-13 | ✅ 已完成 | 重复性、取消、资源清理与性能预算；Claude 审计 [`PASS`](audits/PA-13-claude-audit-report.md)——**报告诚实性通过，但分页预算 `not_met`**（冻结 ≤8s，实测 p95 24.300s），该 `not_met` 是 PA-15 判 DEGRADE 的承重证据，不得读作预算达标；[实施记录](audits/PA-13-implementation-record.md)；PR #23（`7c1b11d`） |
+| PA-14E | ✅ 已完成 | 安全 Electron 壳复验同一 fixture（contextIsolation/sandbox/无 Node integration）；Claude 审计 [`PASS`](audits/PA-14E-claude-audit-report.md)；[实施记录](audits/PA-14E-implementation-record.md)；PR #24（`7757f2b`） |
+| PA-14H | ✅ 已完成 | 最薄 ArkWeb 壳与布局风险探针；Claude 审计 [`PASS`](audits/PA-14H-claude-audit-report.md)；[实施记录](audits/PA-14H-implementation-record.md)；PR #25（`0898570`）。设备实测受本机 BIOS 虚拟化未开启限制，按任务边界如实标为人工前置 |
+| PA-14U | ⏸ 已后置（阶段 2） | 按业主决策 C 后置：0 号用户效率实测未执行，[PA-15 闸门报告](audits/PA-15-poc-a-final-gate-report.md) 记为 `deferred` 并明令"**不得把后置写成已达标**"。PA-A7/J1/K1/L1/L2/L4 等人工项一并转入阶段 2 的 0 号用户执行清单。**本项未完成，PoC-A 未取得同口径用户效率实测** |
+| PA-15 | ✅ 已完成 | [PoC-A 最终闸门报告](audits/PA-15-poc-a-final-gate-report.md)：结论**建议 DEGRADE**（非 PASS）；Claude 审计 [`PASS`](audits/PA-15-claude-audit-report.md)（判定闸门报告诚实、DEGRADE 证成）；PR #26（`494b4cf`）。后续 [ADR-0013 引擎重评](adr/0013-DEGRADE后排版引擎重评估.md)（Typst 快 100× 但 10/10 被检查器拒 → 维持 DEGRADE）与 [ADR-0014 增量分页](adr/0014-增量分页可行性与DEGRADE口径.md)（增量分页登记为 PB/Alpha 待建架构要求）。业主批准见 [决策 #11A](../决策记录.md)：批准 DEGRADE，授权 PoC-B **非排版部分**先行，全量分页 `not_met` 结论不被追认。**签署时依赖 `PA-14U` 处于后置状态**（见该行），故 PoC-A 不含同口径用户效率实测；此为业主决策 C 批准的偏离，非遗漏，任何状态检查在 `PA-14U` 关闭前都应持续报出该不一致 |
+| PB-01 | ✅ 已完成 | 语义编辑内核七维探针与 ADR；Claude 审计 [`PASS`](audits/PB-01-claude-audit-report.md)。开工依据为 [决策 #11A](../决策记录.md)（DEGRADE 裁定 + 非排版 PoC-B 先行授权），非"PoC-A 通过" |
+| PB-02 | ✅ 已完成 | [@wenshu/semantic-editor](../packages/semantic-editor)：稳定 ID 最小编辑操作；[ADR-0015](adr/0015-PB-02稳定ID操作层与ProseMirror适配.md)（含业主批准 ProseMirror，[决策 #12](../决策记录.md)）；Claude 审计 [`PASS`](audits/PB-02-claude-audit-report.md)；[实施记录](audits/PB-02-implementation-record.md)；PR #30（`04bfa19`） |
+| PB-03 | ✅ 已完成 | [@wenshu/editor-transactions](../packages/editor-transactions)：统一事务、校验、undo/redo 与取消；[ADR-0016](adr/0016-PB-03统一编辑事务边界.md)；Claude 审计 [`PASS`](audits/PB-03-claude-audit-report.md)；[实施记录](audits/PB-03-implementation-record.md)；PR #31（`6fd94ee`） |
+| PB-04 | ✅ 已完成 | [@wenshu/semantic-tools](../packages/semantic-tools)：高层语义工具到事务的编译器；[ADR-0017](adr/0017-PB-04冻结语义工具与模型写边界.md)；Claude 审计 [`PASS`](audits/PB-04-claude-audit-report.md)；[实施记录](audits/PB-04-implementation-record.md)；PR #32（`56fa950`） |
+| PB-05 | ✅ 已完成 | [@wenshu/editor-diff](../packages/editor-diff)：可定位 diff、accept/reject 与后续 undo；[ADR-0018](adr/0018-PB-05可定位diff与裁决边界.md)；Claude 审计 [`PASS`](audits/PB-05-claude-audit-report.md)；[实施记录](audits/PB-05-implementation-record.md)；PR #34（`c49d1d5`） |
+| PB-05A | ✅ 已完成 | 语义审计哈希指称、模型标识与 system 权限冻结，关闭 G1-07 NF-01/02/03；[ADR-0020](adr/0020-PB-05A审计哈希模型标识与system权限.md)；Claude 审计 [`PASS`](audits/PB-05A-claude-audit-report.md)；[实施记录](audits/PB-05A-implementation-record.md)；PR #36（`5ad6683`） |
+| PB-06 | ✅ 已完成 | [@wenshu/semantic-audit](../packages/semantic-audit)：语义审计事件与出处链；[ADR-0021](adr/0021-PB-06语义审计事件与出处链.md)；Claude 审计 [`PASS`](audits/PB-06-claude-audit-report.md)；[实施记录](audits/PB-06-implementation-record.md)；PR #37（`d48fcb5`） |
+| PB-07 | ✅ 已完成 | 可合并操作模型探针与三层记录隔离（`probes/pb-07-yjs`）；[ADR-0019](adr/0019-PB-07离线CRDT探针与三层记录隔离.md)；Claude 审计 [`PASS`](audits/PB-07-claude-audit-report.md)；[实施记录](audits/PB-07-implementation-record.md)；PR #33（`6f19a84`） |
+| PB-08 | ✅ 已完成 | 存储引擎选型（`probes/pb-08-sqlite`）：桌面 `node:sqlite` 真实文件 + Chromium 双标签 `@sqlite.org/sqlite-wasm` OPFS 双面实测；[ADR-0022](adr/0022-PB-08SQLite与OPFS存储引擎选型.md)；Claude 审计 [`PASS`](audits/PB-08-claude-audit-report.md)；[实施记录](audits/PB-08-implementation-record.md)；PR #38（`edf5715`）。**ArkWeb 的 Worker/WASM/OPFS 等价持久化与锁语义标记 `needs_device_to_verify`，三端实际搬运待验证**，不得读作"三端同 API/同物理路径" |
+| PB-09 | ✅ 已完成 | [@wenshu/project-storage](../packages/project-storage)：版本化迁移、隔离真库集成与恢复；Claude 审计 [`PASS`](audits/PB-09-claude-audit-report.md)（复审关闭 MINOR，磁盘满诊断保留）；[实施记录](audits/PB-09-implementation-record.md)；PR #39（`fc1c5a9`） |
 
 ## 4. G1：工程底座原子任务
 
@@ -161,7 +185,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | PB-07 | 验证可合并操作模型并隔离三层记录。R-RECORDS/R-DATA | PB-02/03,G1-07 → PB-08 | CRDT候选最小探针；Alpha不做自动同步 | 两副本离线编辑后合并；编辑历史/CRDT/语义审计不混用 | 无法稳定映射ID/事务则更换候选并重审 ADR。与 PB-06 并行 |
 | PB-08 | 选择 SQLite/OPFS 与桌面同格式存储并写 ADR。R-DATA/R-TEST | G1-07/08,PB-07 → PB-09/10 | 真实候选数据库、Worker/多标签探针；不做云同步 | 真实引擎、真实迁移、并发/锁/大文档探针；非 Map/JSON 替代 | 三端同格式不可行则记录适配边界，不伪称同库。独占存储 ADR |
 | PB-09 | 建立版本化迁移、隔离真库集成与恢复。R-DATA/R-TEST | PB-08 → PB-10/11 | schema v0→v1、seed、备份/恢复；不手改数据库 | 每 worker 独立真实库；迁移、重复运行、中断、损坏、磁盘/权限失败 | 数据丢失即阻断；恢复副本优先，迁移历史不可改。可分片并行但库/目录隔离 |
-| PB-10 | 实现原子保存、崩溃恢复与 host 文件边界。R-HOST/R-DATA | G1-06,PB-09 → PB-11/A-02 | 浏览器受控host与Electron文件host；不覆盖导入原件 | 强杀/重开≤10s；上次成功成品不损坏；拒绝权限有降级 | 路径逃逸/半写文件即阻断。平台实现文件隔离后并行 |
+| PB-10 | 实现原子保存、崩溃恢复与 host 文件边界。R-HOST/R-DATA | G1-06,PB-09,G2-03 → PB-11/A-02 | 浏览器受控host与Electron文件host；不覆盖导入原件 | 强杀/重开≤10s；上次成功成品不损坏；拒绝权限有降级 | 路径逃逸/半写文件即阻断。平台实现文件隔离后并行 |
 | PB-11 | 实现知识包导出与干净环境重导入。R-OUTPUT/R-DATA | G1-07,PB-06/09/10 → PB-12/A-11 | 内容、模板、审计、附件、manifest；不含派生索引真源化；闭合 G1-07 m-01 | 干净环境 round-trip 对账 ID/版本/引用/审计/附件；从真实序列化字节计算并核验 `truth.project` 与 `truth.audit` entry 哈希；所有真源篡改拒绝 | 仅“文件存在”或只信 manifest 自报哈希不算通过；回滚导入事务。与 ArkWeb 壳探针可并行 |
 | PB-12 | 完成真实 E2E 与 PoC-B 闸门报告。R-TX/R-DATA/R-TEST | PB-05/06/07/08/09/10/11 → Alpha | AI计划可用契约fake；核心事务/真库/文件/恢复必须真实 | 修改→diff→裁决→undo→保存→强杀→恢复→知识包重导入全链通过 | 任一真源/恢复/撤销阻断未闭环不得进入 Alpha；指标变更需业主批准 |
 
@@ -197,6 +221,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 |---|---|---|---|---|
 | G2-01 | 在首个功能变更前冻结 DoD、PR模板、评审和缺陷证据。R-TEST/R-A11Y/R-SEC | G1-16 → PA-01及全部功能任务 | DoD逐项覆盖测试、文档、迁移、回滚、可访问性、安全与产物；反例任务不能被误判完成 | 只改治理文件，可独立回滚；不因单人开发取消评审清单，无外部审批 |
 | G2-02 | 建立私有远程分支保护、必需检查、依赖更新和供应链门禁。R-TEST/R-LICENSE | G1-01R/11/15/16 → PA-01及全部PR | 未通过检查不可合并；管理员绕过留痕；依赖更新跑回归；故意失败验证门禁 | 需要仓库管理员登录/2FA，未授权即阻断功能PR；不公开仓库、不启用付费额度 |
+| G2-03 | 建立核心/工具/壳分层门禁，使宪法 11 与技术基线 §2 的平台隔离从人工审计转为机械门禁。R-HOST/R-TEST | G1-09/11、G2-02、PB-09 → PB-10 及其后全部功能任务 | 18 条反例逐条独立复跑（含 3 条防误报反向反例）；说明符与语法形式覆盖计数及"被扫描但导入列表为空文件数"；`semantic-editor`→`editor-diff` 平台耦合关闭并写 ADR；`project-storage` 生产依赖归属纠正且 SBOM 重建通过 | 零新增第三方依赖；不改 Schema、契约版本、lockfile 冻结版本或既有验收口径；不实现 PB-10 的 host 文件边界；分层归属表由业主冻结，实施者不得自行放宽或加豁免（不可行须停止上报）；独占 `tools/quality` 与根 `verify` 入口。任务书见 [audits/layering-gate-implementation-task.md](audits/layering-gate-implementation-task.md) |
 | G3-01 | 冻结桌面打包、签名、更新、回滚与发布验证方案。R-COMPAT/R-SEC | A-16 → 发布候选 | 生产同构包、升级/回滚、SBOM、隐私说明、冒烟矩阵的本地演练通过 | 证书、账号、真实发布与费用需业主批准；未批准只完成离线可逆演练 |
 | G3-02 | 建立最小观测、诊断导出、事故与数据生命周期流程。R-SEC/R-DATA | A-16 → 发布候选 | 默认脱敏、本地诊断、用户主动导出、恢复/删除演练及保留说明 | 不默认上传遥测；任何外传或真实数据删除另审批；诊断功能可独立关闭 |
 
@@ -221,8 +246,8 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | R-ID/R-TX | G1-04、PB-02/03/04/05、A-03/07 | PB-12、A-12 |
 | R-RECORDS | G1-07、PB-05A/06/07、A-06/09 | PB-12、A-12/15 |
 | R-DATA/R-OUTPUT | G1-07、PB-08/09/10/11、A-02/09/10P/10X/11 | PB-12、A-12/15 |
-| R-HOST | G1-06、PB-10、A-02/10P/10X | PA-14E/14H、PB-12、A-12/15 |
-| R-TEST | G1-08/10/11、各任务测试 | G1-16、PA-12/13/15、PB-12、A-12 |
+| R-HOST | G1-06、PB-10、A-02/10P/10X | G2-03、PA-14E/14H、PB-12、A-12/15 |
+| R-TEST | G1-08/10/11、各任务测试 | G1-16、G2-03、PA-12/13/15、PB-12、A-12 |
 | R-SEC/R-LICENSE/R-COST | G1-05/12/13/15、PB-04/06/10、A-15 | G1-16、PA-15、PB-12、A-15/16 |
 | R-UX/R-A11Y | A-01/02/02D/03/04/04T/05/06/07P/07/08/09/10P/10X | A-12/13/16 |
 | R-PERF | G1-14、PA-13、A-14 | PA-15、A-16 |
