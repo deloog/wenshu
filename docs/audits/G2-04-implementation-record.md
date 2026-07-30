@@ -102,4 +102,4 @@ Roadmap invariants: 任务数 77(下限 77)，依赖边数 238(下限 238)，R-*
 ## 8. 提交与推送
 
 - 提交边界（任务书 §9，可单独回退）：`b19beec` 检查器+登记表+测试+接入；`49dbbf9` 路线图 31 处修正与声明（v1.5）；ADR 与实施记录独立提交。
-- 推送前置条件已满足：`pnpm verify` exit=0。推送后观察 CI 远程矩阵（ubuntu-24.04，8 job），结果按实际 run 补记。
+- 推送前置条件已满足：`pnpm verify` exit=0。远程矩阵：run [`30538632611`](https://github.com/deloog/wenshu/actions/runs/30538632611)（ubuntu-24.04，PR #44）**8/8 success**（static/unit-config/contracts/typecheck/build-test/build-staging/build-production/security），静态 job 含本门禁计数行。本任务已实现，待 Claude 独立审计。
