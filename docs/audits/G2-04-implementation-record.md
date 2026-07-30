@@ -91,7 +91,7 @@ Roadmap invariants: 任务数 77(下限 77)，依赖边数 238(下限 238)，R-*
 | 类型 | `pnpm typecheck` | 通过，零 error |
 | Lint | `pnpm lint` | 通过 |
 | 格式 | `pnpm format:check` | 通过 |
-| 全量 | `pnpm verify` | 见 §8（本次提交前最终运行） |
+| 全量 | `pnpm verify` | **exit=0（223s）**，含本门禁计数行（§4）；提交 `49dbbf9` 工作树 |
 
 ## 7. 未执行项与边界
 
@@ -101,5 +101,5 @@ Roadmap invariants: 任务数 77(下限 77)，依赖边数 238(下限 238)，R-*
 
 ## 8. 提交与推送
 
-- 提交边界：检查器与登记表、路线图修正、ADR 与实施记录各自独立提交，可单独回退（任务书 §9）。
-- 推送前置：`pnpm verify` 全绿（结果见上表末行）；推送后 CI `static` job 须 8/8。
+- 提交边界（任务书 §9，可单独回退）：`b19beec` 检查器+登记表+测试+接入；`49dbbf9` 路线图 31 处修正与声明（v1.5）；ADR 与实施记录独立提交。
+- 推送前置条件已满足：`pnpm verify` exit=0。推送后观察 CI 远程矩阵（ubuntu-24.04，8 job），结果按实际 run 补记。
