@@ -4,9 +4,11 @@
 
 ## 当前阶段
 
-项目处于 **G1 工程底座**。G0 与 GR 已于 2026-07-20 签署通过，原子路线图及专项审计见 `docs/implementation-roadmap.md` 与 `docs/implementation-roadmap-audit.md`。当前只允许按路线图从 `G1-01` 起实施，并在每个任务开始前满足 DoR。外部仓库、账号、费用、设备和发布仍需对应批准；G1 审计通过前不得开始 PoC-A 功能实现。
+项目处于 **PoC-B（AI 编辑事务与本地状态闸）**，已完成至 `PB-09`。G0/GR（2026-07-20）、`G1-16` 工程底座（2026-07-21）、`G2-01`/`G2-02`/`G2-03`/`G2-04` 四道工程门禁均已由 Claude 独立审计签署。**PoC-A 已出闸门报告并由业主批准 DEGRADE**（[决策 #11A](决策记录.md)）：停止 PB/Alpha 对当前 Chromium 排版路径的依赖，授权 PoC-B **非排版部分**先行；全量分页 `not_met` 结论不被追认，增量分页登记为 PB/Alpha 待建架构要求。
 
-只有 [G0 审计报告](docs/G0-前置准备审计.md) 明确通过后，才可设计原子化实施路线图；只有路线图及其专项审计通过 GR 后，才可进入 G1。
+> **任务完成状态的唯一权威来源是 [路线图 §3.1 执行台账](docs/implementation-roadmap.md)**，它已由 `G2-04` 路线图不变量门禁机械守护（`pnpm quality:check`，解析 fail-closed）。本文件下方"实施与独立审计"中的逐任务条目**只保留跨任务的承接项与注意事项，不是状态副本**；`PA-13` 之后的完成状态一律以台账为准，不在此重复维护。此约定源于 `G2-04` 的结论：同一套关系并列手写多份，必然分叉。
+
+每个任务开始前须满足 DoR；外部仓库、账号、费用、设备和发布仍需对应批准。
 
 ## 开工必读顺序
 
@@ -85,6 +87,8 @@ docs/requirements-pool.md            需求池（不入冻结范围的新想法�
 - `PA-03` 已完成：Claude 独立审计 `PASS`（无发现；ubuntu CI 9.45s 与本机 Windows Chrome 4.0s 双端真实浏览器同路径证真、五处变异独立复跑全红、303 节点逐字对账 deepEqual、注入 payload 全转义），经 PR #9 合入（CI 8/8）；@wenshu/report-render 提供语义 HTML 渲染与真实字体门禁（零新增第三方依赖），观察项：浏览器版本未锁定（G1-14W/PA-05 前置接入点）。
 - `PA-01` 已完成：Claude 独立审计签署 `PASS`（无未关闭 BLOCKER/MAJOR）——首审 `FAIL` 唯一阻断 PA-A1 经仓外变异矩阵 8/8 全红关闭，PA-A2/A3 独立复验通过（CRLF 未归账字符 0、CRLF/LF 文档 JSON 一致）；签署生效条件已达成：远程 run `30067276449`（ubuntu-24.04）8/8 success 且与必需检查同名同数，contracts job 日志逐条复现 19/19，`.gitattributes eol=lf` 排除检出行尾分叉。复审新增 PA-A8（控制字符与行中孤立 `\r` 进入 paragraph.text）已登记 followups。**PA-02/PA-03 放行可按波次并行开工：PA-A5/A6 决策前置已满足——[决策 #8/#9](决策记录.md) 均获批准且实施已获 Claude 独立审计 `PASS`（签署以远程 CI 22/22 复现为生效条件；变异矩阵含 Claude 补做的 5a/5b 全部判定一致）。审计新增 PA-B1（越根判定误拒 `..foo`）已顺手修复待复核（23/23、变异自证变红），PA-B2 为观察项不整改。实施期审查项：核真实调用点传入公共根而非源文件目录（当前唯一生产调用点 parse-fixture 传 fixtures 公共根）。PA-A8（连同 PA-A4 BOM）已修复待 Claude 审计（[PA-A4-A8-remediation](docs/audits/PA-A4-A8-remediation.md)：控制字符 fail-closed + BOM 剥离计账，27/27、两处变异自证变红、verify exit 0），PA-03 消费文本渲染前须获签署。**
 - `PA-02` 已完成：Claude 独立审计 `PASS`，经 PR #8 合入（CI 8/8）；@wenshu/template-map 提供受控模板模型（文档契约版本绑定 + G1-13 字体逻辑注册绑定，只做声明式绑定），供 PA-04 解释器消费。
+- `G2-03` 已签署（2026-07-30）：**核心/工具/壳分层门禁**。Claude 首审 `CONDITIONAL PASS`（MA-01：L3 平台许可无差别，`arkweb-shell` 可导入 `electron`）后复审 `PASS` 关闭，59 条独立探针零失败。归属表 29 个 workspace 分 L0/L1/L2/L3+web，平台命名空间按 L3 条目登记、未登记即 fail-closed；覆盖 ESM/re-export/动态 import/CJS `require()`/`import = require`，相对与绝对路径解析到所属包，`@ohos.`（系统模块）与 `@ohos/`（ohpm 包）两命名空间一并禁。**承接：`test/`+`scripts/` 只放宽 `node:*`，平台导入仍仅 L3**；Hvigor 构建脚本与 `probes/` 为封闭排除项，不得扩大。跟进项见 [G2-03-followups](docs/audits/G2-03-followups.md)（MI-04：Capacitor 等无壳平台当前不覆盖，宪法 11 未被完全机械化）。
+- `G2-04` 已签署（2026-07-30）：**路线图不变量门禁**。Claude 首审 `CONDITIONAL PASS`（MA-01 完成记录中的可证伪声明、MI-01 消费者列修正方向）后复审 `PASS` 关闭，46 条独立探针（首审 23 + 复审 23）零失败。确立**三类权威手写源**（§4~§8 依赖列、`R-*` 标注、§3.1 台账状态与证据链接）与四类派生校验对象（§3 关键路径、§9 波次、§10 矩阵、消费者列），10 条判定接入 `pnpm verify` 与 CI `static`；解析 fail-closed（六项计数对照登记下限，退化即失败），例外仅存于封闭登记表。**承接三条**：① 签署后必须**当轮**补台账条目，否则检查 8a 拦（本任务在自己身上现场演示过一次）；② 消费者列与依赖列冲突且散文有证据时须先裁定哪侧为真，不得默认删派生侧（[ADR-0024 增补](docs/adr/0024-G2-04路线图手写真源收敛与不变量门禁.md)）；③ 凡涉文件体量声明直接引用门禁输出，不自行计数。
 - `G1-15` 已完成：Claude 首审 `FAIL`（SM-01 MAJOR）整改后复审 `PASS`，SM-01/SM-02 关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条覆盖经 npm 核验）；许可政策门禁与 MPL/Python/BlueOak/0BSD 书面结论见 [supply-chain](docs/supply-chain.md)；SM-03（MPL 措辞泛化）已随文档维护修复；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成。
 
 ## 推送节奏（2026-07-23 起生效）
