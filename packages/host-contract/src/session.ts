@@ -1,4 +1,4 @@
-import type { CapabilityName, HostRegistry } from "./generated/host.ts";
+import type { CapabilityName } from "./generated/host.ts";
 import {
   type HostContractIssue,
   type HostContractIssueCode,
@@ -9,9 +9,16 @@ export type HostSessionValidationResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly issues: readonly HostContractIssue[] };
 
+interface SessionCapabilityDeclaration {
+  readonly support_status: "supported" | "degraded" | "unsupported";
+  readonly cancellation: "none" | "cooperative";
+  readonly progress: "none" | "discrete" | "continuous";
+  readonly error_codes: readonly string[];
+}
+
 interface HostRequestState {
   readonly capability: CapabilityName;
-  readonly declaration: HostRegistry["capabilities"][number];
+  readonly declaration: SessionCapabilityDeclaration;
   readonly requestIndex: number;
   lastSequence: number;
   terminal: boolean;

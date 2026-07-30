@@ -1,16 +1,35 @@
 import Ajv2020 from "ajv/dist/2020.js";
+
 import { cloneAndFreeze, inspectData } from "@wenshu/contract-runtime";
 
 import hostSchema from "../schema/host.schema.json" with { type: "json" };
+import hostSchemaV02 from "../schema/host-0.2.0.schema.json" with { type: "json" };
 import type {
   CapabilityName,
   HostContractMessage,
   HostRegistry,
 } from "./generated/host.ts";
+import type {
+  HostContractMessageV02,
+  HostRegistry as HostRegistryV02,
+} from "./generated/host-0.2.0.ts";
+import {
+  HOST_PAYLOAD_PROTOCOL_VERSION,
+  hostPayloadSchemaId,
+  isHostPayloadCapability,
+  validateHostPayload,
+} from "./payloads.ts";
+import { isForbiddenPlatformKey, isUnsafePathValue } from "./security.ts";
 
 export type * from "./generated/host.ts";
+export type * as v02 from "./generated/host-0.2.0.ts";
 
 export const HOST_PROTOCOL_VERSION = "0.1.0" as const;
+export const HOST_PROTOCOL_VERSION_V0_2 = HOST_PAYLOAD_PROTOCOL_VERSION;
+export const HOST_PROTOCOL_VERSIONS = [
+  HOST_PROTOCOL_VERSION,
+  HOST_PROTOCOL_VERSION_V0_2,
+] as const;
 
 export const HOST_CAPABILITIES = [
   "project.directory.select",
@@ -39,9 +58,11 @@ export type HostContractIssueCode =
   | "HOST_CAPABILITY_MISMATCH"
   | "HOST_CAPABILITY_UNSUPPORTED"
   | "HOST_ERROR_CODE_UNDECLARED"
+  | "HOST_PAYLOAD_SCHEMA"
+  | "HOST_PAYLOAD_SCHEMA_UNKNOWN"
   | "HOST_PLATFORM_FIELD_FORBIDDEN"
-  | "HOST_PROGRESS_UNDECLARED"
   | "HOST_PROGRESS_INVALID"
+  | "HOST_PROGRESS_UNDECLARED"
   | "HOST_REGISTRY_INCOMPLETE"
   | "HOST_REGISTRY_INCONSISTENT"
   | "HOST_REQUEST_DUPLICATE"
@@ -56,77 +77,75 @@ export interface HostContractIssue {
   readonly path: string;
 }
 
+export type HostContractValidatedMessage = HostContractMessage | HostContractMessageV02;
+
 export type HostContractValidationResult =
-  | { readonly ok: true; readonly value: HostContractMessage }
+  | { readonly ok: true; readonly value: HostContractValidatedMessage }
   | { readonly ok: false; readonly issues: readonly HostContractIssue[] };
 
-const forbiddenPlatformKeys = new Set([
-  "absolutepath",
-  "abilitycontext",
-  "arkts",
-  "command",
-  "electron",
-  "electronipc",
-  "exec",
-  "filepath",
-  "filesystem",
-  "ipc",
-  "nodeintegration",
-  "path",
-  "preload",
-  "shell",
-  "systempath",
-]);
-
-const ajv = new Ajv2020({ allErrors: true, strict: true });
-const validateShape = ajv.compile<HostContractMessage>(hostSchema);
+const ajvV01 = new Ajv2020({ allErrors: true, strict: true });
+const validateShapeV01 = ajvV01.compile<HostContractMessage>(hostSchema);
+const ajvV02 = new Ajv2020({ allErrors: true, strict: true });
+const validateShapeV02 = ajvV02.compile<HostContractMessageV02>(hostSchemaV02);
 
 function issue(code: HostContractIssueCode, path: string): HostContractIssue {
   return Object.freeze({ code, path });
 }
 
-function isUnsafePathValue(value: string): boolean {
-  let decoded = value;
-  let stabilized = false;
-  for (let pass = 0; pass < 16; pass += 1) {
-    if (/%(?=[A-Za-z0-9])(?![A-Fa-f0-9]{2})/u.test(decoded)) {
-      return true;
+type RegistryCapability =
+  HostRegistry["capabilities"][number] | HostRegistryV02["capabilities"][number];
+
+function validateDeclarationConsistency(
+  capability: RegistryCapability,
+  path: string,
+  issues: HostContractIssue[],
+): void {
+  const unsupportedIsConsistent =
+    capability.support_status !== "unsupported" ||
+    (capability.permission_status === "not_applicable" &&
+      capability.cancellation === "none" &&
+      capability.progress === "none" &&
+      capability.error_codes.includes("HOST_UNSUPPORTED"));
+  const degradedHasFallback =
+    capability.support_status !== "degraded" || capability.fallback.strategy !== "none";
+
+  if (capability.capability_version === HOST_PAYLOAD_PROTOCOL_VERSION) {
+    const name: string = capability.name;
+    if (!isHostPayloadCapability(name)) {
+      issues.push(issue("HOST_REGISTRY_INCONSISTENT", path));
+      return;
     }
-    let next: string;
-    try {
-      next = decodeURIComponent(decoded.replace(/%(?![A-Fa-f0-9]{2})/gu, "%25"));
-    } catch {
-      return true;
+    if (
+      capability.input_schema !== hostPayloadSchemaId(name, "input") ||
+      capability.output_schema !== hostPayloadSchemaId(name, "output")
+    ) {
+      issues.push(issue("HOST_REGISTRY_INCONSISTENT", path));
+      return;
     }
-    if (next === decoded) {
-      stabilized = true;
-      break;
+  } else {
+    const expectedInput = `wenshu.host.input.${capability.name}/0.1.0`;
+    const expectedOutput = `wenshu.host.output.${capability.name}/0.1.0`;
+    if (
+      capability.input_schema !== expectedInput ||
+      capability.output_schema !== expectedOutput
+    ) {
+      issues.push(issue("HOST_REGISTRY_INCONSISTENT", path));
+      return;
     }
-    decoded = next;
   }
-  if (!stabilized) {
-    return true;
+
+  if (!unsupportedIsConsistent || !degradedHasFallback) {
+    issues.push(issue("HOST_REGISTRY_INCONSISTENT", path));
   }
-  const containsControlCharacter = [...decoded].some((character) => {
-    const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
-  });
-  const isHttpUrl = /^https?:\/\//iu.test(decoded);
-  return (
-    containsControlCharacter ||
-    /file:/iu.test(decoded) ||
-    (!isHttpUrl && /[A-Za-z]:[\\/]/u.test(decoded)) ||
-    /(?:^|[^A-Za-z0-9])[A-Za-z]:[A-Za-z0-9._-]/u.test(decoded) ||
-    /\\\\[^\\]/u.test(decoded) ||
-    (!isHttpUrl && /(?:^|[\s=:'"(])[\\/]/u.test(decoded)) ||
-    /(?:^|[^A-Za-z0-9])\.\.(?:[\\/]|$)/u.test(decoded)
-  );
 }
 
-function validateRegistry(registry: HostRegistry): readonly HostContractIssue[] {
+function validateRegistry(
+  registry: HostRegistry | HostRegistryV02,
+): readonly HostContractIssue[] {
   const issues: HostContractIssue[] = [];
+  const capabilities: readonly RegistryCapability[] = registry.capabilities;
   const declarations = new Map(
-    registry.capabilities.map((capability) => [capability.name, capability]),
+    capabilities.map((capability) => [capability.name, capability]),
   );
 
   if (
@@ -136,36 +155,15 @@ function validateRegistry(registry: HostRegistry): readonly HostContractIssue[] 
     issues.push(issue("HOST_REGISTRY_INCOMPLETE", "/capabilities"));
   }
 
-  registry.capabilities.forEach((capability, index) => {
-    const path = `/capabilities/${index}`;
-    const expectedInput = `wenshu.host.input.${capability.name}/0.1.0`;
-    const expectedOutput = `wenshu.host.output.${capability.name}/0.1.0`;
-    const unsupportedIsConsistent =
-      capability.support_status !== "unsupported" ||
-      (capability.permission_status === "not_applicable" &&
-        capability.cancellation === "none" &&
-        capability.progress === "none" &&
-        capability.error_codes.includes("HOST_UNSUPPORTED"));
-    const degradedHasFallback =
-      capability.support_status !== "degraded" ||
-      capability.fallback.strategy !== "none";
-
-    if (
-      capability.input_schema !== expectedInput ||
-      capability.output_schema !== expectedOutput ||
-      !unsupportedIsConsistent ||
-      !degradedHasFallback
-    ) {
-      issues.push(issue("HOST_REGISTRY_INCONSISTENT", path));
-    }
+  capabilities.forEach((capability, index) => {
+    validateDeclarationConsistency(capability, `/capabilities/${index}`, issues);
   });
   return Object.freeze(issues);
 }
 
-function validateSemantics(message: HostContractMessage): readonly HostContractIssue[] {
-  if (message.kind === "registry") {
-    return validateRegistry(message);
-  }
+function validateSharedSemantics(
+  message: HostContractValidatedMessage,
+): readonly HostContractIssue[] {
   if (message.kind === "progress" && message.completed > message.total) {
     return Object.freeze([issue("HOST_PROGRESS_INVALID", "/completed")]);
   }
@@ -175,9 +173,61 @@ function validateSemantics(message: HostContractMessage): readonly HostContractI
   return Object.freeze([]);
 }
 
+function validateSemanticsV02(
+  message: HostContractMessageV02,
+): readonly HostContractIssue[] {
+  if (message.kind === "registry") {
+    return validateRegistry(message);
+  }
+  const shared = validateSharedSemantics(message);
+  if (shared.length > 0) {
+    return shared;
+  }
+  if (
+    message.kind === "request" &&
+    message.capability_version === HOST_PAYLOAD_PROTOCOL_VERSION
+  ) {
+    if (!isHostPayloadCapability(message.capability)) {
+      return Object.freeze([issue("HOST_CAPABILITY_MISMATCH", "/capability")]);
+    }
+    const payload = validateHostPayload(
+      hostPayloadSchemaId(message.capability, "input"),
+      message.input,
+    );
+    if (!payload.ok) {
+      return Object.freeze(
+        payload.issues.map((entry) =>
+          issue(entry.code, `/input${entry.path === "/" ? "" : entry.path}`),
+        ),
+      );
+    }
+  }
+  return Object.freeze([]);
+}
+
+function validateSemanticsV01(
+  message: HostContractMessage,
+): readonly HostContractIssue[] {
+  if (message.kind === "registry") {
+    return validateRegistry(message);
+  }
+  return validateSharedSemantics(message);
+}
+
+function readProtocolVersion(input: unknown): string | undefined {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return undefined;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(input, "protocol_version");
+  if (descriptor === undefined || typeof descriptor.value !== "string") {
+    return undefined;
+  }
+  return descriptor.value;
+}
+
 export function validateHostContract(input: unknown): HostContractValidationResult {
   const inspection = inspectData<"platform">(input, {
-    classifyKey: (key) => (forbiddenPlatformKeys.has(key) ? "platform" : undefined),
+    classifyKey: (key) => (isForbiddenPlatformKey(key) ? "platform" : undefined),
     classifyString: (value) => (isUnsafePathValue(value) ? "platform" : undefined),
     maxDepth: 32,
     maxNodes: 10_000,
@@ -194,13 +244,26 @@ export function validateHostContract(input: unknown): HostContractValidationResu
       issues: Object.freeze([issue(code, inspection.path)]),
     });
   }
-  if (!validateShape(input)) {
-    const issues = (validateShape.errors ?? []).map((error) =>
+  if (readProtocolVersion(input) === HOST_PROTOCOL_VERSION_V0_2) {
+    if (!validateShapeV02(input)) {
+      const issues = (validateShapeV02.errors ?? []).map((error) =>
+        issue("HOST_SCHEMA", error.instancePath || "/"),
+      );
+      return Object.freeze({ ok: false, issues: Object.freeze(issues) });
+    }
+    const semanticIssues = validateSemanticsV02(input);
+    if (semanticIssues.length > 0) {
+      return Object.freeze({ ok: false, issues: semanticIssues });
+    }
+    return Object.freeze({ ok: true, value: cloneAndFreeze(input) });
+  }
+  if (!validateShapeV01(input)) {
+    const issues = (validateShapeV01.errors ?? []).map((error) =>
       issue("HOST_SCHEMA", error.instancePath || "/"),
     );
     return Object.freeze({ ok: false, issues: Object.freeze(issues) });
   }
-  const semanticIssues = validateSemantics(input);
+  const semanticIssues = validateSemanticsV01(input);
   if (semanticIssues.length > 0) {
     return Object.freeze({ ok: false, issues: semanticIssues });
   }

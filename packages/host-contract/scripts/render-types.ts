@@ -26,14 +26,31 @@ function loadCompileFromFile(): CompileFromFile {
   return moduleValue.compileFromFile as CompileFromFile;
 }
 
+const packageRoot = resolve(import.meta.dirname, "..");
+
 export const schemaPath = resolve(import.meta.dirname, "../schema/host.schema.json");
 export const generatedPath = resolve(import.meta.dirname, "../src/generated/host.ts");
+export const schemaV02Path = resolve(
+  import.meta.dirname,
+  "../schema/host-0.2.0.schema.json",
+);
+export const generatedV02Path = resolve(
+  import.meta.dirname,
+  "../src/generated/host-0.2.0.ts",
+);
+export const payloadsSchemaPath = resolve(
+  import.meta.dirname,
+  "../schema/host-payloads-0.2.0.schema.json",
+);
+export const generatedPayloadsPath = resolve(
+  import.meta.dirname,
+  "../src/generated/payloads.ts",
+);
 
-export function renderHostTypes(): Promise<string> {
-  return loadCompileFromFile()(schemaPath, {
-    bannerComment:
-      "/* Generated from schema/host.schema.json. Do not edit directly. */",
-    cwd: resolve(import.meta.dirname, ".."),
+function generatorOptions(bannerComment: string): GeneratorOptions {
+  return {
+    bannerComment,
+    cwd: packageRoot,
     declareExternallyReferenced: true,
     ignoreMinAndMaxItems: true,
     style: {
@@ -46,5 +63,56 @@ export function renderHostTypes(): Promise<string> {
       useTabs: false,
     },
     unknownAny: true,
-  });
+  };
 }
+
+export function renderHostTypes(): Promise<string> {
+  return loadCompileFromFile()(
+    schemaPath,
+    generatorOptions(
+      "/* Generated from schema/host.schema.json. Do not edit directly. */",
+    ),
+  );
+}
+
+export function renderHostV02Types(): Promise<string> {
+  return loadCompileFromFile()(
+    schemaV02Path,
+    generatorOptions(
+      "/* Generated from schema/host-0.2.0.schema.json. Do not edit directly. */",
+    ),
+  );
+}
+
+export function renderPayloadTypes(): Promise<string> {
+  return loadCompileFromFile()(
+    payloadsSchemaPath,
+    generatorOptions(
+      "/* Generated from schema/host-payloads-0.2.0.schema.json. Do not edit directly. */",
+    ),
+  );
+}
+
+export interface GeneratedFile {
+  readonly path: string;
+  readonly relativeName: string;
+  readonly render: () => Promise<string>;
+}
+
+export const GENERATED_FILES: readonly GeneratedFile[] = Object.freeze([
+  Object.freeze({
+    path: generatedPath,
+    relativeName: "src/generated/host.ts",
+    render: renderHostTypes,
+  }),
+  Object.freeze({
+    path: generatedV02Path,
+    relativeName: "src/generated/host-0.2.0.ts",
+    render: renderHostV02Types,
+  }),
+  Object.freeze({
+    path: generatedPayloadsPath,
+    relativeName: "src/generated/payloads.ts",
+    render: renderPayloadTypes,
+  }),
+]);

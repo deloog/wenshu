@@ -1,0 +1,15 @@
+{
+  "protocol_version": "0.2.0",
+  "kind": "request",
+  "request_id": "req_02020202020202020202020202020204",
+  "capability": "project.save.atomic",
+  "capability_version": "0.2.0",
+  "input": {
+    "grant_id": "grant_02020202020202020202020202020202",
+    "file_name": "report.md",
+    "content_base64": "SGVsbG8=",
+    "expected_previous_sha256": null
+  },
+  "expectedIssue": "HOST_PAYLOAD_SCHEMA",
+  "expectedPath": "/input"
+}

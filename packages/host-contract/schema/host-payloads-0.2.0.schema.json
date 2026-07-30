@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/host/0.2.0/host-payloads.schema.json",
+  "title": "HostPayloadSchemas",
+  "description": "PB-10 frozen concrete payload schemas for the seven implemented host capabilities (protocol 0.2.0). Locations are expressed only as grant_id plus safe file names; no path, raw system error, or user content may appear in outputs or errors.",
+  "oneOf": [
+    { "$ref": "#/$defs/ProjectDirectorySelectInput" },
+    { "$ref": "#/$defs/ProjectDirectorySelectOutput" },
+    { "$ref": "#/$defs/ProjectDirectoryAuthorizeInput" },
+    { "$ref": "#/$defs/ProjectDirectoryAuthorizeOutput" },
+    { "$ref": "#/$defs/ProjectSaveAtomicInput" },
+    { "$ref": "#/$defs/ProjectSaveAtomicOutput" },
+    { "$ref": "#/$defs/ProjectSaveAsInput" },
+    { "$ref": "#/$defs/ProjectSaveAsOutput" },
+    { "$ref": "#/$defs/ProjectBackupCreateInput" },
+    { "$ref": "#/$defs/ProjectBackupCreateOutput" },
+    { "$ref": "#/$defs/ProjectBackupRestoreInput" },
+    { "$ref": "#/$defs/ProjectBackupRestoreOutput" },
+    { "$ref": "#/$defs/FileExportWriteInput" },
+    { "$ref": "#/$defs/FileExportWriteOutput" }
+  ],
+  "$defs": {
+    "GrantId": {
+      "type": "string",
+      "pattern": "^grant_[0-9a-f]{32}$"
+    },
+    "BackupId": {
+      "type": "string",
+      "pattern": "^backup_[0-9a-f]{32}$"
+    },
+    "SafeFileName": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ContentBase64": {
+      "type": "string",
+      "maxLength": 89478488,
+      "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+    },
+    "MediaType": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*/[a-z0-9][a-z0-9.+-]{0,63}$"
+    },
+    "IsoTimestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "ProjectDirectorySelectInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "enum": ["open_project", "save_project", "export_file", "backup"]
+        }
+      }
+    },
+    "ProjectDirectorySelectOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "display_name"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 80 }
+      }
+    },
+    "ProjectDirectoryAuthorizeInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "requested_mode": {
+          "type": "string",
+          "enum": ["read_write", "read_only"]
+        }
+      }
+    },
+    "ProjectDirectoryAuthorizeOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "mode"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "mode": {
+          "type": "string",
+          "enum": ["read_write", "read_only"]
+        }
+      }
+    },
+    "ProjectSaveAtomicInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "file_name",
+        "content_base64",
+        "content_sha256",
+        "expected_previous_sha256"
+      ],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "file_name": { "$ref": "#/$defs/SafeFileName" },
+        "content_base64": { "$ref": "#/$defs/ContentBase64" },
+        "content_sha256": { "$ref": "#/$defs/Sha256" },
+        "expected_previous_sha256": {
+          "description": "SHA-256 of the content being overwritten, or null to assert the file does not exist yet. Mismatch fails closed with HOST_CONFLICT.",
+          "oneOf": [{ "$ref": "#/$defs/Sha256" }, { "const": null }]
+        }
+      }
+    },
+    "ProjectSaveAtomicOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "file_name", "sha256", "bytes_written"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "file_name": { "$ref": "#/$defs/SafeFileName" },
+        "sha256": { "$ref": "#/$defs/Sha256" },
+        "bytes_written": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ProjectSaveAsInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "file_name", "content_base64", "content_sha256"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "file_name": { "$ref": "#/$defs/SafeFileName" },
+        "content_base64": { "$ref": "#/$defs/ContentBase64" },
+        "content_sha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ProjectSaveAsOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "file_name", "sha256", "bytes_written"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "file_name": { "$ref": "#/$defs/SafeFileName" },
+        "sha256": { "$ref": "#/$defs/Sha256" },
+        "bytes_written": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ProjectBackupCreateInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" }
+      }
+    },
+    "ProjectBackupCreateOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "backup_id", "created_at", "sha256"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "backup_id": { "$ref": "#/$defs/BackupId" },
+        "created_at": { "$ref": "#/$defs/IsoTimestamp" },
+        "sha256": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ProjectBackupRestoreInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "backup_id"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "backup_id": { "$ref": "#/$defs/BackupId" }
+      }
+    },
+    "ProjectBackupRestoreOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "backup_id", "restored"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "backup_id": { "$ref": "#/$defs/BackupId" },
+        "restored": { "const": true }
+      }
+    },
+    "FileExportWriteInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "file_name",
+        "content_base64",
+        "content_sha256",
+        "media_type",
+        "overwrite"
+      ],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "file_name": { "$ref": "#/$defs/SafeFileName" },
+        "content_base64": { "$ref": "#/$defs/ContentBase64" },
+        "content_sha256": { "$ref": "#/$defs/Sha256" },
+        "media_type": { "$ref": "#/$defs/MediaType" },
+        "overwrite": { "type": "boolean" }
+      }
+    },
+    "FileExportWriteOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_id", "file_name", "sha256", "bytes_written"],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/GrantId" },
+        "file_name": { "$ref": "#/$defs/SafeFileName" },
+        "sha256": { "$ref": "#/$defs/Sha256" },
+        "bytes_written": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

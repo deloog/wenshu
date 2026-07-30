@@ -1,0 +1,421 @@
+{
+  "protocol_version": "0.2.0",
+  "kind": "registry",
+  "host_kind": "electron",
+  "host_version": "fixture-2.0",
+  "instance_id": "host_02020202020202020202020202020202",
+  "capabilities": [
+    {
+      "name": "project.directory.select",
+      "capability_version": "0.2.0",
+      "support_status": "supported",
+      "permission_status": "prompt",
+      "input_schema": "wenshu.host.input.project.directory.select/0.2.0",
+      "output_schema": "wenshu.host.output.project.directory.select/0.2.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 30000,
+        "max_payload_bytes": 67108864
+      },
+      "lifecycle": "request",
+      "cancellation": "cooperative",
+      "progress": "none",
+      "error_codes": ["HOST_PERMISSION_DENIED", "HOST_CANCELLED", "HOST_INTERNAL"],
+      "fallback": {
+        "strategy": "none",
+        "reason_code": "PB10_IMPLEMENTED"
+      }
+    },
+    {
+      "name": "project.directory.authorize",
+      "capability_version": "0.2.0",
+      "support_status": "supported",
+      "permission_status": "prompt",
+      "input_schema": "wenshu.host.input.project.directory.authorize/0.2.0",
+      "output_schema": "wenshu.host.output.project.directory.authorize/0.2.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 30000,
+        "max_payload_bytes": 67108864
+      },
+      "lifecycle": "request",
+      "cancellation": "cooperative",
+      "progress": "none",
+      "error_codes": ["HOST_PERMISSION_DENIED", "HOST_NOT_FOUND", "HOST_INTERNAL"],
+      "fallback": {
+        "strategy": "none",
+        "reason_code": "PB10_IMPLEMENTED"
+      }
+    },
+    {
+      "name": "project.save.atomic",
+      "capability_version": "0.2.0",
+      "support_status": "supported",
+      "permission_status": "granted",
+      "input_schema": "wenshu.host.input.project.save.atomic/0.2.0",
+      "output_schema": "wenshu.host.output.project.save.atomic/0.2.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 30000,
+        "max_payload_bytes": 67108864
+      },
+      "lifecycle": "request",
+      "cancellation": "cooperative",
+      "progress": "none",
+      "error_codes": [
+        "HOST_INVALID_REQUEST",
+        "HOST_CONFLICT",
+        "HOST_PERMISSION_DENIED",
+        "HOST_QUOTA_EXCEEDED",
+        "HOST_IO_FAILURE",
+        "HOST_INTEGRITY_FAILURE",
+        "HOST_INTERNAL"
+      ],
+      "fallback": {
+        "strategy": "none",
+        "reason_code": "PB10_IMPLEMENTED"
+      }
+    },
+    {
+      "name": "project.save.as",
+      "capability_version": "0.2.0",
+      "support_status": "supported",
+      "permission_status": "granted",
+      "input_schema": "wenshu.host.input.project.save.as/0.2.0",
+      "output_schema": "wenshu.host.output.project.save.as/0.2.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 30000,
+        "max_payload_bytes": 67108864
+      },
+      "lifecycle": "request",
+      "cancellation": "cooperative",
+      "progress": "none",
+      "error_codes": [
+        "HOST_INVALID_REQUEST",
+        "HOST_CONFLICT",
+        "HOST_PERMISSION_DENIED",
+        "HOST_QUOTA_EXCEEDED",
+        "HOST_IO_FAILURE",
+        "HOST_INTERNAL"
+      ],
+      "fallback": {
+        "strategy": "none",
+        "reason_code": "PB10_IMPLEMENTED"
+      }
+    },
+    {
+      "name": "project.backup.create",
+      "capability_version": "0.2.0",
+      "support_status": "supported",
+      "permission_status": "granted",
+      "input_schema": "wenshu.host.input.project.backup.create/0.2.0",
+      "output_schema": "wenshu.host.output.project.backup.create/0.2.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 30000,
+        "max_payload_bytes": 67108864
+      },
+      "lifecycle": "request",
+      "cancellation": "cooperative",
+      "progress": "none",
+      "error_codes": [
+        "HOST_PERMISSION_DENIED",
+        "HOST_NOT_FOUND",
+        "HOST_QUOTA_EXCEEDED",
+        "HOST_IO_FAILURE",
+        "HOST_INTERNAL"
+      ],
+      "fallback": {
+        "strategy": "none",
+        "reason_code": "PB10_IMPLEMENTED"
+      }
+    },
+    {
+      "name": "project.backup.restore",
+      "capability_version": "0.2.0",
+      "support_status": "supported",
+      "permission_status": "granted",
+      "input_schema": "wenshu.host.input.project.backup.restore/0.2.0",
+      "output_schema": "wenshu.host.output.project.backup.restore/0.2.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 30000,
+        "max_payload_bytes": 67108864
+      },
+      "lifecycle": "request",
+      "cancellation": "cooperative",
+      "progress": "none",
+      "error_codes": [
+        "HOST_PERMISSION_DENIED",
+        "HOST_NOT_FOUND",
+        "HOST_INTEGRITY_FAILURE",
+        "HOST_IO_FAILURE",
+        "HOST_INTERNAL"
+      ],
+      "fallback": {
+        "strategy": "none",
+        "reason_code": "PB10_IMPLEMENTED"
+      }
+    },
+    {
+      "name": "file.import.select",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.file.import.select/0.1.0",
+      "output_schema": "wenshu.host.output.file.import.select/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "file.export.write",
+      "capability_version": "0.2.0",
+      "support_status": "supported",
+      "permission_status": "granted",
+      "input_schema": "wenshu.host.input.file.export.write/0.2.0",
+      "output_schema": "wenshu.host.output.file.export.write/0.2.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 30000,
+        "max_payload_bytes": 67108864
+      },
+      "lifecycle": "request",
+      "cancellation": "cooperative",
+      "progress": "none",
+      "error_codes": [
+        "HOST_INVALID_REQUEST",
+        "HOST_CONFLICT",
+        "HOST_PERMISSION_DENIED",
+        "HOST_QUOTA_EXCEEDED",
+        "HOST_IO_FAILURE",
+        "HOST_INTERNAL"
+      ],
+      "fallback": {
+        "strategy": "none",
+        "reason_code": "PB10_IMPLEMENTED"
+      }
+    },
+    {
+      "name": "print.pdf.export",
+      "capability_version": "0.1.0",
+      "support_status": "supported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.print.pdf.export/0.1.0",
+      "output_schema": "wenshu.host.output.print.pdf.export/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_INVALID_REQUEST", "HOST_INTERNAL"],
+      "fallback": {
+        "strategy": "none",
+        "reason_code": "ELECTRON_PRINT_AVAILABLE"
+      }
+    },
+    {
+      "name": "font.catalog.list",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.font.catalog.list/0.1.0",
+      "output_schema": "wenshu.host.output.font.catalog.list/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "font.catalog.check",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.font.catalog.check/0.1.0",
+      "output_schema": "wenshu.host.output.font.catalog.check/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "window.control",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.window.control/0.1.0",
+      "output_schema": "wenshu.host.output.window.control/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "clipboard.text.write",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.clipboard.text.write/0.1.0",
+      "output_schema": "wenshu.host.output.clipboard.text.write/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "share.invoke",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.share.invoke/0.1.0",
+      "output_schema": "wenshu.host.output.share.invoke/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "link.open.external",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.link.open.external/0.1.0",
+      "output_schema": "wenshu.host.output.link.open.external/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "secret.credential.manage",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.secret.credential.manage/0.1.0",
+      "output_schema": "wenshu.host.output.secret.credential.manage/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "secret.credential.status",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.secret.credential.status/0.1.0",
+      "output_schema": "wenshu.host.output.secret.credential.status/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    },
+    {
+      "name": "platform.info.read",
+      "capability_version": "0.1.0",
+      "support_status": "unsupported",
+      "permission_status": "not_applicable",
+      "input_schema": "wenshu.host.input.platform.info.read/0.1.0",
+      "output_schema": "wenshu.host.output.platform.info.read/0.1.0",
+      "limits": {
+        "max_concurrent_requests": 1,
+        "timeout_ms": 300000,
+        "max_payload_bytes": 0
+      },
+      "lifecycle": "request",
+      "cancellation": "none",
+      "progress": "none",
+      "error_codes": ["HOST_UNSUPPORTED"],
+      "fallback": {
+        "strategy": "read_only",
+        "reason_code": "PB10_PAYLOAD_UNFROZEN"
+      }
+    }
+  ]
+}

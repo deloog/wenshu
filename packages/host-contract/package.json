@@ -8,7 +8,9 @@
   },
   "wenshu": {
     "generatedFiles": [
-      "src/generated/host.ts"
+      "src/generated/host.ts",
+      "src/generated/host-0.2.0.ts",
+      "src/generated/payloads.ts"
     ]
   },
   "scripts": {

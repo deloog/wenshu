@@ -1,0 +1,6 @@
+{
+  "protocol_version": "0.2.0",
+  "kind": "cancel",
+  "request_id": "req_02020202020202020202020202020203",
+  "reason": "user"
+}
