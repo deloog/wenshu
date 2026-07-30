@@ -1,6 +1,6 @@
 # 分层门禁实施任务书（草案）
 
-> 状态：**r4（2026-07-30）已裁定**。任务 ID `G2-03`，已登记路线图 §8 与 §10，DoR 全局前提已满足。
+> 状态：**r5（2026-07-30）已裁定**。任务 ID `G2-03`，已登记路线图 §8 与 §10，DoR 全局前提已满足。
 > **恢复实施前需业主确认一项**：§2.9 的 `tools/*` 归属补录（起草遗漏，冻结表需业主确认后生效）。其余 r4 裁定（§2.8）可直接执行。
 > r1 GPT 复核、r3/r4 实施期停止上报的处置见 §11。
 > 提出者：Claude（独立审计者）。实施者：Codex。最终审计：Claude。
@@ -116,6 +116,24 @@ r0～r3 的 §3 归属表只覆盖 20 个 `packages/*` + 3 个 `apps/*` = 23 个
 
 因 §3 表已由业主冻结，本补录须由业主确认后生效；确认前实施者不得自行放行这 6 个包。
 
+### 2.10 `test/` 与 `scripts/` 适用放宽规则集，而非豁免（r5 裁定）
+
+r0～r4 的 §3 只写了"测试代码允许向上取用同层及 L2"，未说明平台导入。实现据此整体跳过 `test/` 与 `scripts/`，导致 **148 个文件（真库实测 335 个 source/config 文件中的 44%）完全不受分层检查**，L1 包的 `test/` 里 `require("electron")` 会通过。
+
+**"收紧到与 `src/` 同规则"不可行**：真库实测 13 个 L0/L1 包的测试**全部**导入 `node:test` 与 `node:assert/strict`——本仓的测试运行器本身就是 Node 内建；`scripts/` 承担 schema→类型生成，本质需要 `node:fs`。施加 `src` 严格度会让每个 L0/L1 包立刻变红。
+
+**裁定：把豁免从"全部"收窄为"仅 `node:*`"。**
+
+| 目录 | `node:*` | `electron` / `@ohos.` / `@ohos/` | 层级方向 |
+|---|---|---|---|
+| `src/` | 按层判定（L0/L1/web 禁） | 仅 L3 允许 | 严格按 §3 归属表 |
+| `test/` | **允许** | **仅 L3 允许（与 `src` 同）** | 放宽：同层 + L2 |
+| `scripts/` | **允许** | **仅 L3 允许（与 `src` 同）** | 放宽：同层 + L2 |
+
+平台导入不随 `node:*` 一起放开，理由：L1 包的测试若需要 `electron` 才能运行，这本身就是该 L1 代码存在隐藏平台依赖的征兆；且 `test/` 辅助代码被"临时"挪进 `src/` 是最常见的腐化路径，放开平台导入等于拆掉这条路径的护栏。测试代码不发布，但它是征兆，不是豁免理由。
+
+实现层面：`isStrictSource` 应从"跳过"改为"选规则集"，`test/`、`scripts/` 之外的其他目录（如包根）保持现状处理并计入覆盖计数。
+
 ## 3. 分层归属（已由业主冻结，2026-07-30；`tools/*` 补录待确认，见 §2.9）
 
 > 本表是门禁判定依据。基线为 HEAD `fc1c5a9` 的 20 个 `packages/*` + 3 个 `apps/*`。新增包必须先登记归属，否则门禁按 §5.6 fail-closed 失败。
@@ -131,7 +149,7 @@ r0～r3 的 §3 归属表只覆盖 20 个 `packages/*` + 3 个 `apps/*` = 23 个
 归属依据与需注意处：
 
 - `report-checks` 归 L2 而非 L1，因为它在 `package.json` 中依赖 `pdf-evidence` 与 `pdf-export`（均为 L2）；归 L1 会立刻构成层序倒置。
-- `template-css`、`pdf-export`、`report-render`、`pdf-evidence`、`report-checks` 的 `devDependencies` 含 `@wenshu/markdown-import` 等 L2 包，用于测试 fixture 构造。**规则须区分 `src/` 与 `test/`+`scripts/`**：`src` 严格按上表判定，测试代码允许向上取用同层及 L2。
+- `template-css`、`pdf-export`、`report-render`、`pdf-evidence`、`report-checks` 的 `devDependencies` 含 `@wenshu/markdown-import` 等 L2 包，用于测试 fixture 构造。**`src/` 与 `test/`+`scripts/` 适用不同规则集，见 §2.10（r5 裁定）——注意是「换一套放宽规则」，不是「跳过不检查」。**
 - L3 两个壳互不引用对方平台 API，是当前实测状态，需固化为规则。
 
 ## 4. 范围内 / 范围外
@@ -213,6 +231,9 @@ r0～r3 的 §3 归属表只覆盖 20 个 `packages/*` + 3 个 `apps/*` = 23 个
 | **26** | 现状 7 个包的 `ajv` 生产依赖（仅经 `ajv/dist/2020.js` 子路径导入） | **通过**（§2.8 裁定三；若失败即归一化未实现） |
 | **27** | 已登记 workspace 包声明一个仅经 `node_modules` 资源路径使用、且**未**登记为资源型依赖的生产依赖 | 失败（§2.8 裁定二：不靠自动识别放行） |
 | **28** | 全部 6 个 `tools/*` 包（ci、environment、fixtures、fonts、quality、supply-chain） | **通过**（§2.9 补录为 L2 后；补录确认前应 fail-closed 失败） |
+| **29** | 现状 L0/L1 包 `test/` 中的 `import test from "node:test"` | **通过**（§2.10；13 个 L0/L1 包全部如此，若失败即规则集过严） |
+| **30** | 在 L1 包 **`test/`** 中 `require("electron")` | 失败（§2.10；当前实现会误放行——这是 P-2） |
+| **31** | 在 L0 包 `src` 中相对导入逃逸到未登记位置，如 `import "../../../probes/pb-08-sqlite/chromium-tabs.ts"` | 失败（fail-closed；当前实现解析不到已登记 workspace 即沉默——这是 P-1） |
 
 ### 6.1 反例 17/18 的判定范围（须在实现前冻结，不得实现时临时豁免）
 
