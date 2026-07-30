@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  RandomIdAllocator,
   fromProseMirrorDocument,
   toProseMirrorDocument,
   type IdAllocator,
@@ -104,6 +105,15 @@ function assertUnchangedIdsRemain(
 test("complete G1-04 fixture round-trips through ProseMirror without loss", async () => {
   const fixture = await fullFixture();
   assert.deepEqual(fromProseMirrorDocument(toProseMirrorDocument(fixture)), fixture);
+});
+
+test("default IDs use 128 bits from the platform-neutral Web Crypto source", () => {
+  const allocator = new RandomIdAllocator();
+  const first = allocator.allocate("node");
+  const second = allocator.allocate("node");
+  assert.match(first, /^node_[0-9a-f]{32}$/u);
+  assert.match(second, /^node_[0-9a-f]{32}$/u);
+  assert.notEqual(first, second);
 });
 
 test("insert and copy allocate fresh identities while retaining every old identity", () => {
