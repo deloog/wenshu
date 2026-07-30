@@ -161,3 +161,33 @@ test("unused production dependencies fail while subpath imports count as use", a
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("tsconfig compilerOptions.types consumes an @types production dependency", async () => {
+  const root = await mkdtemp(join(tmpdir(), "wenshu-configured-types-"));
+  try {
+    const packageDirectory = join(root, "packages", "project-storage");
+    await mkdir(join(packageDirectory, "src"), { recursive: true });
+    await writeFile(
+      join(packageDirectory, "package.json"),
+      JSON.stringify({
+        name: "@wenshu/project-storage",
+        dependencies: { "@types/node": "24.13.3" },
+      }),
+    );
+    const files = [
+      join(packageDirectory, "package.json"),
+      join(packageDirectory, "tsconfig.json"),
+    ];
+    const withoutConfiguration = await checkUnusedProductionDependencies(root, files);
+    assert.equal(withoutConfiguration.length, 1);
+    assert.match(withoutConfiguration[0]?.message ?? "", /@types\/node/u);
+    await writeFile(
+      join(packageDirectory, "tsconfig.json"),
+      JSON.stringify({ compilerOptions: { types: ["node"] } }),
+    );
+    const findings = await checkUnusedProductionDependencies(root, files);
+    assert.deepEqual(findings, []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -15,10 +15,13 @@ import {
 
 type SpecifierForm = "bare" | "node" | "relative" | "absolute" | "drive";
 type Syntax = ModuleImport["syntax"];
+type RuleSet = "strict" | "auxiliary";
 
 export interface LayeringCoverage {
   readonly workspaces: number;
   readonly sourceFiles: number;
+  readonly auxiliaryFiles: number;
+  readonly unclassifiedFiles: number;
   readonly emptyImportFiles: number;
   readonly specifierForms: Readonly<Record<SpecifierForm, number>>;
   readonly syntaxForms: Readonly<Record<Syntax, number>>;
@@ -33,6 +36,8 @@ export interface LayeringResult {
 interface MutableLayeringCoverage {
   workspaces: number;
   sourceFiles: number;
+  auxiliaryFiles: number;
+  unclassifiedFiles: number;
   emptyImportFiles: number;
   specifierForms: Record<SpecifierForm, number>;
   syntaxForms: Record<Syntax, number>;
@@ -49,6 +54,8 @@ function zeroCoverage(): MutableLayeringCoverage {
   return {
     workspaces: 0,
     sourceFiles: 0,
+    auxiliaryFiles: 0,
+    unclassifiedFiles: 0,
     emptyImportFiles: 0,
     specifierForms: { bare: 0, node: 0, relative: 0, absolute: 0, drive: 0 },
     syntaxForms: {
@@ -79,9 +86,14 @@ function packageName(specifier: string): string | undefined {
   return specifier.split("/")[0];
 }
 
-function isStrictSource(filePath: string, workspace: Workspace): boolean {
+function ruleSetFor(filePath: string, workspace: Workspace): RuleSet | undefined {
   const sourceRoot = resolve(workspace.directory, "src");
-  return !relative(sourceRoot, filePath).startsWith("..");
+  if (!relative(sourceRoot, filePath).startsWith("..")) return "strict";
+  const localPath = relative(workspace.directory, filePath).replaceAll("\\", "/");
+  if (localPath.startsWith("test/") || localPath.startsWith("scripts/")) {
+    return "auxiliary";
+  }
+  return undefined;
 }
 
 function allows(source: Layer, target: Layer): boolean {
@@ -92,8 +104,22 @@ function allows(source: Layer, target: Layer): boolean {
   return target === "L0" || target === "L1" || target === "web";
 }
 
-function platformViolation(source: Layer, specifier: string): string | undefined {
-  if (specifier.startsWith("node:") && source !== "L2" && source !== "L3") {
+function allowsForRuleSet(source: Layer, target: Layer, ruleSet: RuleSet): boolean {
+  if (ruleSet === "strict") return allows(source, target);
+  return allows(source, target) || target === source || target === "L2";
+}
+
+function platformViolation(
+  source: Layer,
+  specifier: string,
+  ruleSet: RuleSet,
+): string | undefined {
+  if (
+    specifier.startsWith("node:") &&
+    ruleSet === "strict" &&
+    source !== "L2" &&
+    source !== "L3"
+  ) {
     return "NODE_BUILTIN_FORBIDDEN";
   }
   if (specifier === "electron" || specifier.startsWith("electron/")) {
@@ -206,15 +232,21 @@ export async function checkLayering(
     }
     if (!hasExactExtension(file, CODE_EXTENSIONS)) continue;
     const source = workspaceForPath(file, registry.workspaces);
-    if (source === undefined || !isStrictSource(file, source)) continue;
+    if (source === undefined) continue;
+    const ruleSet = ruleSetFor(file, source);
+    if (ruleSet === undefined) {
+      coverage.unclassifiedFiles += 1;
+      continue;
+    }
     coverage.sourceFiles += 1;
+    if (ruleSet === "auxiliary") coverage.auxiliaryFiles += 1;
     const imports = collectModuleImports(file, await readFile(file, "utf8"));
     if (imports.length === 0) coverage.emptyImportFiles += 1;
     for (const imported of imports) {
       const form = formOf(imported.specifier);
       coverage.specifierForms[form] += 1;
       coverage.syntaxForms[imported.syntax] += 1;
-      const platform = platformViolation(source.layer, imported.specifier);
+      const platform = platformViolation(source.layer, imported.specifier, ruleSet);
       if (platform !== undefined) {
         findings.push({
           rule: "layering",
@@ -225,14 +257,23 @@ export async function checkLayering(
         });
         continue;
       }
+      const resolved = resolveSpecifier(file, imported.specifier);
       const target =
         form === "bare"
           ? byPackage.get(packageName(imported.specifier) ?? "")
-          : workspaceForPath(
-              resolveSpecifier(file, imported.specifier) ?? "",
-              registry.workspaces,
-            );
-      if (target !== undefined && !allows(source.layer, target.layer)) {
+          : workspaceForPath(resolved ?? "", registry.workspaces);
+      if (form !== "bare" && resolved !== undefined && target === undefined) {
+        findings.push({
+          rule: "layering",
+          severity: "error",
+          filePath: file,
+          line: 1,
+          message: `UNREGISTERED_PATH_TARGET specifier=${imported.specifier}`,
+        });
+      } else if (
+        target !== undefined &&
+        !allowsForRuleSet(source.layer, target.layer, ruleSet)
+      ) {
         findings.push({
           rule: "layering",
           severity: "error",
@@ -254,5 +295,5 @@ export async function checkLayering(
 }
 
 export function formatLayeringCoverage(coverage: LayeringCoverage): string {
-  return `Layering coverage: workspaces=${coverage.workspaces} sourceFiles=${coverage.sourceFiles} emptyImports=${coverage.emptyImportFiles} specifiers=${JSON.stringify(coverage.specifierForms)} syntax=${JSON.stringify(coverage.syntaxForms)} arkTsIgnored=${coverage.ignoredArkTsFiles}`;
+  return `Layering coverage: workspaces=${coverage.workspaces} sourceFiles=${coverage.sourceFiles} auxiliaryFiles=${coverage.auxiliaryFiles} unclassifiedFiles=${coverage.unclassifiedFiles} emptyImports=${coverage.emptyImportFiles} specifiers=${JSON.stringify(coverage.specifierForms)} syntax=${JSON.stringify(coverage.syntaxForms)} arkTsIgnored=${coverage.ignoredArkTsFiles}`;
 }
