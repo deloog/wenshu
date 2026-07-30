@@ -1,6 +1,8 @@
 # 文枢原子化实施路线图
 
-> 版本：1.6　日期：2026-07-30　状态：**GR 已通过**（v1.0 专项审计 0 项未关闭阻断；审计后依次依据独立复审新增 PA-00、PB-05A、G2-03、G2-04）
+> 版本：1.7　日期：2026-07-30　状态：**GR 已通过**（v1.0 专项审计 0 项未关闭阻断；审计后依次依据独立复审新增 PA-00、PB-05A、G2-03、G2-04）
+>
+> **1.7 变更（G2-04 签署）**：`G2-04` 经 Claude 独立审计 `PASS`（首审 CONDITIONAL PASS，MA-01/MI-01 复审关闭，首审 23 条 + 复审 23 条独立探针零失败）；§3.1 台账补录 `G2-04` 条目（签署后台账补录即为本门禁 8a 检查所要求的动作，G2-03 曾因漏补被该检查前身抓出）。
 >
 > **1.6 变更（G2-04 审计 MI-01 关闭）**：裁定 `G1-09` 确实依赖 `G1-06`——其任务行散文自证（范围内含「处理 Host 复审 NF-02」、完成证据含 Host 值拒绝测试，均为 G1-06 Host 契约产物），且消费者列删除前是路线图中该依赖的最后结构性记载。据此补回权威手写源：`G1-09` 依赖列 `G1-03 → 全任务` 改为 `G1-03/06 → 全任务`，`G1-06` 消费者列恢复 `G1-09`（依赖边 238→239，高于登记下限）；其余三处消费者列删除（`G1-03C → G1-08`、`A-01 → A-07P`、`A-02D → A-03`）经审计核验无同等散文证据，维持删除。裁定理由与「消费者列与依赖列冲突且存在散文证据时须先裁定哪侧为真」规则见 [ADR-0024](adr/0024-G2-04路线图手写真源收敛与不变量门禁.md) 增补。
 >
@@ -130,6 +132,7 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | PB-08 | ✅ 已完成 | 存储引擎选型（`probes/pb-08-sqlite`）：桌面 `node:sqlite` 真实文件 + Chromium 双标签 `@sqlite.org/sqlite-wasm` OPFS 双面实测；[ADR-0022](adr/0022-PB-08SQLite与OPFS存储引擎选型.md)；Claude 审计 [`PASS`](audits/PB-08-claude-audit-report.md)；[实施记录](audits/PB-08-implementation-record.md)；PR #38（`edf5715`）。**ArkWeb 的 Worker/WASM/OPFS 等价持久化与锁语义标记 `needs_device_to_verify`，三端实际搬运待验证**，不得读作"三端同 API/同物理路径" |
 | PB-09 | ✅ 已完成 | [@wenshu/project-storage](../packages/project-storage)：版本化迁移、隔离真库集成与恢复；Claude 审计 [`PASS`](audits/PB-09-claude-audit-report.md)（复审关闭 MINOR，磁盘满诊断保留）；[实施记录](audits/PB-09-implementation-record.md)；PR #39（`fc1c5a9`） |
 | G2-03 | ✅ 已完成 | 核心/工具/壳分层门禁（宪法 11 与技术基线 §2 平台隔离从人工审计转为机械门禁）：L0~L3/web 分层归属表冻结，方向/平台 API/node 内建/幽灵依赖/未用生产依赖五类拦截，31 条反例逐条独立复跑（含 6 条防误报反向）；`semantic-editor`→`editor-diff` 平台耦合关闭（[ADR-0023](adr/0023-G2-03平台中立稳定ID随机源.md)）、`project-storage` 生产依赖归属纠正且 SBOM 重建通过；Claude 审计 `PASS`（首审 MA-01 复审关闭），经 [PR #41](https://github.com/deloog/wenshu/pull/41) 合入（`13e84da`，CI 8/8）；[审计报告](audits/G2-03-claude-audit-report.md)；[实施记录](audits/G2-03-implementation-record.md) |
+| G2-04 | ✅ 已完成 | 路线图不变量门禁（依赖关系、`R-*` 标注与完成状态收敛为三类权威手写源，§3 关键路径/§9 波次/§10 矩阵/消费者列改为派生校验对象）：10 条判定接入 `pnpm verify` 与 CI `static` job，解析 fail-closed 输出六项计数对照登记下限，例外仅在封闭登记表；任务书 §2.3 登记的 31 处现存违反全部关闭；实施侧 29 条反例逐条独立复跑 + 审计侧自建镜像自构 46 条探针（首审 23 + 复审 23）零失败；[ADR-0024](adr/0024-G2-04路线图手写真源收敛与不变量门禁.md)（含 MI-01 裁定增补：消费者列与依赖列冲突且有散文证据时先裁定哪侧为真）；Claude 审计 `PASS`（首审 CONDITIONAL PASS，MA-01/MI-01 复审关闭），经 [PR #44](https://github.com/deloog/wenshu/pull/44)（CI 8/8，待合入）；[审计报告](audits/G2-04-claude-audit-report.md)；[实施记录](audits/G2-04-implementation-record.md) |
 
 ## 4. G1：工程底座原子任务
 
