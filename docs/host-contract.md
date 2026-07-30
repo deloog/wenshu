@@ -65,4 +65,4 @@ registry → request → progress (0..n) → success | failure | cancelled
 
 G1-06 修复后的 28/28 项 Host 契约测试已获 Claude `CONDITIONAL PASS`。G1-08 又增加“终态后 cancel”反测，Host 契约当前为 29/29；Claude 在 G1-08 首审中以原始反例和新增变体确认文档导出名 NF-01、终态后 cancel NF-04 均已关闭且正常取消链路无回归。
 
-G1-09 已实现 NF-02 的前缀与控制字符补强，并增加恶意矩阵和合法值对照；该发现是否关闭须由 Claude 独立复审判定，实施者不自行关闭。
+G1-09 已实现 NF-02 的前缀与控制字符补强，并增加恶意矩阵和合法值对照；Claude 独立审计 N-07 已判定 NF-02 闭合（27 项敌意值全部拒绝；正向对照唯一误杀 m-04 归 PB-05A）。PB-10 是该发现指名的首个真实 Host 消费者，须在真实 host 入口以该矩阵为下限复验拒绝。
