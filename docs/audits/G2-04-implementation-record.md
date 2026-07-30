@@ -7,7 +7,7 @@
 
 | 交付物 | 位置 |
 |---|---|
-| 不变量检查器（解析/检查/报告分模块） | `tools/quality/src/roadmap-markdown.ts`、`roadmap-model.ts`、`roadmap-parse.ts`、`roadmap-checks-structure.ts`（1a/1b/1c/2/3）、`roadmap-checks-consistency.ts`（4/5/6/7）、`roadmap-checks-evidence.ts`（8a/8b/8c）、`roadmap-invariants.ts` |
+| 不变量检查器（解析/检查/报告分模块） | `tools/quality/src/roadmap-markdown.ts`、`roadmap-model.ts`、`roadmap-parse.ts`、`roadmap-parse-regions.ts`（MA-01 关闭时拆出）、`roadmap-checks-structure.ts`（1a/1b/1c/2/3）、`roadmap-checks-consistency.ts`（4/5/6/7）、`roadmap-checks-evidence.ts`（8a/8b/8c）、`roadmap-invariants.ts` |
 | 例外登记表（单一手写真源） | `tools/quality/src/roadmap-registry.ts`（已批准偏离 1 条、8a 例外 11 条、8b 豁免 6 条、历史波次 W1、计数下限六项） |
 | 测试 | `tools/quality/test/roadmap-parse.unit.test.ts`（7）、`roadmap-checks.unit.test.ts`（10）、`roadmap-invariants.integration.test.ts`（1）、反例矩阵两文件（29 条）+ 镜像工作树助手 `roadmap-mirror.ts` |
 | 接入 | `tools/quality/scripts/check-repository.ts`（经 `pnpm quality:check` 进入 `pnpm verify` 与 CI `static` job，未新增 job、未改矩阵结构） |
@@ -87,7 +87,7 @@ Roadmap invariants: 任务数 77(下限 77)，依赖边数 238(下限 238)，R-*
 | 单元 | `pnpm test:unit` | 270/270 pass（含本任务 17 条新增） |
 | 分层 | `pnpm test:layers` | 99 文件分类通过 |
 | 集成（本任务） | `node --test tools/quality/test/roadmap-invariants.integration.test.ts` + 反例两文件 | 31/31 pass |
-| 质量门禁 | `pnpm quality:check` | 通过；计数行如 §4；`roadmap-parse.ts` 经拆分后 299 行未触发预警（`roadmap-markdown.ts` 拆出） |
+| 质量门禁 | `pnpm quality:check` | 通过；计数行如 §4。**更正（2026-07-30，审计 MA-01）**：此处原述「`roadmap-parse.ts` 经拆分后 299 行未触发预警」失实——299 系拆出 `roadmap-markdown.ts` 当时的工作树读数，prettier 重排后未复核，该文件在 `b19beec`～`48b737f` 全部 5 个提交上均为 340 行，门禁同次运行实际输出 `WARN file-size roadmap-parse.ts:340`（未达 400 硬上限，verify 仍通过，护栏未被放宽或抑制）。按审计关闭条件选择进一步拆分：region 行解析函数移入新模块 `roadmap-parse-regions.ts`（260 行），`roadmap-parse.ts` 仅保留章节定位与模型装配（131 行），两文件均回到预警线以下、WARN 消除；判定逻辑零改动，门禁计数行与拆分前逐位一致（77/238/18/50/27/13，未解析行 0） |
 | 类型 | `pnpm typecheck` | 通过，零 error |
 | Lint | `pnpm lint` | 通过 |
 | 格式 | `pnpm format:check` | 通过 |
@@ -103,3 +103,4 @@ Roadmap invariants: 任务数 77(下限 77)，依赖边数 238(下限 238)，R-*
 
 - 提交边界（任务书 §9，可单独回退）：`b19beec` 检查器+登记表+测试+接入；`49dbbf9` 路线图 31 处修正与声明（v1.5）；ADR 与实施记录独立提交。
 - 推送前置条件已满足：`pnpm verify` exit=0。远程矩阵：run [`30538632611`](https://github.com/deloog/wenshu/actions/runs/30538632611)（ubuntu-24.04，PR #44）**8/8 success**（static/unit-config/contracts/typecheck/build-test/build-staging/build-production/security），静态 job 含本门禁计数行。本任务已实现，待 Claude 独立审计。
+
