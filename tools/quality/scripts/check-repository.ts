@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { relative } from "node:path";
+import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { discoverWorkspaceFiles } from "@wenshu/test-support";
 
@@ -8,11 +8,13 @@ import {
   checkForbiddenSyntax,
   checkLayering,
   checkPhantomDependencies,
+  checkRoadmapInvariants,
   checkUnusedProductionDependencies,
   checkStrictBaseConfig,
   checkTypecheckCoverage,
   CODE_EXTENSIONS,
   formatLayeringCoverage,
+  formatRoadmapCounts,
   hasExactExtension,
   hasNoncanonicalCodeExtension,
   inspectGeneratedFileRegistry,
@@ -52,6 +54,10 @@ const unusedProductionDependencies = await checkUnusedProductionDependencies(
   files,
 );
 const layering = await checkLayering(workspaceRoot, files);
+const roadmap = await checkRoadmapInvariants(
+  resolve(workspaceRoot, "docs/implementation-roadmap.md"),
+);
+console.log(formatRoadmapCounts(roadmap));
 findings
   .filter((finding) => finding.severity === "warning")
   .forEach((finding) => {
@@ -90,6 +96,11 @@ layering.findings.forEach((finding) => {
 generatedRegistry.findings.forEach((finding) => {
   console.error(
     `ERROR generated-registry ${relative(workspaceRoot, finding.packageRoot)} ${finding.message}`,
+  );
+});
+roadmap.findings.forEach((finding) => {
+  console.error(
+    `ERROR ${finding.rule} ${relative(workspaceRoot, finding.filePath)}:${finding.line} ${finding.message}`,
   );
 });
 

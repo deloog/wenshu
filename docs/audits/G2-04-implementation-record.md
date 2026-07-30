@@ -1,0 +1,141 @@
+# G2-04 路线图不变量门禁 · 实施记录
+
+> 任务：[任务书 r3](roadmap-invariants-gate-task.md)（已批准）。实施者：Codex。分支：`agent/g2-04-roadmap-invariants`（自 `7ff2fa3` 创建）。
+> 运行时：Node `v24.17.0`（`D:\Applications\Node\node-v24.17.0-win-x64`）、pnpm `11.15.1`（D 盘 Corepack shim），按 [开发环境基线](../development-environment.md) 初始化；未使用 C 盘 Node 24.13.0。
+
+## 1. 交付物
+
+| 交付物 | 位置 |
+|---|---|
+| 不变量检查器（解析/检查/报告分模块） | `tools/quality/src/roadmap-markdown.ts`、`roadmap-model.ts`、`roadmap-parse.ts`、`roadmap-parse-regions.ts`（MA-01 关闭时拆出，见 §9）、`roadmap-checks-structure.ts`（1a/1b/1c/2/3）、`roadmap-checks-consistency.ts`（4/5/6/7）、`roadmap-checks-evidence.ts`（8a/8b/8c）、`roadmap-invariants.ts` |
+| 例外登记表（单一手写真源） | `tools/quality/src/roadmap-registry.ts`（已批准偏离 1 条、8a 例外 11 条、8b 豁免 6 条、历史波次 W1、计数下限六项） |
+| 测试 | `tools/quality/test/roadmap-parse.unit.test.ts`（7）、`roadmap-checks.unit.test.ts`（10）、`roadmap-invariants.integration.test.ts`（1）、反例矩阵两文件（29 条）+ 镜像工作树助手 `roadmap-mirror.ts` |
+| 接入 | `tools/quality/scripts/check-repository.ts`（经 `pnpm quality:check` 进入 `pnpm verify` 与 CI `static` job，未新增 job、未改矩阵结构） |
+| 路线图修正与声明 | `docs/implementation-roadmap.md` v1.4 → v1.5（实施）→ v1.6（MI-01 关闭，见 §9） |
+| ADR | [ADR-0024](../adr/0024-G2-04路线图手写真源收敛与不变量门禁.md) |
+
+零新增第三方依赖（复用现成 `typescript` devDependency 与 Node 内建，未引入 markdown 解析库）。
+
+## 2. 修复前红状态（留证：31 处违反全部暴露，8a 先在 G2-03 身上失败）
+
+检查器接入后、路线图修正前的完整输出存于 `tmp/g204-red-before-fix.txt`（本机证据，非项目真源）。要点：
+
+- 解析计数：任务 77 / 依赖边 238 / `R-*` 18 / 台账 49 / §3 边 23 / §9 组 12，全部贴下限，未解析行 0。
+- findings 共 30 条，与任务书 §2.3 枚举逐一对应：检查 5 三条（`G1-07→G1-10`、`G1-03C→G1-08`、`PB-06→PB-09`）、检查 6 五条（W2×3、W3×1、W5×1）、检查 7 四条、8a 一条（`G2-03`）、8b 十七条（行号 84~105 与任务书 §5.4 名单一致）。
+- 第 31 处（检查 3，`PA-15` ✅ 依赖 ⏸ `PA-14U`）经已批准偏离登记表关闭，非文档编辑。
+- 检查器未暴露 §2.3 之外的任何新违反（停止条件未触发）。
+
+## 3. 31 处违反的关闭方式
+
+| 违反 | 处置 |
+|---|---|
+| 检查 3 ×1（`PA-15`/`PA-14U`） | 登记表 `approvedDeviations` 显式登记（决策 C / PA-15 闸门报告），未登记的不单调一律失败 |
+| 检查 5 ×3 | 只改 §3 ASCII（派生对象）：契约主干 `G1-04 → G1-07；G1-05 → G1-10`、真实验证主干 `G1-03 → G1-03C → G1-11；G1-03 → G1-08 → G1-11`、PoC-B `…PB-06 → PB-12；PB-03 → PB-07 → PB-08 → PB-09 → PB-12`，逐边有传递依赖依据；未生成任何新链 |
+| 检查 6 ×5 | 只改 §9（派生对象）：W2 拆为 `G1-10/12/15；G1-13/14（待 G1-10 冻结后）；G1-14W（待 G1-14 完成后）`，W3 拆出 `PA-14U（待 PA-13 完成后）`，W5 拆出 `A-10X（待 A-09 完成后）`；W1 登记历史组豁免未改写 |
+| 检查 7 ×4 | 只改消费者列（派生对象）：`G1-03C` 去掉 `G1-08`、`G1-06` 去掉 `G1-09`、`A-01` 去掉 `A-07P`、`A-02D` 去掉 `A-03`；26 处传递下游声明保持合法 |
+| 8a ×1 | 补 `G2-03` 台账条目（追加于台账末尾，未重排既有 49 行），含自身审计报告链接、PR #41（`13e84da`）、ADR-0023 |
+| 8b ×17 | 17 行纯追加链接，未改行内既有文字：G1-04/05/06 → 合并报告 `G1-03-to-G1-06`；G1-07/08/09/10/13/14/14W/15、G2-01/02、PA-00/01/04 → 各自报告；G1-11 → `G1-11-ci` + `G1-11-isolation-gates` 两轮报告 |
+
+另写入：§9 W1 历史组说明与"此后新增波次须可判定格式"、§10"编辑性覆盖摘要"声明、§11 三类权威手写源与四类派生校验对象语义、版本 1.5 变更注记。
+
+## 4. 解析计数（修复后，验收口径）
+
+`pnpm quality:check` 每次运行均输出：
+
+```text
+Roadmap invariants: 任务数 77(下限 77)，依赖边数 238(下限 238)，R-* 定义数 18(下限 18)，台账条目数 50(下限 49)，§3 边数 27(下限 23)，§9 并行组数 13(下限 12)；未解析行 0
+```
+
+台账 49→50（补 `G2-03`）、§3 边 23→27、§9 组 12→13，均为允许的向上增长；任务、依赖边、`R-*` 不变。
+
+## 5. 29 条反例逐条独立复跑
+
+方法：每条在**真实路线图的独立副本**上构造（`roadmap-mirror.ts` 生成镜像工作树：真实文件、真实目录列举、真实链接解析，未 mock 文件读取或解析），经检查器真实入口 `checkRoadmapInvariants` 独立复跑。完整输出：`tmp/g204-counterexamples-negative.txt`（18 条）、`tmp/g204-counterexamples-reverse.txt`（11 条 + 汇总）。汇总：`pass 30 / fail 0`。
+
+负向 18 条全部观察到失败且失败信息指出违规位置与规则：
+
+| # | 构造 | 观察到的规则码（摘要） |
+|---|---|---|
+| 1 | PB-02 依赖列加 PB-12 造成环 | `roadmap-dependency-cycle`（PB-02 → PB-12 → … → PB-02） |
+| 2 | PB-08 改 ⏸ 不登记偏离 | `roadmap-status-nonmonotonic`（PB-09 / PB-08） |
+| 4 | 登记表删 PA-15 偏离 | `roadmap-status-nonmonotonic`（PA-15 / PA-14U） |
+| 5 | 标注 R-FAKE | `roadmap-requirement-undefined` |
+| 6 | 删 R-PERF 的 §10 出现 | `roadmap-requirement-uncovered` |
+| 8 | §3 加 A-16 → PB-12 | `roadmap-critical-edge-unfounded` |
+| 10 | §9 组加 PA-06（PA-07 的直接依赖） | `roadmap-wave-dependency-conflict` |
+| 12 | §10 引用 PB-99 | `roadmap-id-unknown`（§10 矩阵） |
+| 13 | PA-06 消费者加 G1-03（上游，非下游） | `roadmap-consumer-unfounded` |
+| 15 | 新增 G3-99 报告无台账条目 | `roadmap-audit-report-without-ledger` |
+| 17 | G1-03 行链接指向不存在文件 | `roadmap-ledger-broken-link` |
+| 18 | 破坏 §4 表格格式 | `roadmap-count-floor`（任务数 58 < 77，**未静默通过**） |
+| 20 | 依赖列写 PB-O9（字母 O） | `roadmap-id-suspicious`（未被静默丢弃；依赖边 237 < 238 同时报出） |
+| 21 | 依赖列写 PB-19 | `roadmap-id-unknown`（依赖列） |
+| 22 | 重复 G1-01 行 | `roadmap-id-duplicate` |
+| 24 | §3/§9/§10/消费者列/台账各一个不存在 ID | `roadmap-id-unknown` ×5（五个位置逐条定位） |
+| 25 | 删 PA-07 行报告链接 | `roadmap-ledger-missing-report-link`（PA-07） |
+| 28 | 豁免表删 G1-12 | `roadmap-ledger-missing-report-link`（G1-12，豁免确在起作用） |
+
+反向 11 条全部观察到**通过**：3（PA-15/PA-14U 已登记偏离）、7（R-* 标注现状）、9（§3 仅传递依赖边 `G1-11 → PA-01`，零发现）、11（W1 历史组）、14（26 处传递下游消费者）、16（11 条例外报告）、19（新增 G3-03 任务+台账条目+报告，计数 78/241/51 向上增长零发现）、23（8 个散文类 ID token 无一被 1c 误报，逐一断言真实存在）、26（G1-04 → 合并报告别名；反证：抽掉别名映射后同一行必失败）、27（6 行豁免且逐一断言确无报告文件）、29（3 份非任务报告未被任何台账行链接，零发现）。
+
+> 反例 13 初版误选 `PB-12` 作为"不存在的下游"——经 PoC-A→PoC-B 依赖链它确是 PA-06 的传递下游，复跑零发现暴露了选材错误；改选真上游 `G1-03` 后按预期失败。记录在此：反向语义（子集判定）本身是正确的。
+> 实施期解析器两处强化（均由反例思维驱动）：① ID 扫描补词边界——`MA-01`（G2-03 台账行散文）先前会被吞成 `A-01`；② §9 组判定剥离全角括号注记——时序注记"（待 G1-10 冻结后）"内的 ID 不计入组成员，已写入口径并有单元测试。
+
+## 6. 验证结果
+
+| 检查 | 命令 | 结果 |
+|---|---|---|
+| 单元 | `pnpm test:unit` | 270/270 pass（含本任务 17 条新增） |
+| 分层 | `pnpm test:layers` | 99 文件分类通过 |
+| 集成（本任务） | `node --test tools/quality/test/roadmap-invariants.integration.test.ts` + 反例两文件 | 31/31 pass |
+| 质量门禁 | `pnpm quality:check` | 通过；计数行如 §4。**更正（2026-07-30，审计 MA-01）**：此处原述「`roadmap-parse.ts` 经拆分后 299 行未触发预警」失实——299 系拆出 `roadmap-markdown.ts` 当时的工作树读数，prettier 重排后未复核，该文件在 `b19beec`～`48b737f` 全部 5 个提交上均为 340 行，门禁同次运行实际输出 `WARN file-size roadmap-parse.ts:340`（未达 400 硬上限，verify 仍通过，护栏未被放宽或抑制）。按审计关闭条件选择进一步拆分：region 行解析函数移入新模块 `roadmap-parse-regions.ts`（260 行），`roadmap-parse.ts` 仅保留章节定位与模型装配（131 行），两文件均回到预警线以下、WARN 消除；判定逻辑零改动，门禁计数行与拆分前逐位一致（77/238/18/50/27/13，未解析行 0） |
+| 类型 | `pnpm typecheck` | 通过，零 error |
+| Lint | `pnpm lint` | 通过 |
+| 格式 | `pnpm format:check` | 通过 |
+| 全量 | `pnpm verify` | **exit=0（223s）**，含本门禁计数行（§4）；提交 `49dbbf9` 工作树 |
+
+## 7. 未执行项与边界
+
+- `pnpm test:integration` 全层：`probes/pb-07-yjs`、`probes/pb-08-sqlite` 两个既有探针测试在本工作树失败（probes 不在 pnpm workspace，本地依赖未安装；`pnpm verify` 与 CI 矩阵均不含 integration 层，基线 `7ff2fa3` 同样如此）。与本任务无关，未处置。本任务三个 integration 测试文件已逐文件单独运行通过（31/31）。
+- CI 远程矩阵：推送后观察（实施记录将按实际 run 更新）。
+- 任务书"31 处"口径：30 处文档/登记修正 + 1 处（检查 3）经已批准偏离登记表关闭；任务书 §2.3 自枚举与之吻合。
+
+## 8. 提交与推送
+
+- 提交边界（任务书 §9，可单独回退）：`b19beec` 检查器+登记表+测试+接入；`49dbbf9` 路线图 31 处修正与声明（v1.5）；ADR 与实施记录独立提交。
+- 推送前置条件已满足：`pnpm verify` exit=0。远程矩阵：run [`30538632611`](https://github.com/deloog/wenshu/actions/runs/30538632611)（ubuntu-24.04，PR #44）**8/8 success**（static/unit-config/contracts/typecheck/build-test/build-staging/build-production/security），静态 job 含本门禁计数行。本任务已实现，待 Claude 独立审计。
+
+## 9. 独立审计发现的关闭（2026-07-30）
+
+Claude 独立审计结论 **CONDITIONAL PASS**（[审计报告](G2-04-claude-audit-report.md)，门禁有效性经其自建镜像 + 自构 23 条反例 23/23 独立证实，31 处修正逐条回溯为真实修正），未关闭项两项，处置如下。
+
+### MA-01（MAJOR）· 已更正失实声明并按拆分处置
+
+§6 表格原述「`roadmap-parse.ts` 经拆分后 299 行未触发预警」失实：299 系拆出 `roadmap-markdown.ts` 当时的工作树读数，prettier 重排后未复核，该文件在 `b19beec`～`48b737f` 全部 5 个提交上均为 340 行，门禁同次运行实际打印 `WARN file-size roadmap-parse.ts:340`。护栏未被放宽或抑制（WARN 正常打印、未达 400 硬上限），但声明本身违反宪法 18/21，审计定级 MAJOR 成立。
+
+关闭动作（审计给出的二选一中选择**拆分**）：① §6 该格已更正为实际事实与本段索引；② region 行解析函数（§2/§3.1/§4~§8/§9/§10/§3 关键路径共 6 个）移入新模块 `roadmap-parse-regions.ts`（260 行），`roadmap-parse.ts` 仅保留章节定位与模型装配（131 行），两文件均回到 300 预警线以下；判定逻辑零改动，`RegionParseContext` 共享收集器保持原有 references/suspicious/annotations/issues 语义；③ 复跑验证：`pnpm --filter @wenshu/quality check` 门禁计数行与拆分前逐位一致（77/238/18/50/27/13，未解析行 0）且 `roadmap-parse.ts` WARN 消除；单元 35/35、本任务 integration 31/31、typecheck/eslint 通过。
+
+### MI-01（MINOR）· 裁定 G1-09 确实依赖 G1-06，补回权威手写源
+
+检查 7 处置时按「消费者列=派生校验对象」删除了 `G1-06` 消费者列的 `G1-09`，审计指出该删除抹掉了真实依赖的最后结构性记载（过失归因于任务书起草方，规格未预见「消费者声明可能才是真的那一方」）。
+
+裁定：**依赖真实存在**。证据：`G1-09` 任务行范围内含「处理 Host 复审 NF-02」、完成证据含「Host 值拒绝 NUL/控制字符及带任意前缀的盘符、POSIX/UNC、`file:` 和穿越片段」，均为 `G1-06` Host 契约产物；且 `G1-09` 行明示「Host NF-02 必须在 PA-14E/PB-10 等真实 Host 消费协议值前经独立审计关闭」。修正（路线图 v1.6）：`G1-09` 依赖列 `G1-03 → 全任务` 改 `G1-03/06 → 全任务`，`G1-06` 消费者列恢复 `G1-02 → G1-09/PB-10/A`；已签署任务行的范围/证据/验收口径文字未动，仅补回一条被漏记的依赖边与其逆向消费者声明。其余三处删除（`G1-03C → G1-08`、`A-01 → A-07P`、`A-02D → A-03`）经审计核散文未见同等证据，维持删除。重跑门禁：0 findings，依赖边 238→239（高于登记下限，属允许增长），其余计数不变。
+
+规则补强（审计建议采纳）：「消费者列与依赖列冲突且存在散文证据时，须先裁定哪一侧为真、不得默认删除派生侧」已写入 [ADR-0024 增补](../adr/0024-G2-04路线图手写真源收敛与不变量门禁.md) 与[任务书 r3 增补](roadmap-invariants-gate-task.md)。
+
+### 关闭后验证
+
+| 检查 | 结果 |
+|---|---|
+| `pnpm quality:check` | 通过，计数行 77/239/18/50/27/13，`roadmap-parse.ts` WARN 消除（`roadmap-parse-regions.ts` 260 行、`roadmap-parse.ts` 131 行） |
+| 单元 `pnpm --filter @wenshu/quality test` | 35/35 pass |
+| 本任务 integration（三文件） | 31/31 pass |
+| `pnpm verify` | **exit=0（192s）**，门禁计数行 77/239/18/50/27/13（未解析行 0）；`roadmap-parse.ts` WARN 消除，其余 24 条 WARN 为既有可接受项（本机日志 `tmp/g204-ma01-mi01-verify.txt`，非项目真源） |
+| 远程 CI | run [`30543882134`](https://github.com/deloog/wenshu/actions/runs/30543882134)（ubuntu-24.04，PR #44，覆盖 `045d603`）**8/8 success**；static job 日志含门禁计数行 `77/239/18/50/27/13，未解析行 0`，ubuntu 上复现一致 |
+
+提交边界（可单独回退）：MA-01（解析器拆分 + §6 更正）`33ad9bb`；MI-01（路线图 v1.6 + ADR-0024/任务书增补 + 本节）`c60ba27`。
+
+## 10. 签署与收尾（2026-07-30）
+
+Claude 复审关闭 MA-01/MI-01 并签署 **`PASS`**（[审计报告 §9](G2-04-claude-audit-report.md)，审计分支提交 `6d5e529`；复审对其自建镜像重跑 23 条探针 23/23，与首审合计 46 条零失败）。审计附一项不阻断 NOTE（NO-01）：本记录写的 131/260 行与审计者计法 126/257 差 3~5 行，系计数口径差异、WARN 消除已由门禁自身输出独立证实；**采纳其建议——此后凡涉体量声明，直接引用门禁输出，不自行计数**（MA-01 的成因正是引用了非门禁口径的数字）。
+
+收尾动作（实施方职责，沿 G2-03 先例）：① 审计分支 `--no-ff` 合入（`ffa543c`，保留审计历史）；② 合入后门禁立即变红留证——8a 报 `G2-04-claude-audit-report.md` 无台账条目，正是 G2-03 签署时漏掉、本门禁所防的那类缺口；③ §3.1 台账补录 `G2-04` 条目（链接审计报告与本记录），路线图 v1.7；④ 重跑门禁 0 findings（台账 51≥49），integration 1/1；⑤ `pnpm verify` exit=0（198s，本机日志 `tmp/g204-postsign-verify.txt`），签署头 `531d4fc` 远程 CI run [`30551821900`](https://github.com/deloog/wenshu/actions/runs/30551821900)（ubuntu-24.04，PR #44）**8/8 success**。G2-04 至此完成，待 PR #44 合入。

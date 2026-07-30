@@ -1,6 +1,12 @@
 # 文枢原子化实施路线图
 
-> 版本：1.4　日期：2026-07-30　状态：**GR 已通过**（v1.0 专项审计 0 项未关闭阻断；审计后依次依据独立复审新增 PA-00、PB-05A、G2-03、G2-04）
+> 版本：1.7　日期：2026-07-30　状态：**GR 已通过**（v1.0 专项审计 0 项未关闭阻断；审计后依次依据独立复审新增 PA-00、PB-05A、G2-03、G2-04）
+>
+> **1.7 变更（G2-04 签署）**：`G2-04` 经 Claude 独立审计 `PASS`（首审 CONDITIONAL PASS，MA-01/MI-01 复审关闭，首审 23 条 + 复审 23 条独立探针零失败）；§3.1 台账补录 `G2-04` 条目（签署后台账补录即为本门禁 8a 检查所要求的动作，G2-03 曾因漏补被该检查前身抓出）。
+>
+> **1.6 变更（G2-04 审计 MI-01 关闭）**：裁定 `G1-09` 确实依赖 `G1-06`——其任务行散文自证（范围内含「处理 Host 复审 NF-02」、完成证据含 Host 值拒绝测试，均为 G1-06 Host 契约产物），且消费者列删除前是路线图中该依赖的最后结构性记载。据此补回权威手写源：`G1-09` 依赖列 `G1-03 → 全任务` 改为 `G1-03/06 → 全任务`，`G1-06` 消费者列恢复 `G1-09`（依赖边 238→239，高于登记下限）；其余三处消费者列删除（`G1-03C → G1-08`、`A-01 → A-07P`、`A-02D → A-03`）经审计核验无同等散文证据，维持删除。裁定理由与「消费者列与依赖列冲突且存在散文证据时须先裁定哪侧为真」规则见 [ADR-0024](adr/0024-G2-04路线图手写真源收敛与不变量门禁.md) 增补。
+>
+> **1.5 变更（G2-04 实施）**：确立三类权威手写源（§4~§8 任务表依赖列、任务 `R-*` 标注、§3.1 台账状态字段与证据链接）与四类派生校验对象（§3 关键路径、§9 波次、§10 矩阵、消费者列），语义声明见 §9/§10/§11，由路线图不变量门禁（`pnpm quality:check`，解析 fail-closed）机械校验；修正任务书 §2.3 登记的全部不一致：§3 三条无传递依赖依据的边、§9 五个含直接依赖的可并行组、四条无依据消费者声明、补 `G2-03` 台账条目、17 行台账追加自身审计报告链接；`PA-15`/`PA-14U` 状态偏离经已批准偏离登记表显式豁免。维护方式变化见 [ADR-0024](adr/0024-G2-04路线图手写真源收敛与不变量门禁.md)。
 >
 > **1.4 变更（业主批准，2026-07-30）**：新增 `G2-04` 路线图不变量门禁任务（§8、§10 `R-TEST` 验证列）。该任务将把本文件的依赖关系、`R-*` 标注与完成状态确立为三类权威手写源，§3 关键路径、§9 波次、§10 矩阵与消费者列改为派生校验对象；其自身范围内包含修正本文件现存的 31 处不一致。任务书经实施者两轮独立审计（`FAIL` → `CONDITIONAL FAIL` → 关闭）后定版，见 [任务书](audits/roadmap-invariants-gate-task.md)。**与 `PB-10` 并行，不作为其前置。**
 >
@@ -58,13 +64,13 @@
 ```text
 G1 工程底座
   ├─ 仓库主干：G1-01 → G1-01R → G1-11
-  ├─ 契约主干：G1-04 → G1-07 → G1-10
-  ├─ 真实验证主干：G1-03 → G1-03C → G1-08 → G1-11
+  ├─ 契约主干：G1-04 → G1-07；G1-05 → G1-10
+  ├─ 真实验证主干：G1-03 → G1-03C → G1-11；G1-03 → G1-08 → G1-11
   └─ 平台工具：G1-12（DevEco）
           ↓ G1 审计 → G2-01/G2-02 首个功能变更门禁
 PoC-A：PA-00 → PA-01 → PA-03 → PA-05 → PA-08 → PA-12 → PA-15
           ↓ 排版生死闸
-PoC-B：PB-01 → PB-03 → PB-05 → PB-05A → PB-06 → PB-09 → PB-12
+PoC-B：PB-01 → PB-03 → PB-05 → PB-05A → PB-06 → PB-12；PB-03 → PB-07 → PB-08 → PB-09 → PB-12
           ↓ 事务/存储闸
 Alpha：A-01 → A-04 → A-08 → A-12 → A-16
           ↓ 封闭 Alpha / G2、G3 专项闸
@@ -81,28 +87,28 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-02 | ✅ 已完成 | `toolchain.versions.json`、ADR-0002；官方版本/许可证/来源/完整性证据已冻结，未安装业务依赖 |
 | G1-03 | ✅ 已完成 | D 盘 Node/pnpm、冻结 lockfile、TypeScript strict + Vite 工作区；Claude 复审 `CONDITIONAL PASS`，首审阻断/重大项全部关闭，见 [审计报告](audits/G1-03-to-G1-06-claude-audit-report.md) |
 | G1-03C | ✅ 已完成 | [环境配置基线](configuration.md)：运行时 Schema 与 Vite 配置均进入真实校验；Claude 复审通过 |
-| G1-04 | ✅ 已完成 | [v0 文档对象契约](document-model.md)：路径、预算与测试 typecheck 反例通过；Claude 复审通过，NF-03 已登记到 PA-00 |
-| G1-05 | ✅ 已完成 | [v0 模板 DSL 契约](template-dsl.md)：继承访问器与有效基线注入反例通过；Claude 复审通过 |
-| G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：值级路径、预算和会话状态机反例通过；Claude 复审通过，NF-01/02/04 已登记到 G1-08/09 |
-| G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md) |
-| G1-08 | ✅ 已完成 | [测试骨架与并行隔离基线](test-infrastructure.md)：Claude 复审 `CONDITIONAL PASS`，首审 3 MAJOR、5 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 [G1-11 硬门禁](audits/G1-08-followups.md) |
-| G1-09 | ✅ 已完成 | [工程质量与本地验证标准](engineering-standards.md)：Claude 最终复核 `CONDITIONAL PASS`；`RA-01～RA-04` 与 `CF-01` 全部关闭，118 项验证通过；新增 CR-01 已登记到 [G1-15](audits/G1-09-followups.md) |
-| G1-10 | ✅ 已完成 | [fixture 完整性基线](fixture-integrity.md)：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；150/150 验证通过，7 个原件与 manifest 锚点零漂移；FX-06 已登记到 [PA-00](audits/G1-10-followups.md) |
-| G1-11 | ✅ 已完成 | [并行 CI 基线](ci.md)本地验证通过；Claude 已关闭 CI-01～CI-05；[首次与最终 GitHub 运行](audits/G1-11-first-remote-run.md)均 8/8 成功，最终运行覆盖提交 `baff4ef` |
+| G1-04 | ✅ 已完成 | [v0 文档对象契约](document-model.md)：路径、预算与测试 typecheck 反例通过；Claude 复审通过，NF-03 已登记到 PA-00；[审计报告](audits/G1-03-to-G1-06-claude-audit-report.md) |
+| G1-05 | ✅ 已完成 | [v0 模板 DSL 契约](template-dsl.md)：继承访问器与有效基线注入反例通过；Claude 复审通过；[审计报告](audits/G1-03-to-G1-06-claude-audit-report.md) |
+| G1-06 | ✅ 已完成 | [v0 Host 契约](host-contract.md)与 [ADR-0003](adr/0003-v0-Host能力协议与平台隔离.md)：值级路径、预算和会话状态机反例通过；Claude 复审通过，NF-01/02/04 已登记到 G1-08/09；[审计报告](audits/G1-03-to-G1-06-claude-audit-report.md) |
+| G1-07 | ✅ 已完成 | [v0 项目/知识包/语义审计/兼容契约](project-contract.md)与 [ADR-0004](adr/0004-v0项目知识包与语义审计边界.md)：Claude 复审 `CONDITIONAL PASS`，首审 1 BLOCKER、2 MAJOR 全部关闭；新增 MINOR 已登记到 [PB-05A/G1-09](audits/G1-07-followups.md)；[审计报告](audits/G1-07-claude-audit-report.md) |
+| G1-08 | ✅ 已完成 | [测试骨架与并行隔离基线](test-infrastructure.md)：Claude 复审 `CONDITIONAL PASS`，首审 3 MAJOR、5 MINOR 全部关闭；新增 RA-01/RA-02 已登记为 [G1-11 硬门禁](audits/G1-08-followups.md)；[审计报告](audits/G1-08-claude-audit-report.md) |
+| G1-09 | ✅ 已完成 | [工程质量与本地验证标准](engineering-standards.md)：Claude 最终复核 `CONDITIONAL PASS`；`RA-01～RA-04` 与 `CF-01` 全部关闭，118 项验证通过；新增 CR-01 已登记到 [G1-15](audits/G1-09-followups.md)；[审计报告](audits/G1-09-claude-audit-report.md) |
+| G1-10 | ✅ 已完成 | [fixture 完整性基线](fixture-integrity.md)：Claude 最终复核 `PASS`，FX-01～FX-03 全部关闭；150/150 验证通过，7 个原件与 manifest 锚点零漂移；FX-06 已登记到 [PA-00](audits/G1-10-followups.md)；[审计报告](audits/G1-10-claude-audit-report.md) |
+| G1-11 | ✅ 已完成 | [并行 CI 基线](ci.md)本地验证通过；Claude 已关闭 CI-01～CI-05；[首次与最终 GitHub 运行](audits/G1-11-first-remote-run.md)均 8/8 成功，最终运行覆盖提交 `baff4ef`；审计报告 [CI](audits/G1-11-ci-claude-audit-report.md)/[隔离门禁](audits/G1-11-isolation-gates-claude-audit-report.md) |
 | G1-12 | ✅ 已完成 | [DevEco 环境说明](deveco-environment.md)：官方 6.1.1.290 与 SHA-256 核验；IDE/SDK/可增长缓存在 D 盘；Empty Ability 真实编译产出 HAP；本机 BIOS 虚拟化未开启，模拟器运行明确后置 |
-| G1-13 | ✅ 已完成 | [固定字体基线](font-baseline.md)：Adobe 官方 Source Han Sans CN 2.005R、OFL-1.1、400/500/700 三字重、哈希锚点及 884 个 fixture 必需码点覆盖；Claude 最终复核 `PASS`，FT-01/FT-02 已关闭；FT-01 多余文件在大小写敏感 Linux CI 上的表现留作补充证据点 |
-| G1-14 | ✅ 已完成 | [参考机器、采样协议与资源预算说明](reference-machine.md)：Claude 独立审计 `CONDITIONAL PASS` 后复审 EN-01～EN-03 全部关闭（`PASS`），无未关闭发现；可作为 PA-13/A-14 基线 |
-| G1-14W | ✅ 已完成 | [决策 #4](../决策记录.md) + 补充：微软官方 Win11 Enterprise Evaluation（22621）Hyper-V VM，`environment.win11.json` 已登记（96DPI/100%、运行时与冻结锚点同基线）；Claude 审计 `CONDITIONAL PASS` 后复审 W14W-01 `PASS` 关闭（离线 VHDX 取证证真、反伪造三链、全链转录 7/7）；无未关闭发现，NOTE 均为 PA-05 书面跟进项 |
-| G2-02 | ✅ 已签署（2026-07-23） | [分支保护与依赖门禁](branch-protection.md)：Claude 复审 `PASS` 签署——G2-M1 双向绑定封死（bump/降级/删除/改分类均被拦）、8 pin 对齐、405 实证、留痕可识别；G2-N2（direct 过滤决定性用例）已登记随维护处理；**G2 双门禁齐备，PA-00 可按 DoR 启动** |
-| PA-04 | ✅ 已完成 | [@wenshu/template-css](../packages/template-css)：ControlledTemplate 逐项白名单映射为声明式 CSS（@page/@font-face/字级四色/分片属性），值发射器重校验杜绝 CSS 注入（Claude 13 类突破载荷端到端对抗 13/13 结构性拒绝、选择器全白名单、url( 恰 3 处），真实浏览器 getComputedStyle 双端逐 token 断言；四处发射器变异独立复跑全红；近似/先行项（keep_with_next→break-after:avoid、sparse_pages→PA-05、.toc→PA-11）登记；Claude 审计 `PASS`，经 [PR #10](https://github.com/deloog/wenshu/pull/10) 合入（`d8c9b7e`，CI 8/8）；跨包 MIME 修复经核最小正确；**交棒 PA-05**（锁定 Chromium 用本门 CSS 导出基线 A4 PDF） |
+| G1-13 | ✅ 已完成 | [固定字体基线](font-baseline.md)：Adobe 官方 Source Han Sans CN 2.005R、OFL-1.1、400/500/700 三字重、哈希锚点及 884 个 fixture 必需码点覆盖；Claude 最终复核 `PASS`，FT-01/FT-02 已关闭；FT-01 多余文件在大小写敏感 Linux CI 上的表现留作补充证据点；[审计报告](audits/G1-13-claude-audit-report.md) |
+| G1-14 | ✅ 已完成 | [参考机器、采样协议与资源预算说明](reference-machine.md)：Claude 独立审计 `CONDITIONAL PASS` 后复审 EN-01～EN-03 全部关闭（`PASS`），无未关闭发现；可作为 PA-13/A-14 基线；[审计报告](audits/G1-14-claude-audit-report.md) |
+| G1-14W | ✅ 已完成 | [决策 #4](../决策记录.md) + 补充：微软官方 Win11 Enterprise Evaluation（22621）Hyper-V VM，`environment.win11.json` 已登记（96DPI/100%、运行时与冻结锚点同基线）；Claude 审计 `CONDITIONAL PASS` 后复审 W14W-01 `PASS` 关闭（离线 VHDX 取证证真、反伪造三链、全链转录 7/7）；无未关闭发现，NOTE 均为 PA-05 书面跟进项；[审计报告](audits/G1-14W-claude-audit-report.md) |
+| G2-02 | ✅ 已签署（2026-07-23） | [分支保护与依赖门禁](branch-protection.md)：Claude 复审 `PASS` 签署——G2-M1 双向绑定封死（bump/降级/删除/改分类均被拦）、8 pin 对齐、405 实证、留痕可识别；G2-N2（direct 过滤决定性用例）已登记随维护处理；**G2 双门禁齐备，PA-00 可按 DoR 启动**；[审计报告](audits/G2-02-claude-audit-report.md) |
+| PA-04 | ✅ 已完成 | [@wenshu/template-css](../packages/template-css)：ControlledTemplate 逐项白名单映射为声明式 CSS（@page/@font-face/字级四色/分片属性），值发射器重校验杜绝 CSS 注入（Claude 13 类突破载荷端到端对抗 13/13 结构性拒绝、选择器全白名单、url( 恰 3 处），真实浏览器 getComputedStyle 双端逐 token 断言；四处发射器变异独立复跑全红；近似/先行项（keep_with_next→break-after:avoid、sparse_pages→PA-05、.toc→PA-11）登记；Claude 审计 `PASS`，经 [PR #10](https://github.com/deloog/wenshu/pull/10) 合入（`d8c9b7e`，CI 8/8）；跨包 MIME 修复经核最小正确；**交棒 PA-05**（锁定 Chromium 用本门 CSS 导出基线 A4 PDF）；[审计报告](audits/PA-04-claude-audit-report.md) |
 | PA-02 | ✅ 已完成 | [@wenshu/template-map](../packages/template-map)：formal-business fixture 经 G1-05 校验映射为受控模板模型（文档契约版本绑定 + G1-13 字体逻辑注册绑定），9/9 契约测试、三处变异自证变红、零新增第三方依赖；Claude 独立审计 `PASS`，经 [PR #8](https://github.com/deloog/wenshu/pull/8) 合入（`d1811f7`，CI 8/8）；[实施记录](audits/PA-02-implementation-record.md) + [审计报告](audits/PA-02-claude-audit-report.md) |
 | PA-05 | ✅ 已完成 | [@wenshu/pdf-export](../packages/pdf-export)：锁定 Win11（10.0.22621）+ Edg/150.0.4078.83 导出基线 A4 PDF（20 页），零新增依赖检查器（元数据政策/A4/字体全内嵌仅冻结 OTF/Type0/Type3）；位置感知提取（仿射矩阵+MCID 块序）+ ToUnicode 修复层（洞/错标对齐修补+增量更新，原字节前缀不变），文本层逐字对账；SVG 内联治图表系统字体回退（Skia img 沙箱零 webfont 实证）；Claude 独立审计 `PASS`（跨工具交叉验证：poppler 证 CJK 提取为零、PDFium 渲图视觉确认标题逐字一致、修复层三结构论断成立），经 [PR #11](https://github.com/deloog/wenshu/pull/11) 合入（`89726f4`，CI 8/8）；[实施记录](audits/PA-05-implementation-record.md) + [审计报告](audits/PA-05-claude-audit-report.md)；**交棒 PA-06~12**（基线 PDF 就位且忠实） |
 | PA-03 | ✅ 已完成 | [@wenshu/report-render](../packages/report-render)：v0 文档→语义 HTML（标题层级/aria-labelledby/table scope/figure-figcaption/role=separator，全文本转义零 CSS），真实浏览器字体门禁（独占探针 family + FontFace 逐字重加载/check + 字重间量宽互异，缺字体/哈希漂移/错字重/fallback 四负例明确失败），渲染文本与文档逐字对账；零新增第三方依赖（手写最小 CDP 客户端）；Claude 独立审计 `PASS`（ubuntu CI 9.45s 与本机 Windows Chrome 双端真实浏览器证真、五处变异独立复跑全红），经 [PR #9](https://github.com/deloog/wenshu/pull/9) 合入（`7c67cdf`，CI 8/8）；[实施记录](audits/PA-03-implementation-record.md) + [审计报告](audits/PA-03-claude-audit-report.md) |
-| PA-01 | ✅ 已完成 | [@wenshu/markdown-import](../packages/markdown-import)：严格子集解析（fixture 构造全覆盖、范围外 fail-closed）、全文逐字对账（恒等式真实承重点=文档↔行账目检查+schema 门禁，两者已有决定性测试，复审仓外重跑 8/8 变异全红）、v0.1.0 schema 通过、稳定 ID 幂等、PA-00 资产重命名；零新增第三方依赖；粗体剥离与[[TOC]]消费取舍已书面交棒 PA-04；首审 `FAIL`（PA-A1）后 PA-A1/A2/A3 修复经复审独立复验（变异矩阵、CRLF 未归账字符 0、CRLF/LF 文档 JSON 一致）；PA-A4～A8 登记 [followups](audits/PA-01-followups.md)，**PA-A5/A6 须在 PA-02 开工前形成决策记录**，PA-A8 须 PA-03 消费文本前关闭；签署生效：远程 run `30067276449`（ubuntu-24.04）8/8 复现，contracts job 逐条测试记录与本地一致 |
-| PA-00 | ✅ 已完成 | [决策 #7](../决策记录.md)+[document-model §7](document-model.md)：裁定导入时安全规范化重命名（Schema 零变更），矩阵 13 行无未覆盖合理输入；Claude 首审 `CONDITIONAL PASS` 后复核 `PASS`，**NF-03 与 FX-06 均签署关闭**（36 敌意用例零漏网、PR #5/#6 8/8 全绿）；**PA-01 放行** |
-| G2-01 | ✅ 已完成 | [DoD](../DEFINITION-OF-DONE.md)（七维度+反例映射）、[PR 模板](../.github/PULL_REQUEST_TEMPLATE.md)、[评审清单](review-checklist.md)、[缺陷证据标准](defect-evidence.md) 已冻结；Claude 审计 `PASS`（反例抽验与自构蒙混路径全被拦截） |
+| PA-01 | ✅ 已完成 | [@wenshu/markdown-import](../packages/markdown-import)：严格子集解析（fixture 构造全覆盖、范围外 fail-closed）、全文逐字对账（恒等式真实承重点=文档↔行账目检查+schema 门禁，两者已有决定性测试，复审仓外重跑 8/8 变异全红）、v0.1.0 schema 通过、稳定 ID 幂等、PA-00 资产重命名；零新增第三方依赖；粗体剥离与[[TOC]]消费取舍已书面交棒 PA-04；首审 `FAIL`（PA-A1）后 PA-A1/A2/A3 修复经复审独立复验（变异矩阵、CRLF 未归账字符 0、CRLF/LF 文档 JSON 一致）；PA-A4～A8 登记 [followups](audits/PA-01-followups.md)，**PA-A5/A6 须在 PA-02 开工前形成决策记录**，PA-A8 须 PA-03 消费文本前关闭；签署生效：远程 run `30067276449`（ubuntu-24.04）8/8 复现，contracts job 逐条测试记录与本地一致；[审计报告](audits/PA-01-claude-audit-report.md) |
+| PA-00 | ✅ 已完成 | [决策 #7](../决策记录.md)+[document-model §7](document-model.md)：裁定导入时安全规范化重命名（Schema 零变更），矩阵 13 行无未覆盖合理输入；Claude 首审 `CONDITIONAL PASS` 后复核 `PASS`，**NF-03 与 FX-06 均签署关闭**（36 敌意用例零漏网、PR #5/#6 8/8 全绿）；**PA-01 放行**；[审计报告](audits/PA-00-claude-audit-report.md) |
+| G2-01 | ✅ 已完成 | [DoD](../DEFINITION-OF-DONE.md)（七维度+反例映射）、[PR 模板](../.github/PULL_REQUEST_TEMPLATE.md)、[评审清单](review-checklist.md)、[缺陷证据标准](defect-evidence.md) 已冻结；Claude 审计 `PASS`（反例抽验与自构蒙混路径全被拦截）；[审计报告](audits/G2-01-claude-audit-report.md) |
 | G1-16 | ✅ 已签署（2026-07-21） | **G1 工程底座已由 Claude 独立审计签署**（[报告](audits/G1-16-claude-audit-report.md)）：SG-01 三项处置核验到位、干净树可复现（空 store 冷装 116/116）、11 份审计报告终局全 PASS、五道承重检查双侧执行、零功能实现；PA 系列可按各自 DoR 启动；承接项：NF-03/FX-06→PA-00、PB-05A、G1-12 审计推迟（决策 #6）、Win11 VM 评估期/Chromium 为 PA-05 前置 |
-| G1-15 | ✅ 已完成 | [供应链基线](supply-chain.md)：Claude 首审 `FAIL`（SM-01 MAJOR：安装树平台依赖）后复审 `PASS`，SM-01/SM-02 全部关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条受审许可覆盖经 npm 核验）；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成 |
+| G1-15 | ✅ 已完成 | [供应链基线](supply-chain.md)：Claude 首审 `FAIL`（SM-01 MAJOR：安装树平台依赖）后复审 `PASS`，SM-01/SM-02 全部关闭、CR-01 已签署关闭；SBOM 以冻结 lockfile 为真源（147 包、跨平台字节一致、33 条受审许可覆盖经 npm 核验）；首个 ubuntu 远程 CI 矩阵（run `29802405342`，覆盖 `1a717b6`）8/8 成功，SM-01 跨平台确证完成；[审计报告](audits/G1-15-claude-audit-report.md) |
 | PA-06 | ✅ 已完成 | [@wenshu/pdf-evidence](../packages/pdf-evidence)：几何证据模型；含子拆分 PA-06B 证据契约 v1.1.0。[ADR-0005](adr/0005-PA-06几何证据独立oracle选型.md)、[ADR-0006](adr/0006-PA-06B证据契约v1.1.0成员标记与绘制框.md)；Claude 审计 [PA-06 `PASS`](audits/PA-06-claude-audit-report.md)、[PA-06B `PASS`](audits/PA-06B-claude-audit-report.md)；[实施记录](audits/PA-06-implementation-record.md) |
 | PA-07 | ✅ 已完成 | P0 内容/页面尺寸/越界/遮挡检查；Claude 审计 [`PASS`](audits/PA-07-claude-audit-report.md)；[实施记录](audits/PA-07-implementation-record.md)、[followups](audits/PA-07-followups.md) |
 | PA-08 | ✅ 已完成 | 标题/孤行寡行/异常空白 P1 检查；[ADR-0007](adr/0007-PA-08检出报告契约v1.1.0与P1诚实降级.md)（检出报告契约 v1.1.0 与 P1 诚实降级）；Claude 审计 [`PASS`](audits/PA-08-claude-audit-report.md)；[实施记录](audits/PA-08-implementation-record.md)、[followups](audits/PA-08-followups.md) |
@@ -125,6 +131,8 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | PB-07 | ✅ 已完成 | 可合并操作模型探针与三层记录隔离（`probes/pb-07-yjs`）；[ADR-0019](adr/0019-PB-07离线CRDT探针与三层记录隔离.md)；Claude 审计 [`PASS`](audits/PB-07-claude-audit-report.md)；[实施记录](audits/PB-07-implementation-record.md)；PR #33（`6f19a84`） |
 | PB-08 | ✅ 已完成 | 存储引擎选型（`probes/pb-08-sqlite`）：桌面 `node:sqlite` 真实文件 + Chromium 双标签 `@sqlite.org/sqlite-wasm` OPFS 双面实测；[ADR-0022](adr/0022-PB-08SQLite与OPFS存储引擎选型.md)；Claude 审计 [`PASS`](audits/PB-08-claude-audit-report.md)；[实施记录](audits/PB-08-implementation-record.md)；PR #38（`edf5715`）。**ArkWeb 的 Worker/WASM/OPFS 等价持久化与锁语义标记 `needs_device_to_verify`，三端实际搬运待验证**，不得读作"三端同 API/同物理路径" |
 | PB-09 | ✅ 已完成 | [@wenshu/project-storage](../packages/project-storage)：版本化迁移、隔离真库集成与恢复；Claude 审计 [`PASS`](audits/PB-09-claude-audit-report.md)（复审关闭 MINOR，磁盘满诊断保留）；[实施记录](audits/PB-09-implementation-record.md)；PR #39（`fc1c5a9`） |
+| G2-03 | ✅ 已完成 | 核心/工具/壳分层门禁（宪法 11 与技术基线 §2 平台隔离从人工审计转为机械门禁）：L0~L3/web 分层归属表冻结，方向/平台 API/node 内建/幽灵依赖/未用生产依赖五类拦截，31 条反例逐条独立复跑（含 6 条防误报反向）；`semantic-editor`→`editor-diff` 平台耦合关闭（[ADR-0023](adr/0023-G2-03平台中立稳定ID随机源.md)）、`project-storage` 生产依赖归属纠正且 SBOM 重建通过；Claude 审计 `PASS`（首审 MA-01 复审关闭），经 [PR #41](https://github.com/deloog/wenshu/pull/41) 合入（`13e84da`，CI 8/8）；[审计报告](audits/G2-03-claude-audit-report.md)；[实施记录](audits/G2-03-implementation-record.md) |
+| G2-04 | ✅ 已完成 | 路线图不变量门禁（依赖关系、`R-*` 标注与完成状态收敛为三类权威手写源，§3 关键路径/§9 波次/§10 矩阵/消费者列改为派生校验对象）：10 条判定接入 `pnpm verify` 与 CI `static` job，解析 fail-closed 输出六项计数对照登记下限，例外仅在封闭登记表；任务书 §2.3 登记的 31 处现存违反全部关闭；实施侧 29 条反例逐条独立复跑 + 审计侧自建镜像自构 46 条探针（首审 23 + 复审 23）零失败；[ADR-0024](adr/0024-G2-04路线图手写真源收敛与不变量门禁.md)（含 MI-01 裁定增补：消费者列与依赖列冲突且有散文证据时先裁定哪侧为真）；Claude 审计 `PASS`（首审 CONDITIONAL PASS，MA-01/MI-01 复审关闭），经 [PR #44](https://github.com/deloog/wenshu/pull/44)（CI 8/8，待合入）；[审计报告](audits/G2-04-claude-audit-report.md)；[实施记录](audits/G2-04-implementation-record.md) |
 
 ## 4. G1：工程底座原子任务
 
@@ -134,13 +142,13 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | G1-01R | 建立私有远程仓库、默认分支与最小权限。R-TEST/R-SEC | G1-01、业主外部行为批准 → G1-11/16/G2-02 | 私有远程、origin、默认分支；不公开、不发布 | 本地/远程提交一致；未跟踪密钥/产物；权限与可见性截图留证 | 未获批准或需登录/2FA即阻断本任务，不伪造远程；删除远程需另批准。不得与根历史改写并行 |
 | G1-02 | 锁定免费稳定运行时、包管理器、Electron/Chromium候选并写 ADR。R-COMPAT/R-LICENSE/R-COST | G1-01 → G1-03/03C/08/11 | 版本文件、ADR、许可证初审；不安装业务依赖 | 官方支持范围、哈希/来源、替代路径和 Windows 10/11 差异有证据 | 许可/支持不明即不选；回滚 ADR。G1-03实现须等待本任务，其他契约设计可并行；0 元 |
 | G1-03 | 建立最小 TypeScript strict + Vite 工作区骨架。R-HOST/R-TEST | G1-01/02 → G1-08/PA/PB/A | `apps/web`、`packages/*`、`tools`、统一脚本；不做产品功能 | 冻结锁文件安装、dev/build/typecheck 在干净目录通过 | 构建不可复现即停；回滚骨架提交。串行占用根配置 |
-| G1-03C | 建立 dev/test/staging/production 配置分层与启动前校验。R-SEC/R-TEST | G1-03 → G1-08/11/16 | 配置 schema、`.env.example`、缺失/未知配置错误；不含真实密钥 | 四环境配置契约测试；缺配置快速失败；日志不回显秘密 | 禁止提交真实 `.env`；回滚配置提交。独占配置入口，可与 G1-04/05/06/07 并行 |
+| G1-03C | 建立 dev/test/staging/production 配置分层与启动前校验。R-SEC/R-TEST | G1-03 → G1-11/16 | 配置 schema、`.env.example`、缺失/未知配置错误；不含真实密钥 | 四环境配置契约测试；缺配置快速失败；日志不回显秘密 | 禁止提交真实 `.env`；回滚配置提交。独占配置入口，可与 G1-04/05/06/07 并行 |
 | G1-04 | 冻结 v0 文档对象与稳定 ID schema。R-ID/R-DATA | G1-02 → G1-05/PA-01/PB-02 | schema、示例、兼容规则、生成类型；不实现编辑器 | 合法/非法 fixture 契约测试；类型由 schema 生成且漂移检查通过 | 无法表达三种内容模块即停；schema 主版本可回滚。权威契约独占修改 |
 | G1-05 | 冻结 v0 模板 DSL schema 与执行安全边界。R-TEMPLATE/R-SEC | G1-04 → PA-02/PA-04 | schema、白名单、版本/迁移占位；无解释器实现 | 拒绝函数/脚本/未知能力/路径与网络字段的契约测试 | 任意执行面未封闭即停；回滚 schema。与 G1-06 可并行，文件隔离 |
 | G1-06 | 冻结 v0 host 能力、错误、取消、进度契约。R-HOST/R-UX | G1-02 → G1-09/PB-10/A | schema/类型；浏览器/Electron/ArkWeb 实现不在本任务 | 能力支持/拒绝/取消/超时/降级的契约样例通过 | 平台类型泄漏到核心即停；回滚契约。与 G1-05 并行，契约文件隔离 |
 | G1-07 | 冻结 v0 项目、知识包、语义审计与版本兼容契约。R-DATA/R-RECORDS/R-OUTPUT | G1-04/06 → PB-05/07/08 | schema 与迁移原则；不选择数据库实现 | round-trip fixture、缺字段/未来版本拒绝契约测试 | 真源与派生无法区分即停。权威契约独占；无外部审批 |
 | G1-08 | 建立单元/契约/渲染/集成/E2E 测试骨架和隔离目录。R-TEST | G1-03/04/05/06 → 全实现 | 测试配置、worker 目录/端口构造器、证据目录；不写功能测试冒充通过；处理复审 NF-01/NF-04 | 两 worker 并行写独立目录；失败保留日志/seed；测试层名称审计；Host 文档导出名与代码一致，终态后 cancel 返回稳定协议问题码 | 隔离失败则相关层串行；回滚配置。可与 G1-09 并行；NF-01/NF-04 不得由实施者自行标为已关闭，留待该任务审计确认 |
-| G1-09 | 建立工程标准、格式/lint/typecheck、文件体量与生成漂移护栏。R-TEST | G1-03 → 全任务 | `engineering-standards` 与本地检查；不增加宽泛豁免；处理 Host 复审 NF-02 与 G1-07 m-05/NF-04 | 显式/隐式 `any` 禁用护栏；逐包枚举并证明 `src/test/scripts` 与 TS 配置文件均进入 typecheck；非法 fixture 断言稳定 issue code 与预期 JSON path，覆盖 G1-07 当前归入 `PROJECT_INTEGRITY` 的七类判定；Host 值拒绝 NUL/控制字符及带任意前缀的盘符、POSIX/UNC、`file:` 和穿越片段；300 行预警、生产>400/测试>500失败的正反 fixture；单一 verify 入口 | 工具误报先修规则，不加全局 ignore。第三方/生成声明必须在边界收窄，不得用 `as any` 或 `@ts-ignore`。Host NF-02 必须在 PA-14E/PB-10 等真实 Host 消费协议值前经独立审计关闭；G1-07 m-05/NF-04 须在首个依赖稳定问题码分支的消费者前关闭。独占根工具配置 |
+| G1-09 | 建立工程标准、格式/lint/typecheck、文件体量与生成漂移护栏。R-TEST | G1-03/06 → 全任务 | `engineering-standards` 与本地检查；不增加宽泛豁免；处理 Host 复审 NF-02 与 G1-07 m-05/NF-04 | 显式/隐式 `any` 禁用护栏；逐包枚举并证明 `src/test/scripts` 与 TS 配置文件均进入 typecheck；非法 fixture 断言稳定 issue code 与预期 JSON path，覆盖 G1-07 当前归入 `PROJECT_INTEGRITY` 的七类判定；Host 值拒绝 NUL/控制字符及带任意前缀的盘符、POSIX/UNC、`file:` 和穿越片段；300 行预警、生产>400/测试>500失败的正反 fixture；单一 verify 入口 | 工具误报先修规则，不加全局 ignore。第三方/生成声明必须在边界收窄，不得用 `as any` 或 `@ts-ignore`。Host NF-02 必须在 PA-14E/PB-10 等真实 Host 消费协议值前经独立审计关闭；G1-07 m-05/NF-04 须在首个依赖稳定问题码分支的消费者前关闭。独占根工具配置 |
 | G1-10 | 固定 PoC fixture 哈希、只读复制和证据 manifest。R-PDF/R-TEST | G1-04/05/08 → PA 全部 | fixture manifest/校验工具；不修改冻结原件 | 篡改任一字节会失败；运行只写隔离副本 | 原 fixture 不一致即停并审计。可与 G1-09 并行，文件隔离 |
 | G1-11 | 建立并行 CI 骨架与本地同构 verify。R-TEST/R-LICENSE | G1-01R/03C/08/09 → G1 审计/全任务 | 快速 job：format/lint/type/unit/contract/build/secret/license；不创建付费服务；关闭 G1-08 RA-01/RA-02 后才接并行 runner | 本地与私有远程 CI 同构；无依赖 job 并行；缓存键含锁文件/运行时；故意失败能快速定位；证据写入在运行时验证品牌与磁盘 claim；`evidence/` 非空时成功清理必须拒绝且证据完整 | CI 服务需登录时停在人工授权；不启用付费额度。并行 runner 首次调用证据/清理 API 前必须独立审计 RA-01/RA-02；不得用静默 force 删除失败证据。独占流水线配置 |
 | G1-12 | 从华为官方安装并锁定 DevEco、SDK、缓存到 D 盘。R-COMPAT/R-COST | GR/G1-02 → PA-14H/PB-11 | IDE/SDK/模拟器路径、版本、哈希、环境说明；不写 ArkTS 业务 | D 盘主体/SDK/缓存、命令行版本、空项目官方诊断；记录不可避免 C 盘占用 | 登录/协议/下载源/空间不符即停；用官方卸载回滚。与 G1-04/05/06/07/08/09/10 可并行；不购买账号 |
@@ -195,9 +203,9 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 
 | ID | 单一目标与来源 | 依赖 → 消费者 | 范围内 / 范围外与文件 | 完成证据与真实验证 | 风险、停止/回滚、并行与审批 |
 |---|---|---|---|---|---|
-| A-01 | 冻结 Alpha 信息架构、状态机和缺失设计稿处置。R-UX/R-SCOPE | PA-15/PB-12 → A-02/02D/03/04/04T/05/06/07P/07/08/09/10P/10X | 只含 UX 基线上限；不做完整设计系统 | 每个加载/部分成功/失败/取消/离线/恢复状态有可验收原型 | 找回旧稿或正式废弃，不猜其内容。可与 A-10P/10X 设计并行 |
+| A-01 | 冻结 Alpha 信息架构、状态机和缺失设计稿处置。R-UX/R-SCOPE | PA-15/PB-12 → A-02/02D/03/04/04T/05/06/07/08/09/10P/10X | 只含 UX 基线上限；不做完整设计系统 | 每个加载/部分成功/失败/取消/离线/恢复状态有可验收原型 | 找回旧稿或正式废弃，不猜其内容。可与 A-10P/10X 设计并行 |
 | A-02 | 实现新建/打开项目与只读导入流程。R-UX/R-DATA | A-01,PB-10 → A-03/12 | Markdown/固定结构入口；docx候选另任务 | 真实文件E2E：取消、部分失败、权限拒绝、原件哈希不变 | 任何原地修改即阻断。可与 A-05 并行，目录隔离 |
-| A-02D | 验证并实现 docx 结构可编辑级导入适配。R-COMPAT/R-LICENSE/R-SCOPE | A-02,G1-15 → A-03/12 | 只提取首战支持的标题、正文、列表、普通表格、图片；不追像素级保真 | 真实 docx fixture 与恶意/损坏/超限文件；原件只读；不支持内容有报告 | 候选依赖许可/安全不合格即替换；视觉差异不冒充保真。可与 A-04T 并行 |
+| A-02D | 验证并实现 docx 结构可编辑级导入适配。R-COMPAT/R-LICENSE/R-SCOPE | A-02,G1-15 → A-12 | 只提取首战支持的标题、正文、列表、普通表格、图片；不追像素级保真 | 真实 docx fixture 与恶意/损坏/超限文件；原件只读；不支持内容有报告 | 候选依赖许可/安全不合格即替换；视觉差异不冒充保真。可与 A-04T 并行 |
 | A-03 | 实现结构确认与语义编辑工作区。R-UX/R-ID | A-02,PB-01/02/03 → A-07/12 | 文字、标题、列表、普通表格、图片；不含复杂表格 | 键盘编辑、稳定ID、undo/redo、30k字响应预算 | 主线程冻结/结构丢失即阻断。独占编辑器模块 |
 | A-04 | 将 PoC-A 模板/分页/检查整合为可取消预览。R-PDF/R-UX | A-03,PA-15 → A-08/12 | 正式商务先行，再增不超过三套模板 | 旧预览保留到新预览成功；问题可定位；真实 PDF 引擎 | 若整合破坏 PoC-A 基线，回退到已签署引擎。可与 A-06 并行 |
 | A-04T | 增加“简洁研究、深色咨询”两套受控模板。R-SCOPE/R-TEMPLATE | A-04,PA-02/04 → A-12 | 同一 DSL/schema、独立版本和迁移；不增加行业文种 | 每模板固定快照/PDF/validator/字体/对比度验证；无逐页内容特例 | 任何模板不能通过同一门禁则不进入Alpha模板集。与 A-02D 并行，模板目录隔离 |
@@ -233,10 +241,12 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 | 波次 | 可并行组 | 必须先冻结/隔离 | 串行关键点 |
 |---|---|---|---|
 | W1 | G1-02只读选型、G1-03C、G1-04/05/06契约设计、G1-08测试设计 | 各自文件；公共命名先约定 | G1-01/01R、G1-03根配置、契约最终合并 |
-| W2 | G1-10/12/13/14/14W/15 | 下载/SDK/字体/参考环境/证据目录分离；0元 | G1-11 CI消费稳定命令；G1-16审计；G2-01/02 |
-| W3 | PA-02与PA-03；PA-07/08/09/10；PA-13与PA-14E/14H/14U | 文档/模板/证据契约先冻结；每运行独立目录 | PA-05、PA-06、PA-11、PA-12、PA-15 |
+| W2 | G1-10/12/15；G1-13/14（待 G1-10 冻结后）；G1-14W（待 G1-14 完成后） | 下载/SDK/字体/参考环境/证据目录分离；0元 | G1-11 CI消费稳定命令；G1-16审计；G2-01/02 |
+| W3 | PA-02与PA-03；PA-07/08/09/10；PA-13与PA-14E/14H；PA-14U（待 PA-13 完成后） | 文档/模板/证据契约先冻结；每运行独立目录 | PA-05、PA-06、PA-11、PA-12、PA-15 |
 | W4 | PB-06与PB-07；平台 host 实现；迁移场景分片 | 事务/schema先冻结；每worker独立真库/目录/端口 | PB-03、PB-08、PB-12 |
-| W5 | A-02D与A-04T；A-04/05/06；A-07P与A-08；A-07与A-08；A-09/10P/10X；A-13/14/15；A-15M在独立Mac | UI状态/契约冻结；真库、浏览器、provider、输出和证据目录隔离 | A-03、A-12、A-16 |
+| W5 | A-02D与A-04T；A-04/05/06；A-07P与A-08；A-07与A-08；A-09/10P；A-10X（待 A-09 完成后）；A-13/14/15；A-15M在独立Mac | UI状态/契约冻结；真库、浏览器、provider、输出和证据目录隔离 | A-03、A-12、A-16 |
+
+W1 为历史组：其单元格以散文限定词表达阶段级并行（“G1-02只读选型”“G1-04/05/06契约设计”“G1-08测试设计”），不可机械判定，且全部任务已完成，已在 G2-04 例外登记表中显式豁免，不追溯改写。此后新增波次须使用可判定格式（任务级“；”分组；阶段级并行须机器可读），否则门禁失败。
 
 并行任务禁止同时修改 `CONSTITUTION.md`、冻结纲领、同一 schema、锁文件、根构建配置或同一数据库文件。共享不可隔离的浏览器/模拟器/账号资源明确串行；不得靠重试掩盖资源争用。
 
@@ -259,7 +269,11 @@ Alpha：A-01 → A-04 → A-08 → A-12 → A-16
 
 反向规则：任何任务找不到本表中的已批准要求、风险或闸门来源，即为无来源任务，必须删除、移入需求池或取得批准后重审。
 
+本矩阵为**编辑性覆盖摘要**，不是派生索引：“某任务算不算某需求的实现者”（主责 / 贡献性参与）是编辑判断，本表从未定义归属口径。门禁只校验表内任务 ID 的存在性与 `R-*` 的覆盖，不要求本表与任务 `R-*` 标注双向一致；不得把本表当作可机械校验的派生索引逐条对账。
+
 ## 11. 路线图变更与停止规则
+
+- 本文件的三类权威手写源为：§4~§8 任务表的**依赖列**（直接依赖）、任务的 **`R-*` 标注**、§3.1 台账的**状态字段与证据链接**。其余四处为派生校验对象，不再视为并列真源：§3 关键路径是阶段主干的**编辑性摘要**（箭头表示“直接或传递前置”，每条边须在依赖列中有传递依赖依据；不生成——哪条链是关键路径是人的编辑判断）；§9 并行波次是**任务级**可并行组（组内不得含任务与其直接依赖）；消费者列是真实传递下游的**子集**（不要求完备，但声明的下游须在依赖链中存在）；§10 矩阵是**编辑性覆盖摘要**（见 §10 末声明）。上述不变量由 G2-04 门禁在 `pnpm verify` 与 CI `static` job 机械校验，例外只存在于检查器的显式登记表。
 
 - 产品范围、成功指标、固定样本或输出承诺变化：先获业主批准，再更新决策与路线图并重审受影响部分。
 - 核心架构、schema、编辑内核、数据库、渲染器、字体或关键依赖变化：写 ADR，更新消费者依赖并重审。
