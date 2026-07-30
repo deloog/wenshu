@@ -33,6 +33,20 @@ pnpm build
 pnpm verify
 ```
 
+## Git worktree 的依赖安装
+
+`git worktree` 创建的额外工作树各自持有独立 `node_modules`，不与主工作树共享。每个 worktree 必须在完成上文会话初始化**之后**单独执行 `pnpm install --frozen-lockfile`。
+
+若某个 worktree 的 `node_modules` 是在 C 盘旧 Node（24.13.0）下安装的，此后即使按上文把 D 盘 Node 置于 `PATH` 前部，pnpm 仍会判定安装上下文已变、要求重建该目录；在无 TTY 的非交互会话中会直接中止：
+
+```text
+[ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY] Aborted removal of modules directory due to no TTY
+```
+
+正确处置是在交互式会话中按初始化步骤重新安装该 worktree 的依赖。**不得设置 `CI=true` 或 `confirmModulesPurge=false` 绕过**——那会在无人确认的情况下删除目录，并掩盖"安装上下文与锁定运行时不一致"这一真实状态。
+
+在非交互会话中确需只读校验时，可直接调用检查脚本（例如 `node tools/quality/scripts/check-repository.ts`）以绕过 pnpm 的依赖状态检查。**该做法只适用于诊断，不得作为验收证据的取得方式**——验收证据必须经根 `package.json` 的统一命令产生，以保持与 CI 同构。
+
 ## G1-03 完成证据
 
 - D 盘 Node：`v24.17.0`；D 盘 Corepack pnpm：`11.15.1`。
