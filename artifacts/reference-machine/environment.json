@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1.0",
   "evidence_id": "wenshu.reference-machine",
-  "recorded_at": "2026-07-30T17:03:50.227Z",
+  "recorded_at": "2026-07-31T07:33:57.130Z",
   "machine_label": "wenshu-dev-primary",
   "os": {
     "platform": "win32",
@@ -26,10 +26,10 @@
   "disk": {
     "mount": "D:\\",
     "total_bytes": 997047988224,
-    "free_bytes": 634988867584
+    "free_bytes": 633525129216
   },
   "runtime": {
-    "node": "v24.13.0",
+    "node": "v24.17.0",
     "pnpm": "11.15.1"
   },
   "frozen_inputs": {

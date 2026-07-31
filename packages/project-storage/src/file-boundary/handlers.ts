@@ -11,7 +11,7 @@ import {
   resolveGrantFile,
 } from "./atomic-write.ts";
 import { classifyFsError, FileBoundaryError } from "./errors.ts";
-import type { DirectoryGrant, GrantTable } from "./grants.ts";
+import { isImportedOriginal, type DirectoryGrant, type GrantTable } from "./grants.ts";
 
 export type DirectorySelection =
   | { readonly status: "selected"; readonly root: string; readonly displayName: string }
@@ -84,6 +84,9 @@ async function writeAtomically(
   signal: AbortSignal,
 ): Promise<Record<string, unknown>> {
   requireWritable(grant);
+  if (isImportedOriginal(grant, input.file_name)) {
+    throw new FileBoundaryError("PERMISSION_DENIED");
+  }
   const bytes = Buffer.from(input.content_base64, "base64");
   const digest = sha256(bytes);
   if (digest !== input.content_sha256) {

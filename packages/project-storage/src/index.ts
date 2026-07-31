@@ -21,6 +21,8 @@ export {
 } from "./file-boundary/errors.ts";
 export {
   createGrantTable,
+  isImportedOriginal,
+  protectImportedFile,
   type DirectoryGrant,
   type GrantMode,
   type GrantTable,

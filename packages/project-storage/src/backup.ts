@@ -63,18 +63,22 @@ export async function restoreFromBackup(
 
 /**
  * PB-10 additive: restore from a caller-chosen backup file (the host file
- * boundary resolves opaque backup ids to concrete files). The quarantine
- * semantics are identical to restoreFromBackup; existing behavior unchanged.
+ * boundary resolves opaque backup ids to concrete files). Quarantine semantics
+ * match restoreFromBackup; the target database must exist, otherwise recovery
+ * fails closed.
  */
 export async function restoreFromSpecificBackup(
   databasePath: string,
   backupFilePath: string,
 ): Promise<string> {
+  if (!existsSync(databasePath)) {
+    throw new StorageRecoveryError("STORAGE_RECOVERY_FAILED", {
+      cause: new Error("database does not exist"),
+    });
+  }
   const quarantinePath = `${databasePath}.corrupt-${Date.now()}-${randomUUID()}`;
   try {
-    if (existsSync(databasePath)) {
-      await rename(databasePath, quarantinePath);
-    }
+    await rename(databasePath, quarantinePath);
     const sourceDatabase = new DatabaseSync(backupFilePath, { readOnly: true });
     try {
       await backup(sourceDatabase, databasePath);

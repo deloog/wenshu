@@ -12,7 +12,7 @@ const evidence = JSON.parse(
 );
 const security = evidence.rendererSecurity;
 
-assert.deepEqual(security.exposedKeys, ["invoke", "registry"]);
+assert.deepEqual(security.exposedKeys, ["cancel", "invoke", "registry"]);
 assert.equal(security.requireType, "undefined");
 assert.equal(security.processType, "undefined");
 assert.equal(security.actualPreferences.contextIsolation, true);

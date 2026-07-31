@@ -4,7 +4,8 @@ import { dirname, join, resolve } from "node:path";
 
 import { classifyFsError, FileBoundaryError } from "./errors.ts";
 
-const SAFE_FILE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
+const SAFE_FILE_NAME =
+  /^(?!.*\.$)(?!CON$|PRN$|AUX$|NUL$|COM[1-9]$|LPT[1-9]$)[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/iu;
 export const TEMP_FILE_PREFIX = ".wenshu-tmp-";
 
 /**

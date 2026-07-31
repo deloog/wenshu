@@ -52,17 +52,6 @@ const printPdfCapability = Object.freeze({
   fallback: { strategy: "none", reason_code: "ELECTRON_PRINT_AVAILABLE" },
 });
 
-async function createHost(window) {
-  const { createFileHost } = await loadHostModules();
-  return createFileHost({
-    hostKind: "electron",
-    hostVersion: app.getVersion(),
-    instanceId,
-    selectDirectory: hostDialog(window),
-    additionalDeclarations: [printPdfCapability],
-  });
-}
-
 async function createWindow() {
   const window = new BrowserWindow({
     show: false,
@@ -82,8 +71,15 @@ const preferences = Object.freeze({
 app
   .whenReady()
   .then(async () => {
-    const [{ validateHostContract, validateHostSession }, fileHost, window] =
-      await Promise.all([loadHostModules(), createHost(), createWindow()]);
+    const [{ validateHostContract, validateHostSession, createFileHost }, window] =
+      await Promise.all([loadHostModules(), createWindow()]);
+    const fileHost = await createFileHost({
+      hostKind: "electron",
+      hostVersion: app.getVersion(),
+      instanceId,
+      selectDirectory: hostDialog(window),
+      additionalDeclarations: [printPdfCapability],
+    });
 
     const registryValidation = validateHostContract(fileHost.registry);
     if (!registryValidation.ok) {
@@ -95,7 +91,7 @@ app
     ipcMain.handle("wenshu.host.registry", () => fileHost.registry);
     ipcMain.handle("wenshu.host.invoke", (_event, request) => {
       if (request?.capability === "print.pdf.export") {
-        return handlePrintPdf(window, request);
+        return handlePrintPdf(request);
       }
       return fileHost.invoke(request);
     });

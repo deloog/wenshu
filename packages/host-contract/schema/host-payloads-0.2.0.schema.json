@@ -30,7 +30,7 @@
     },
     "SafeFileName": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+      "pattern": "^(?!.*\\.$)(?!(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])$)[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
     },
     "Sha256": {
       "type": "string",

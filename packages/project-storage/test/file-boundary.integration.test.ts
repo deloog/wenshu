@@ -55,6 +55,11 @@ test("resolveGrantFile structurally refuses escapes", async () => {
       "name with space.md",
       "..md",
       "",
+      "NUL",
+      "CON",
+      "COM1",
+      "LPT1",
+      "a.",
     ]) {
       assert.throws(() => resolveGrantFile(root, bad), /INVALID/u, bad);
     }

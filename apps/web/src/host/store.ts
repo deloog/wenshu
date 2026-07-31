@@ -3,6 +3,14 @@ import { BrowserHostError } from "./errors.ts";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+function base64Encode(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
 export interface DirectoryGrant {
   readonly id: string;
   readonly files: Map<string, Uint8Array>;
@@ -31,8 +39,10 @@ export async function sha256(bytes: Uint8Array): Promise<string> {
 export function base64Decode(value: string): Uint8Array {
   const binary = atob(value.replace(/\s/gu, ""));
   const out = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    out[index] = binary.charCodeAt(index);
+  let index = 0;
+  for (const code of binary) {
+    out[index] = code.charCodeAt(0);
+    index += 1;
   }
   return out;
 }
@@ -113,14 +123,18 @@ function saveOutput(
   };
 }
 
+interface Snapshot {
+  readonly version: 1;
+  readonly files: Record<string, string>;
+}
+
 async function serializeSnapshot(files: Map<string, Uint8Array>): Promise<Uint8Array> {
   const entries = [...files.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
-  const lines = await Promise.all(
-    entries.map(
-      async ([name, bytes]) => `${name}\t${await sha256(bytes)}\t${bytes.length}`,
-    ),
-  );
-  return encoder.encode(lines.join("\n"));
+  const snapshot: Snapshot = { version: 1, files: {} };
+  for (const [name, bytes] of entries) {
+    snapshot.files[name] = base64Encode(bytes);
+  }
+  return encoder.encode(JSON.stringify(snapshot));
 }
 
 export async function handleBackupCreate(
@@ -151,17 +165,31 @@ export async function handleBackupRestore(
   if (manifest === undefined) {
     throw new BrowserHostError("NOT_FOUND");
   }
-  grant.files.clear();
-  const text = decoder.decode(manifest).trim();
-  if (text.length > 0) {
-    for (const line of text.split("\n")) {
-      const [name, hash, length] = line.split("\t");
-      if (name === undefined || hash === undefined || length === undefined) {
-        throw new BrowserHostError("INTEGRITY_FAILURE");
-      }
-      void hash;
-      grant.files.set(name, new Uint8Array(Number(length)));
+  let snapshot: unknown;
+  try {
+    snapshot = JSON.parse(decoder.decode(manifest));
+  } catch {
+    throw new BrowserHostError("INTEGRITY_FAILURE");
+  }
+  if (
+    typeof snapshot !== "object" ||
+    snapshot === null ||
+    (snapshot as Record<string, unknown>)["version"] !== 1 ||
+    typeof (snapshot as Record<string, unknown>)["files"] !== "object" ||
+    (snapshot as Record<string, unknown>)["files"] === null
+  ) {
+    throw new BrowserHostError("INTEGRITY_FAILURE");
+  }
+  const restoredFiles = new Map<string, Uint8Array>();
+  for (const [name, encoded] of Object.entries((snapshot as Snapshot).files)) {
+    if (typeof encoded !== "string") {
+      throw new BrowserHostError("INTEGRITY_FAILURE");
     }
+    restoredFiles.set(name, base64Decode(encoded));
+  }
+  grant.files.clear();
+  for (const [name, bytes] of restoredFiles) {
+    grant.files.set(name, bytes);
   }
   return {
     kind: "success",

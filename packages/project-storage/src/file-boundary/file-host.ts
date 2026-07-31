@@ -23,7 +23,7 @@ import {
   type FileHostContext,
 } from "./handlers.ts";
 import { FileBoundaryError, type FileBoundaryCode } from "./errors.ts";
-import { createGrantTable } from "./grants.ts";
+import { createGrantTable, type GrantTable } from "./grants.ts";
 import {
   failureMessage,
   knownCapability,
@@ -48,6 +48,8 @@ export interface FileHostOptions {
   readonly additionalDeclarations?: readonly Record<string, unknown>[];
   readonly timeoutMs?: Partial<Readonly<Record<HostPayloadCapability, number>>>;
   readonly now?: () => Date;
+  /** Test injection only. Production callers must let the host create the table. */
+  readonly grants?: GrantTable;
 }
 
 export interface FileHost {
@@ -82,11 +84,12 @@ export function createFileHost(options: FileHostOptions): FileHost {
       : { additionalDeclarations: options.additionalDeclarations }),
     ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
   });
+  const grants = options.grants ?? createGrantTable();
   const declarations = new Map(
     registry.capabilities.map((declaration) => [declaration.name, declaration]),
   );
   const context: FileHostContext = {
-    grants: createGrantTable(),
+    grants,
     selectDirectory: options.selectDirectory,
     now: options.now ?? (() => new Date()),
   };

@@ -125,10 +125,11 @@ test("unsupported capabilities degrade without entering the transcript", async (
   assert.equal(host.transcript().length, 0);
 });
 
-test("virtual backup snapshot and restore", async () => {
+test("virtual backup snapshot and restore preserves document bytes", async () => {
   const host = createBrowserHost();
   const grantId = await selectGrant(host);
   const content = "version-one";
+  const originalSha = await sha256(bytes(content));
   await host.invoke({
     protocol_version: "0.2.0",
     kind: "request",
@@ -139,7 +140,7 @@ test("virtual backup snapshot and restore", async () => {
       grant_id: grantId,
       file_name: "doc.md",
       content_base64: b64(content),
-      content_sha256: await sha256(bytes(content)),
+      content_sha256: originalSha,
       expected_previous_sha256: null,
     },
   });
@@ -156,6 +157,21 @@ test("virtual backup snapshot and restore", async () => {
   const backupId = String((backup["output"] as Record<string, unknown>)["backup_id"]);
   assert.match(backupId, /^backup_[0-9a-f]{32}$/u);
 
+  await host.invoke({
+    protocol_version: "0.2.0",
+    kind: "request",
+    request_id: nextId(),
+    capability: "project.save.atomic",
+    capability_version: "0.2.0",
+    input: {
+      grant_id: grantId,
+      file_name: "doc.md",
+      content_base64: b64("version-two"),
+      content_sha256: await sha256(bytes("version-two")),
+      expected_previous_sha256: originalSha,
+    },
+  });
+
   const restored = (await host.invoke({
     protocol_version: "0.2.0",
     kind: "request",
@@ -165,6 +181,26 @@ test("virtual backup snapshot and restore", async () => {
     input: { grant_id: grantId, backup_id: backupId },
   })) as Record<string, unknown>;
   assert.equal(restored["kind"], "success");
+
+  const postRestore = (await host.invoke({
+    protocol_version: "0.2.0",
+    kind: "request",
+    request_id: nextId(),
+    capability: "project.save.atomic",
+    capability_version: "0.2.0",
+    input: {
+      grant_id: grantId,
+      file_name: "doc.md",
+      content_base64: b64("version-three"),
+      content_sha256: await sha256(bytes("version-three")),
+      expected_previous_sha256: originalSha,
+    },
+  })) as Record<string, unknown>;
+  assert.equal(
+    postRestore["kind"],
+    "success",
+    "restored content must match backup bytes",
+  );
   assert.equal(validateHostSession(host.registry, host.transcript()).ok, true);
 });
 

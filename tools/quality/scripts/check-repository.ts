@@ -111,7 +111,8 @@ if (
   phantomDependencies.length > 0 ||
   unusedProductionDependencies.length > 0 ||
   layering.findings.length > 0 ||
-  generatedRegistry.findings.length > 0
+  generatedRegistry.findings.length > 0 ||
+  roadmap.findings.length > 0
 ) {
   process.exitCode = 1;
 } else {
