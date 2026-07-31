@@ -302,3 +302,52 @@ pnpm --filter @wenshu/web test                        6/6
 - 台账 `PB-10` 行已被改为 `✅ 已完成`，但 §9.6 的放行前提是"C1～C4 完成后**由我做一次轻量确认**"——确认结果是 C1 未合规关闭，故该 ✅ **提前了**，应退回 `🔄 已实现，待独立审计`，待 `C1-R1` 关闭后同轮改 ✅（DoD §9）。
 - 顺带一处笔误：该行现在把 `[实施记录]` 链接写了两遍（上一轮的重复 `[审计任务]` 已修，这轮换成了 `[实施记录]`），删掉重复的一处即可。
 - `C1-R1` 是文件级小改（挪一个测试缝），改完请把 §10.2 的两条实验重跑一遍贴出结果；我确认后即可放行合并与 `PB-11`/`A-02`。
+
+---
+
+# 11. 最终确认（2026-07-31）· C1-R1 关闭，PB-10 签署放行
+
+> 确认对象：`1eb19de`（`fix(pb-10): close C1-R1 — remove ROADMAP_PATH env seam from quality gate`）+ `5f66579`（记录）。我的原稿（§1–§10）逐字未被改动。
+
+## 11.1 结论
+
+**PB-10 独立审计终局：CONDITIONAL PASS，全部条件（C1～C4、C1-R1）已关闭，无未关闭 BLOCKER/MAJOR/MINOR。**
+**PB-10 可标 ✅ 已完成；PR #46 可合并；`PB-11`/`A-02` 按各自 DoR 放行。**
+
+## 11.2 C1-R1 复核（我的独立结果）
+
+- **改法正确**：检查逻辑抽到 [tools/quality/src/check-repository.ts](../../tools/quality/src/check-repository.ts) 的 `checkRepository({ workspaceRoot, roadmapPath })`；生产脚本 [scripts/check-repository.ts](../../tools/quality/scripts/check-repository.ts) 只剩 10 行、**固定 `resolve(workspaceRoot, "docs/implementation-roadmap.md")`，不读任何环境变量**；测试改为直接调用该函数。测试缝落在参数上，正是 §10.2 建议的形态。
+- **全仓无残留**：`ROADMAP_PATH` 只在我的报告（引述缺陷）与实施记录（描述修复）中作为文字出现，**生产与测试代码中为零**。
+- **我重跑 §10.2 的两条实验**（隔离克隆，做完还原）：
+
+  ```text
+  真实 roadmap 注入违规、不设环境变量        → pnpm quality:check exit = 1   拦住
+  真实 roadmap 注入违规 + ROADMAP_PATH 指诱饵 → pnpm quality:check exit = 1   旁路已死
+      且 ERROR 明确指向真实的 docs\implementation-roadmap.md:133，不再被重定向
+  ```
+
+- **重构后守卫仍决定性**：我把 `roadmap.findings.length > 0` 置为 `false`（等价于把 roadmap 移出退出码条件）⇒ `roadmap findings cause check-repository to exit non-zero` **变红**（36→35 pass/1 fail）；还原后 36/36。退出码语义与首审前逐项对照一致，其余七类检查未被重构改动。
+- **判定：`C1-R1` 关闭，`C1` 随之合规关闭。**
+
+## 11.3 台账与本轮复跑
+
+- 台账 `PB-10` 行已退回 `🔄 已实现，待独立审计`，重复链接已删除，现有链接 5 条无重复且包含自身审计报告（检查 8b/8c 满足）。**本确认出具后可改 `✅ 已完成`，并按 G2-04 承接①在同一轮补最新 CI run 与提交指纹。**
+- 本轮：`pnpm install --frozen-lockfile` 成功；`pnpm verify` **exit 0**；`@wenshu/quality test:integration` **36/36**；工作树干净。首审 §2 与复审 §9 的全部通过项未回潮。
+
+## 11.4 结转给后续棒次（非阻断）
+
+| 项 | 归属 | 要求 |
+|---|---|---|
+| `protectImportedFile` 的调用责任 | `A-02`/`PB-11` 导入流程 | 导入原件创建/复制时必须登记，否则 `overwrite:true` 仍可覆盖（已写入 ADR-0025 与实施记录） |
+| 带扩展名的 Windows 保留名（`NUL.md`/`CON.txt`） | 下一次触及文件名白名单的任务 | 当前实测为普通文件、内容可正确读回、无数据丢失；若出现不走 `\\?\` 语义的调用路径需重新评估 |
+| ≤10 s 的度量口径 | `PB-12`/`A-12` | 本批次测的是存储层恢复（残留清理+开库+工件校验），**不是端到端"强杀后重开到可操作"**，须端到端重测，不得引用本批次冒充 |
+| ArkWeb 文件桥 | 设备矩阵补齐前 | 仍 `needs_device_to_verify`，本棒未宣称三端贯通——该口径正确，请保持 |
+| 浏览器受控 Host 为纯内存 | `A-02` 起 | `grant.files` 是 `Map`，刷新即失，未用 PB-08 裁定的 OPFS，却把 7 项能力登记为 `supported`；接入真实 UI 前建议改 `degraded` 或在文档明示"非持久" |
+
+建议按仓内惯例（`G1-07`～`PA-11B`、`G2-03` 均有）另建 `docs/audits/PB-10-followups.md` 作为上述五项的单一归口，便于 `PB-11`/`A-02` 开工时逐条对账。此为建议，不作为放行条件。
+
+## 11.5 签署
+
+PB-10 从首审 `FAIL`（5 MAJOR / 6 MINOR）走到终局，全部发现均由实施者修复、由我复审关闭，实施者未自行关闭任何一条，本报告正文三轮未被改动一字。文件边界的两条红线——**路径逃逸**与**半写文件**——自始至终守住，并经我自建对抗探针、失效方向变异与真 `SIGKILL` 子进程三重独立坐实。
+
+**PB-10 独立审计签署：CONDITIONAL PASS（条件全清）。**
