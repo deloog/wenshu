@@ -7,3 +7,4 @@ export * from "./roadmap-invariants.ts";
 export * from "./roadmap-registry.ts";
 export { parseRoadmap } from "./roadmap-parse.ts";
 export * from "./roadmap-model.ts";
+export * from "./check-repository.ts";

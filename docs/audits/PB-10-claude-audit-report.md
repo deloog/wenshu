@@ -242,3 +242,63 @@ D:\wenshu：pnpm --filter @wenshu/electron-shell security:test   exit 0（真 El
 - **C1～C4 完成后即可标 ✅ 并放行 `PB-11`/`A-02`**；这四项都是文档/接线/清理级，无需再动文件边界核心逻辑，完成后由我做一次轻量确认即可，不需重跑完整复审。
 - 台账 `PB-10` 行在 C1～C4 完成前保持 `🔄 已实现，待独立审计`，完成后改 ✅ 并按 G2-04 承接①在**同一轮**补齐证据链接（本报告 + 实施记录 + PR/commit + CI run）。
 - 承接下一棒：`protectImportedFile` 的调用责任（C3）、ArkWeb 仍 `needs_device_to_verify`、以及首审 NOTE 中"≤10 s 度量的是存储层恢复而非端到端重开"——PB-12/A-12 须端到端重测，不得引用本批次冒充。
+
+---
+
+# 10. C1–C4 确认记录（2026-07-31）· 尚未放行
+
+> 确认对象：`8dfef7e`（`fix(pb-10): close conditional pass C1-C4`）+ `846b4f0`（台账记录 CI run）。
+> 我的原稿（§1–§9）经比对**逐字未被改动**。
+
+## 10.1 结论
+
+**C2/C3/C4 关闭；C1 不合规关闭——修复引入了一条新的门禁旁路（`C1-R1`，MAJOR）。** 在 `C1-R1` 关闭前：**PR #46 不应合并**，台账 `PB-10` 行应从 `✅ 已完成` 退回 `🔄 已实现，待独立审计`。
+
+## 10.2 C1-R1（MAJOR，复审新增）　为让测试跑通，在生产门禁上开了一条环境变量旁路
+
+- **定位**：[tools/quality/scripts/check-repository.ts:57-60](../../tools/quality/scripts/check-repository.ts)
+
+  ```ts
+  const roadmapPath = process.env["ROADMAP_PATH"]
+    ? resolve(process.cwd(), process.env["ROADMAP_PATH"])
+    : resolve(workspaceRoot, "docs/implementation-roadmap.md");
+  ```
+
+- **事实**：路线图门禁的**检查对象**现在可由一个环境变量任意改写。这是 `C1` 的回归测试为了喂入镜像文件而加的测试缝，但它开在**生产脚本**里。
+- **我的独立复现**（隔离克隆，做完即还原）：把真实 `docs/implementation-roadmap.md` 的 `PB-09` 证据链接改成不存在的文件（正是检查 8b/8c 存在的意义），然后
+
+  ```text
+  不设 ROADMAP_PATH                      → pnpm quality:check exit = 1   ✅ 拦住
+  ROADMAP_PATH=<仓内一份完好的诱饵副本>    → pnpm quality:check exit = 0   ❌ 真实路线图的违规完全没被检查
+                                            且照常打印"Roadmap invariants: …未解析行 0"，看上去一切正常
+  ```
+
+- **为什么算 MAJOR**：这与 `MAJOR-5` 的修复目标自相矛盾——同一个提交一边把"门禁只报不拦"补上，一边给它开了一扇"改个环境变量就不查了"的门，失效方向仍是 **fail-open**，且**无任何登记与留痕**。[路线图 §11](../implementation-roadmap.md) 与 [ADR-0024](../adr/0024-G2-04路线图手写真源收敛与不变量门禁.md) 明写"例外只存在于检查器的显式登记表"；AGENTS 规则 8 明写不得为让检查通过而放宽规则。当前**实际暴露为零**（CI 不设该变量、日常开发也不会设），故判 MAJOR 而非 BLOCKER——与 `G2-03` 首审 MA-01（L3 平台许可无差别、实际暴露为零仍判 MAJOR）同一口径。
+- **修复方向**（任选，勿保留 ambient 覆盖）：把"跑全部检查 + 决定退出码"抽成 `src/` 里的导出函数，显式接收 `{ workspaceRoot, roadmapPath }`；`scripts/check-repository.ts` 固定传真实路径，回归测试直接调用该函数并断言其返回的退出码为 1。这样测试缝在参数里，不在环境里。若坚持 spawn 形态，则该入口必须是独立的测试专用脚本，不能是 `pnpm quality:check` 走的那一个。
+
+## 10.3 C1–C4 逐条确认
+
+| 条件 | 判定 | 我的独立证据 |
+|---|---|---|
+| **C1** | **不合规关闭** | 测试本身是真的：`roadmap-exit.integration.test.ts` spawn 真实脚本、注入镜像违规、断言退出码与发现文本。**决定性我已验证**——我把 `roadmap.findings.length > 0` 从退出码条件里删掉 ⇒ 该测试**变红**（36→35 pass/1 fail）。但它以 `C1-R1` 为代价，故不予关闭 |
+| **C2** | **关闭** | `unit-config` 作业新增 `--filter @wenshu/web test`；我独立复跑 web 6/6。**额外收益**：同批加入的 `--filter @wenshu/quality test:integration` 把 tools/quality 的 **36 条** integration 探针（含 G2-04 反例与分层反例）也接进了 CI——这些此前既不在 `verify` 也不在任何作业里，属实质加固 |
+| **C3** | **关闭** | ADR-0025 与实施记录均已改写：明确 `protectedFiles` **须由导入流程登记**、PB-10 无导入能力（`file.import.select` 仍 `unsupported`）、**"未登记的既有文件仍可被 `overwrite:true` 覆盖"**、调用责任由 A-02/PB-11 承接。措辞与我实测一致，不再有"已全部兜住"的误读空间 |
+| **C4** | **关闭** | `D:\wenshu` 工作树 `git status` 干净；`environment.json` committed 值为 `"node": "v24.17.0"`；游离文件 `0` 已删除 |
+
+## 10.4 本轮复跑
+
+```text
+隔离克隆 @ 846b4f0（D 盘冻结 Node v24.17.0）
+pnpm install --frozen-lockfile                       成功
+pnpm verify                                          exit 0
+pnpm --filter @wenshu/quality test:integration        36/36
+pnpm --filter @wenshu/web test                        6/6
+变异：删除 roadmap 退出码条件                          C1 测试变红（守卫为真）
+探针：ROADMAP_PATH 旁路                                真实路线图违规下 exit 0（C1-R1）
+```
+
+## 10.5 台账与合并
+
+- 台账 `PB-10` 行已被改为 `✅ 已完成`，但 §9.6 的放行前提是"C1～C4 完成后**由我做一次轻量确认**"——确认结果是 C1 未合规关闭，故该 ✅ **提前了**，应退回 `🔄 已实现，待独立审计`，待 `C1-R1` 关闭后同轮改 ✅（DoD §9）。
+- 顺带一处笔误：该行现在把 `[实施记录]` 链接写了两遍（上一轮的重复 `[审计任务]` 已修，这轮换成了 `[实施记录]`），删掉重复的一处即可。
+- `C1-R1` 是文件级小改（挪一个测试缝），改完请把 §10.2 的两条实验重跑一遍贴出结果；我确认后即可放行合并与 `PB-11`/`A-02`。
