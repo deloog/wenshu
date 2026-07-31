@@ -54,9 +54,10 @@ const unusedProductionDependencies = await checkUnusedProductionDependencies(
   files,
 );
 const layering = await checkLayering(workspaceRoot, files);
-const roadmap = await checkRoadmapInvariants(
-  resolve(workspaceRoot, "docs/implementation-roadmap.md"),
-);
+const roadmapPath = process.env["ROADMAP_PATH"]
+  ? resolve(process.cwd(), process.env["ROADMAP_PATH"])
+  : resolve(workspaceRoot, "docs/implementation-roadmap.md");
+const roadmap = await checkRoadmapInvariants(roadmapPath);
 console.log(formatRoadmapCounts(roadmap));
 findings
   .filter((finding) => finding.severity === "warning")

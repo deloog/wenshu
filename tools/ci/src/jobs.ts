@@ -29,6 +29,8 @@ export const CI_JOBS: Readonly<Record<CiJobName, readonly CiCommand[]>> = Object
     ]),
     "unit-config": Object.freeze([
       command("unit", "test:foundation"),
+      command("web", "--filter", "@wenshu/web", "test"),
+      command("quality-exit", "--filter", "@wenshu/quality", "test:integration"),
       command("config", "config:check"),
     ]),
     contracts: Object.freeze([

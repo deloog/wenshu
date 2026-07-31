@@ -94,6 +94,15 @@ pnpm verify
 fsync 变异未在单进程测试中触发失败，符合预期：fsync 的语义是崩溃/掉电 durability，
 无法通过 in-process 断言直接证伪。原子性由 `rename` 变异与四相位真 `SIGKILL` 测试共同背书。
 
+## 复审合入前条件（C1–C4）
+
+| ID | 处置 | 证据 |
+|---|---|---|
+| C1 | 新增回归测试 `tools/quality/test/roadmap-exit.integration.test.ts`：注入路线图违规后调用真实 `check-repository`，断言 exit code ≠ 0 | 本地 `pnpm --filter @wenshu/quality test:integration` 通过 |
+| C2 | `@wenshu/web` 测试接入 `unit-config` CI 作业 | `tools/ci/src/jobs.ts` 增加 `command("web", "--filter", "@wenshu/web", "test")` |
+| C3 | 在 ADR-0025 与实施记录中明确 `protectedFiles` 依赖导入流程登记，并登记 A-02 承接 | 本记录与 `docs/adr/0025-PB-10原子保存崩溃恢复与Host文件边界.md` 已更新 |
+| C4 | 清理工作树：恢复被旧 Node 污染的 `artifacts/reference-machine/environment.json`；删除游离空文件 `0` | `git status` 无未预期改动 |
+
 ## 首审 MAJOR/MINOR 修复
 
 | ID | 定位 | 修复 |
@@ -121,6 +130,10 @@ electron-shell 依赖与 ADR/台账更新即可；`0.1.0` 路径完整保留。
 
 ## 已知承接与限制
 
+- **导入原件保护依赖 A-02 登记**：`protectImportedFile` 机制由 PB-10 提供，但 PB-10
+  自身没有导入能力（`file.import.select` 在 `0.2.0` 中仍为 `unsupported`）。只有导入流程
+  在创建/复制原件时显式登记，`protectedFiles` 才能生效；未登记的既有文件仍可被
+  `overwrite:true` 覆盖。该调用责任由 A-02/PB-11 导入流程承接。
 - ArkWeb 文件桥仍标记为 `needs_device_to_verify`，PB-10 未宣称三端贯通；
 - 打印/分页路径按决策 #11A 保持 DEGRADE，`print.pdf.export` 在 `0.2.0` 中仍为
   `unsupported`（Electron 壳保留 `0.1.0` 打印通道，不扩展）。

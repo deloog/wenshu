@@ -178,3 +178,67 @@ pnpm quality:check                              # 台账 52/下限 49；分层�
 ---
 
 *本报告由独立审计角色出具；台账与代码修复由实施者完成。审计期间仅新增本文件。*
+
+---
+
+# 9. 复审记录（2026-07-31）· 结论 CONDITIONAL PASS
+
+> 复审对象：修复提交 `cb9c9a7`（`fix(pb-10): address Claude audit FAIL findings MAJOR-1~5 and MINORs`，20 文件）。
+> 复审方法：隔离克隆更新到 `cb9c9a7` 后 `pnpm install --frozen-lockfile` → 全套件与 `pnpm verify` 独立复跑 → **对每一项 MAJOR 亲手复现修复效果**（不采信自述）→ **对两条新守卫做失效方向变异** → 真机跑通 Electron 壳。
+> 首审报告正文经我逐字比对，**未被实施者改动一个字节**（`git show cb9c9a7:docs/audits/PB-10-claude-audit-report.md` 与我的原稿 diff 为空）——实施者未自行关闭任何发现，符合 AGENTS。
+
+## 9.1 结论
+
+**CONDITIONAL PASS —— MAJOR-1～MAJOR-5 全部关闭，MI-01/02/03/05/06 关闭；三项条件（C1～C3）与一项工作树卫生项须在合入前完成。** 无未关闭 BLOCKER/MAJOR。
+
+## 9.2 MAJOR 逐项复核（我的独立结果）
+
+| 发现 | 判定 | 我的独立证据 |
+|---|---|---|
+| **MAJOR-1** 浏览器备份恢复清零 | **关闭** | 快照改存真实 base64 字节。我的探针：含 **NUL 字节 + CJK + `ÿ`** 的载荷经 备份→编辑→恢复 后 **`BYTE-IDENTICAL TO ORIGINAL: true`**；另喂**篡改快照**（非法 JSON）→ `INTEGRITY_FAILURE` 且**当前文件完好**（新实现先建好 `restoredFiles` 再 `clear`，失败不毁数据）。**决定性变异**：我把恢复改回零填充 ⇒ `virtual backup snapshot and restore preserves document bytes` **变红**（6→5 pass/1 fail），守卫为真 |
+| **MAJOR-2** Electron 调用签名 | **关闭** | `createHost` 已并入 `whenReady` 且 `hostDialog(window)` 拿到真 window；`handlePrintPdf(request)` 单参调用。**我亲自跑通真 Electron**：`pnpm --filter @wenshu/electron-shell security:test` **exit 0**，输出 `"hostSession":{"terminalKind":"success","capability":"print.pdf.export"}`——首审必抛的那条路径现在返回 success 终态；PA-14E 安全姿态零回退（`exposedKeys:["cancel","invoke","registry"]`、`requireType/processType: "undefined"`、`contextIsolation/sandbox: true`、`nodeIntegration: false`），基线复现 `Electron/43.1.1 Chromium/150.0.7871.114`、21 页、字体全嵌、P0=0 P1=0 |
+| **MAJOR-3** 可覆盖导入原件 | **关闭（带承接 C3）** | 新增 `grant.protectedFiles` + `protectImportedFile/isImportedOriginal`，拦截点放在 `writeAtomically`，**三条写路径（save.atomic / save.as / export.write）一并覆盖**。我的探针：登记后 `export.write overwrite:true` → **`HOST_PERMISSION_DENIED`**、`save.atomic` 亦 → `HOST_PERMISSION_DENIED`、磁盘内容仍是 `ORIGINAL A`。另有真集成测试 `imported originals cannot be overwritten even with overwrite:true` 断言磁盘字节不变 |
+| **MAJOR-4** 参考机器证据被旧 Node 覆盖 | **关闭（带卫生项 C4）** | `cb9c9a7` 提交的 `environment.json` 已是 `"node": "v24.17.0"`；恢复采样重测 median 36.0 / p95 40.0 ms（与我首审独立复测的 37.1 / 38.9 ms 同量级） |
+| **MAJOR-5** 路线图门禁只报不拦 | **关闭（带条件 C1）** | `roadmap.findings.length > 0` 已补进退出码条件。**我重做首审那条注入实验**：把 `PB-09` 台账行的报告链接改成不存在的文件 ⇒ `pnpm quality:check` **exit code = 1**（首审时为 0）；还原后干净树 **exit 0** |
+
+## 9.3 MINOR 复核
+
+- **MI-01 关闭**：`restoreFromSpecificBackup` 目标库不存在时显式抛 `STORAGE_RECOVERY_FAILED`，PB-09 原语义恢复；注释中失实的 "existing behavior unchanged" 已改正。
+- **MI-02 关闭**：豁免登记项已移除，台账行直接链接本报告。（**顺带纠一处笔误**：台账 `PB-10` 行现在把 `[审计任务]` 链接写了两遍，删掉重复的一处即可。）
+- **MI-03 关闭**：裸 NUL 已改 `\u0000`，我实测该文件 **NUL 计数 = 0**。`git diff --stat` 仍显示 `Bin` 是因为**对比的旧 blob 是二进制**，git 只要一侧是二进制就按二进制渲染——新 blob 本身是文本，后续 diff 可正常评审。
+- **MI-05 关闭**：48/25/6 计数、变异表描述、`.wenshu-tmp-` 前缀、`resolveInside` 措辞均已按事实更正。
+- **MI-06 关闭（留残余 NOTE）**：`SAFE_FILE_NAME` 与 payload schema 已同步拒绝裸保留设备名与尾点，我实测 `NUL`/`CON`/`com1`/`LPT9`/`a.` **全部 `HOST_INVALID_REQUEST`**。**残余**：带扩展名的形式（`NUL.md`/`CON.txt`/`COM1.dat`/`AUX.log`）仍被接受；我实测它们在本机 NTFS 上是**普通文件、内容可正确读回**（未被当作设备、无数据丢失），故不重开发现——但微软官方口径是"保留名后紧跟扩展名同样不推荐"，登记为 NOTE，若将来出现不走 `\\?\` 语义的调用路径需重新评估。
+- **MI-04 未处置**（见 C2）。
+
+## 9.4 合入前必须完成的条件
+
+| ID | 要求 | 理由 |
+|---|---|---|
+| **C1** | 为路线图退出码接线补**决定性测试**（注入任一路线图违规 ⇒ `check-repository` 退出码非 0） | MAJOR-5 的修复目前**没有任何回归守卫**；这条 bug 的性质正是"门禁看起来在、实际不拦"，同样的静默回归可以再来一次。DoD §2 要求核心守卫有决定性测试 |
+| **C2** | 把 `@wenshu/web` 的测试接入 CI（`contracts` 作业）与/或 `pnpm verify`（首审 MI-04，本轮未处置） | `jobs.ts` 中 `@wenshu/web` 只出现在三个 **build** 作业里，`test` 从未被跑过。**MAJOR-1 新加的那条字节级守卫目前在任何门禁里都不会执行**——修复有了，防线没有。对照 PB-09 曾把 `project-storage` 接进 `contracts` 作业 |
+| **C3** | 在 ADR-0025 与实施记录中写明：`protectedFiles` 由**导入流程**登记，PB-10 自身没有导入能力（`file.import.select` 仍 `unsupported`），因此**未登记的既有文件仍可被 `overwrite:true` 覆盖**；并把"A-02/PB-11 导入时必须调用 `protectImportedFile`"登记为承接项 | 我实测未登记的既有文件 `imported-b.md` 仍被 `overwrite:true` 覆盖成功。当前 ADR 措辞"导入原件登记为只读…即便 `overwrite:true` 也无法覆盖"容易被读成"所有原件已受保护"。机制正确，但保证是**有条件的**，必须写明条件，否则 A-02 会以为这层已经兜住 |
+| **C4** | 清理共享工作树 `D:\wenshu` | 复审时该树**不干净**：① `artifacts/reference-machine/environment.json` 有**未提交改动，`node` 又变回 `v24.13.0`**——MAJOR-4 的同一成因（会话未按[开发环境基线](../development-environment.md)初始化）在修复后**再次发生**，一旦被提交即 MAJOR-4 回归；② 仓根有一个空的游离文件 `0`（疑似 shell 重定向误建）。二者均非我造成（我的验证在隔离克隆内进行，仅 Electron 复验写入被 ignore 的 `test-results/`） |
+
+## 9.5 复审执行的检查
+
+```text
+隔离克隆 D:\tmp\pb10-audit @ cb9c9a7（D 盘冻结 Node v24.17.0 / pnpm 11.15.1）
+pnpm install --frozen-lockfile              成功
+pnpm --filter @wenshu/host-contract test    48/48
+pnpm --filter @wenshu/project-storage test  25/25
+pnpm --filter @wenshu/web test              6/6
+pnpm verify                                 exit 0
+pnpm quality:check（干净树）                 exit 0
+pnpm quality:check（注入路线图违规）          exit 1   ← MAJOR-5 已真正拦截
+D:\wenshu：pnpm --filter @wenshu/electron-shell security:test   exit 0（真 Electron 43.1.1）
+变异：恢复改回零填充                          web 测试变红（MAJOR-1 守卫为真）
+探针：保留设备名/尾点、受保护原件、未登记原件、篡改快照、字节级 round-trip
+```
+
+首审 §2 的全部通过项在本轮**未回潮**（路径逃逸、半写、失败写不损坏成品、供应链零新增、web 层零平台导入、分层与体量护栏）。
+
+## 9.6 关闭与放行
+
+- **C1～C4 完成后即可标 ✅ 并放行 `PB-11`/`A-02`**；这四项都是文档/接线/清理级，无需再动文件边界核心逻辑，完成后由我做一次轻量确认即可，不需重跑完整复审。
+- 台账 `PB-10` 行在 C1～C4 完成前保持 `🔄 已实现，待独立审计`，完成后改 ✅ 并按 G2-04 承接①在**同一轮**补齐证据链接（本报告 + 实施记录 + PR/commit + CI run）。
+- 承接下一棒：`protectImportedFile` 的调用责任（C3）、ArkWeb 仍 `needs_device_to_verify`、以及首审 NOTE 中"≤10 s 度量的是存储层恢复而非端到端重开"——PB-12/A-12 须端到端重测，不得引用本批次冒充。
