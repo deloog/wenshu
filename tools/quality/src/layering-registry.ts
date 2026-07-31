@@ -45,6 +45,7 @@ export const LAYERED_WORKSPACES: readonly LayeredWorkspace[] = Object.freeze([
   { directory: "packages/report-checks", layer: "L2" },
   { directory: "packages/report-render", layer: "L2" },
   { directory: "packages/test-support", layer: "L2" },
+  { directory: "packages/knowledge-package", layer: "L2" },
   { directory: "tools/ci", layer: "L2" },
   { directory: "tools/environment", layer: "L2" },
   { directory: "tools/fixtures", layer: "L2" },
