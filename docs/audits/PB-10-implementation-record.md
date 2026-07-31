@@ -98,7 +98,8 @@ fsync 变异未在单进程测试中触发失败，符合预期：fsync 的语�
 
 | ID | 处置 | 证据 |
 |---|---|---|
-| C1 | 新增回归测试 `tools/quality/test/roadmap-exit.integration.test.ts`：注入路线图违规后调用真实 `check-repository`，断言 exit code ≠ 0 | 本地 `pnpm --filter @wenshu/quality test:integration` 通过 |
+| C1 | 新增回归测试 `tools/quality/test/roadmap-exit.integration.test.ts`：注入路线图违规后直接调用导出的 `checkRepository({ workspaceRoot, roadmapPath })`，断言返回的 `exitCode` ≠ 0 | 本地 `pnpm --filter @wenshu/quality test:integration` 通过 |
+| C1-R1 | 移除生产脚本上的 `ROADMAP_PATH` 环境变量旁路：检查逻辑抽到 `tools/quality/src/check-repository.ts` 的导出函数，脚本固定传真实路线图路径，测试缝在函数参数里 | 代码中已无 `ROADMAP_PATH`；生产脚本不读取任何环境变量 |
 | C2 | `@wenshu/web` 测试接入 `unit-config` CI 作业 | `tools/ci/src/jobs.ts` 增加 `command("web", "--filter", "@wenshu/web", "test")` |
 | C3 | 在 ADR-0025 与实施记录中明确 `protectedFiles` 依赖导入流程登记，并登记 A-02 承接 | 本记录与 `docs/adr/0025-PB-10原子保存崩溃恢复与Host文件边界.md` 已更新 |
 | C4 | 清理工作树：恢复被旧 Node 污染的 `artifacts/reference-machine/environment.json`；删除游离空文件 `0` | `git status` 无未预期改动 |
