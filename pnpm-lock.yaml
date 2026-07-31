@@ -309,6 +309,10 @@ importers:
         version: 6.0.3
 
   packages/project-storage:
+    dependencies:
+      '@wenshu/host-contract':
+        specifier: workspace:*
+        version: link:../host-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

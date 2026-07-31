@@ -1,7 +1,6 @@
 import { HOST_CAPABILITIES, validateHostContract } from "./contract.ts";
 import type { HostRegistry as HostRegistryV02 } from "./generated/host-0.2.0.ts";
 import {
-  HOST_PAYLOAD_CAPABILITIES,
   hostPayloadSchemaId,
   isHostPayloadCapability,
   type HostPayloadCapability,
@@ -19,6 +18,8 @@ export interface PayloadHostRegistryOptions {
   >;
   /** Additional declarations for capabilities outside the PB-10 frozen set (for example print.pdf.export). */
   readonly additionalDeclarations?: readonly Record<string, unknown>[];
+  /** Per-capability timeout overrides; applied identically to declarations and enforcement. */
+  readonly timeoutMs?: Partial<Readonly<Record<HostPayloadCapability, number>>>;
 }
 
 const PAYLOAD_CAPABILITY_ERROR_CODES: Readonly<
@@ -27,30 +28,36 @@ const PAYLOAD_CAPABILITY_ERROR_CODES: Readonly<
   "project.directory.select": Object.freeze([
     "HOST_PERMISSION_DENIED",
     "HOST_CANCELLED",
+    "HOST_TIMEOUT",
     "HOST_INTERNAL",
   ]),
   "project.directory.authorize": Object.freeze([
     "HOST_PERMISSION_DENIED",
     "HOST_NOT_FOUND",
+    "HOST_TIMEOUT",
     "HOST_INTERNAL",
   ]),
   "project.save.atomic": Object.freeze([
     "HOST_INVALID_REQUEST",
+    "HOST_NOT_FOUND",
     "HOST_CONFLICT",
     "HOST_PERMISSION_DENIED",
     "HOST_QUOTA_EXCEEDED",
     "HOST_IO_FAILURE",
     "HOST_INTEGRITY_FAILURE",
     "HOST_CANCELLED",
+    "HOST_TIMEOUT",
     "HOST_INTERNAL",
   ]),
   "project.save.as": Object.freeze([
     "HOST_INVALID_REQUEST",
+    "HOST_NOT_FOUND",
     "HOST_CONFLICT",
     "HOST_PERMISSION_DENIED",
     "HOST_QUOTA_EXCEEDED",
     "HOST_IO_FAILURE",
     "HOST_CANCELLED",
+    "HOST_TIMEOUT",
     "HOST_INTERNAL",
   ]),
   "project.backup.create": Object.freeze([
@@ -58,6 +65,7 @@ const PAYLOAD_CAPABILITY_ERROR_CODES: Readonly<
     "HOST_NOT_FOUND",
     "HOST_QUOTA_EXCEEDED",
     "HOST_IO_FAILURE",
+    "HOST_TIMEOUT",
     "HOST_INTERNAL",
   ]),
   "project.backup.restore": Object.freeze([
@@ -65,15 +73,18 @@ const PAYLOAD_CAPABILITY_ERROR_CODES: Readonly<
     "HOST_NOT_FOUND",
     "HOST_INTEGRITY_FAILURE",
     "HOST_IO_FAILURE",
+    "HOST_TIMEOUT",
     "HOST_INTERNAL",
   ]),
   "file.export.write": Object.freeze([
     "HOST_INVALID_REQUEST",
+    "HOST_NOT_FOUND",
     "HOST_CONFLICT",
     "HOST_PERMISSION_DENIED",
     "HOST_QUOTA_EXCEEDED",
     "HOST_IO_FAILURE",
     "HOST_CANCELLED",
+    "HOST_TIMEOUT",
     "HOST_INTERNAL",
   ]),
 });
@@ -92,6 +103,7 @@ const PAYLOAD_CAPABILITY_TIMEOUTS: Readonly<Record<HostPayloadCapability, number
 function payloadDeclaration(
   name: HostPayloadCapability,
   support: PayloadSupportStatus,
+  timeoutMs: number,
 ): Record<string, unknown> {
   if (support === "unsupported") {
     return {
@@ -118,7 +130,7 @@ function payloadDeclaration(
     output_schema: hostPayloadSchemaId(name, "output"),
     limits: {
       max_concurrent_requests: 1,
-      timeout_ms: PAYLOAD_CAPABILITY_TIMEOUTS[name],
+      timeout_ms: timeoutMs,
       max_payload_bytes: 67108864,
     },
     lifecycle: "request",
@@ -167,7 +179,12 @@ export function buildPayloadHostRegistry(
       return override;
     }
     if (isHostPayloadCapability(name)) {
-      return payloadDeclaration(name, options.capabilitySupport?.[name] ?? "supported");
+      const timeoutMs = options.timeoutMs?.[name] ?? PAYLOAD_CAPABILITY_TIMEOUTS[name];
+      return payloadDeclaration(
+        name,
+        options.capabilitySupport?.[name] ?? "supported",
+        timeoutMs,
+      );
     }
     return placeholderDeclaration(name);
   });
