@@ -130,6 +130,10 @@ const LEDGER_ROWS_WITHOUT_INDEPENDENT_REPORT = Object.freeze<
   { task: "G1-03C", reason: "早期任务，结论记录于台账行本身或 G1-16 总签署" },
   { task: "G1-12", reason: "DevEco 环境任务，审计按决策 #6 推迟" },
   { task: "PA-14U", reason: "已后置（阶段 2），未执行故无报告" },
+  {
+    task: "PB-10",
+    reason: "已实现，待 Claude 独立审计；审计报告生成后移出本表并替换为报告链接",
+  },
 ]);
 
 /**

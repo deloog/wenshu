@@ -1,6 +1,6 @@
 # G1-06 v0 Host 能力与生命周期契约
 
-> 状态：已完成（Claude 独立复审 `CONDITIONAL PASS`）　协议版本：`0.1.0`　日期：2026-07-20
+> 状态：G1-06 已完成（Claude 独立复审 `CONDITIONAL PASS`）；PB-10 已将协议 additive 升级到 `0.2.0` 并冻结 7 项文件/项目能力 payload Schema。协议版本：`0.1.0`（冻结）、`0.2.0`（PB-10 已实现，待独立审计）　日期：2026-07-20/2026-07-31
 
 ## 1. 目的与边界
 
@@ -50,13 +50,31 @@ registry → request → progress (0..n) → success | failure | cancelled
 
 ## 5. 版本与兼容规则
 
-- `protocol_version` 与每项 `capability_version` 当前只接受 `0.1.0`；未来版本明确拒绝。
+- `protocol_version` 与每项 `capability_version` 当前接受 `0.1.0` 与 `0.2.0`；未来版本明确拒绝。
+- `0.2.0` 是 additive 升级：只增加 7 项文件/项目能力的冻结 payload Schema，不改动 `0.1.0` 的注册表/生命周期/错误语义；`0.1.0` 消费者继续可用。
 - 新增能力、改变输入/输出、错误语义、权限或生命周期都需要版本升级、ADR 更新、兼容适配和消费者测试。
 - v0 消费者不得依赖注册表顺序，只能按能力名查找。
 - 同一协议版本只能做不改变既有语义的实现修复；不能静默把 degraded/unsupported 当作 supported。
 - Host 升级失败时回退到上一实现和注册表；请求失败不改变文档真源，写入原子性由后续真实 Host 实现验证。
 
-## 6. 验证与证据
+## 6. PB-10 实现状态
+
+PB-10 是 G1-06 的首个真实 Host 消费者，交付内容见 [ADR-0025](adr/0025-PB-10原子保存崩溃恢复与Host文件边界.md)：
+
+- `@wenshu/host-contract` 已支持 `0.2.0` 双版本校验与 payload Schema 校验；
+- `@wenshu/project-storage` 已实现 grant 注册表、值级路径预检、原子写与崩溃恢复；
+- `apps/web` 已提供浏览器受控 Host 模拟，不访问真实文件系统；
+- `apps/electron-shell` 已添加依赖并通过 typecheck，preload/renderer 集成待 PA-14E/A-02；
+- ArkWeb 文件桥仍 `needs_device_to_verify`，未宣称三端贯通；
+- 打印/分页能力 `print.pdf.export` 按决策 #11A 保持 `unsupported`。
+
+Schema 真源：
+
+- `0.1.0`：`packages/host-contract/schema/host.schema.json`
+- `0.2.0`：`packages/host-contract/schema/host-0.2.0.schema.json`、
+  `packages/host-contract/schema/host-payloads-0.2.0.schema.json`
+
+## 7. 验证与证据
 
 - `pnpm --filter @wenshu/host-contract generate`：从 Schema 生成 TypeScript。
 - `pnpm --filter @wenshu/host-contract generate:check`：检查生成漂移。

@@ -13,6 +13,7 @@
     "@wenshu/markdown-import": "workspace:*",
     "@wenshu/pdf-evidence": "workspace:*",
     "@wenshu/pdf-export": "workspace:*",
+    "@wenshu/project-storage": "workspace:*",
     "@wenshu/report-checks": "workspace:*",
     "@wenshu/template-model": "workspace:*"
   },
