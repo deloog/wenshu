@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, readdir, rename, stat } from "node:fs/promises";
 import { backup, DatabaseSync } from "node:sqlite";
 import { basename, join } from "node:path";
@@ -57,16 +58,30 @@ export async function restoreFromBackup(
   backupDirectory: string,
 ): Promise<string> {
   const source = await newestBackup(backupDirectory);
+  return restoreFromSpecificBackup(databasePath, source);
+}
+
+/**
+ * PB-10 additive: restore from a caller-chosen backup file (the host file
+ * boundary resolves opaque backup ids to concrete files). The quarantine
+ * semantics are identical to restoreFromBackup; existing behavior unchanged.
+ */
+export async function restoreFromSpecificBackup(
+  databasePath: string,
+  backupFilePath: string,
+): Promise<string> {
   const quarantinePath = `${databasePath}.corrupt-${Date.now()}-${randomUUID()}`;
   try {
-    await rename(databasePath, quarantinePath);
-    const sourceDatabase = new DatabaseSync(source, { readOnly: true });
+    if (existsSync(databasePath)) {
+      await rename(databasePath, quarantinePath);
+    }
+    const sourceDatabase = new DatabaseSync(backupFilePath, { readOnly: true });
     try {
       await backup(sourceDatabase, databasePath);
     } finally {
       sourceDatabase.close();
     }
-    return basename(source);
+    return basename(backupFilePath);
   } catch (error) {
     throw new StorageRecoveryError("STORAGE_RECOVERY_FAILED", { cause: error });
   }
