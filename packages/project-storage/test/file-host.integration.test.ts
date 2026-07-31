@@ -1,0 +1,463 @@
+import assert from "node:assert/strict";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import test from "node:test";
+
+import { validateHostContract, validateHostSession } from "@wenshu/host-contract";
+
+import {
+  createGrantTable,
+  openProjectStore,
+  protectImportedFile,
+} from "../src/index.ts";
+import {
+  base64Of,
+  createTestHost,
+  nextRequestId,
+  saveRequest,
+  selectGrant,
+  sha256,
+  withIsolatedRoot,
+} from "./helpers.ts";
+
+function hostileMatrix(): readonly string[] {
+  let nested = "%2e";
+  for (let index = 0; index < 17; index += 1) {
+    nested = `%25${nested.slice(1)}`;
+  }
+  return [
+    "report.pdf\nC:/Windows/win.ini",
+    "a\u0000hidden",
+    "a\tb",
+    "a\rb",
+    "a\u000bb",
+    "a\fb",
+    "a\u007fb",
+    "output=C:/Windows/win.ini",
+    "outC:/Windows/win.ini",
+    "C:drive-relative.txt",
+    "c:/windows/win.ini",
+    "C:\\Windows\\win.ini",
+    "/etc/passwd",
+    "output=/etc/passwd",
+    "'/etc/passwd",
+    "//server/share/secret.txt",
+    "\\\\server\\share\\secret.txt",
+    "file:///etc/passwd",
+    "FILE:///ETC/PASSWD",
+    "output=file:///etc/passwd",
+    "../secret.txt",
+    "..\\secret.txt",
+    "output=../secret.txt",
+    "%2e%2e%2fsecret.txt",
+    "%252E%252E%252Fescape.txt",
+    `${nested}%2e%2fsecret.txt`,
+    "output=%zz",
+    "%00.md",
+  ];
+}
+
+test("hostile value matrix is refused at the real host entry", async () => {
+  await withIsolatedRoot("hostile", async (root) => {
+    const host = createTestHost(root);
+    const grant = await selectGrant(host);
+    const grantId = String(grant["grant_id"]);
+    const values = hostileMatrix();
+    assert.ok(values.length >= 27, "matrix must keep the G1-09 N-07 floor");
+    for (const hostile of values) {
+      const request = saveRequest(grantId, hostile, "content", null);
+      const response = (await host.invoke(request)) as Record<string, unknown>;
+      assert.equal(response["kind"], "failure", hostile);
+      const error = response["error"] as Record<string, unknown>;
+      assert.equal(error["code"], "HOST_INVALID_REQUEST", hostile);
+      assert.ok(
+        !JSON.stringify(response).includes(hostile),
+        `response must not echo the hostile value: ${JSON.stringify(hostile)}`,
+      );
+      assert.ok(validateHostContract(response).ok, "failure must stay contract-valid");
+    }
+    assert.deepEqual(
+      host.transcript(),
+      host.transcript().filter((message) => {
+        const record = message as Record<string, unknown>;
+        return record["capability"] === "project.directory.select";
+      }),
+      "refused envelopes must not enter the session transcript",
+    );
+  });
+});
+
+test("schema-invalid payload shapes are refused at the host entry", async () => {
+  await withIsolatedRoot("shape", async (root) => {
+    const host = createTestHost(root);
+    const grant = await selectGrant(host);
+    const grantId = String(grant["grant_id"]);
+    for (const badName of ["name with space.md", "bad!.md", ".hidden"]) {
+      const response = (await host.invoke(
+        saveRequest(grantId, badName, "content", null),
+      )) as Record<string, unknown>;
+      assert.equal(response["kind"], "failure", badName);
+      assert.equal(
+        (response["error"] as Record<string, unknown>)["code"],
+        "HOST_INVALID_REQUEST",
+        badName,
+      );
+    }
+  });
+});
+
+test("unknown grants and unsupported capabilities degrade explicitly", async () => {
+  await withIsolatedRoot("degrade", async (root) => {
+    const host = createTestHost(root);
+    const missing = (await host.invoke(
+      saveRequest("grant_00000000000000000000000000000000", "a.md", "x", null),
+    )) as Record<string, unknown>;
+    assert.equal(missing["kind"], "failure");
+    assert.equal(
+      (missing["error"] as Record<string, unknown>)["code"],
+      "HOST_NOT_FOUND",
+    );
+    assert.equal(
+      (missing["fallback"] as Record<string, unknown>)["strategy"],
+      "manual_file_picker",
+    );
+
+    const unsupported = (await host.invoke({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "font.catalog.list",
+      capability_version: "0.1.0",
+      input: {},
+    })) as Record<string, unknown>;
+    assert.equal(unsupported["kind"], "failure");
+    assert.equal(
+      (unsupported["error"] as Record<string, unknown>)["code"],
+      "HOST_UNSUPPORTED",
+    );
+    assert.equal(
+      (unsupported["fallback"] as Record<string, unknown>)["reason_code"],
+      "PB10_PAYLOAD_UNFROZEN",
+    );
+
+    const wrongVersion = (await host.invoke({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "project.save.atomic",
+      capability_version: "0.1.0",
+      input: {},
+    })) as Record<string, unknown>;
+    assert.equal(wrongVersion["kind"], "failure");
+    assert.equal(
+      (wrongVersion["error"] as Record<string, unknown>)["code"],
+      "HOST_INVALID_REQUEST",
+    );
+  });
+});
+
+test("permission denial produces a stable code, degradation and no path echo", async () => {
+  await withIsolatedRoot("denied", async (root) => {
+    const host = createTestHost(root);
+    const grant = await selectGrant(host);
+    const grantId = String(grant["grant_id"]);
+
+    if (process.platform === "win32") {
+      await writeFile(join(root, "locked.md"), "locked");
+      await chmod(join(root, "locked.md"), 0o444);
+      const response = (await host.invoke(
+        saveRequest(grantId, "locked.md", "replacement", sha256("locked")),
+      )) as Record<string, unknown>;
+      assert.equal(response["kind"], "failure");
+      assert.equal(
+        (response["error"] as Record<string, unknown>)["code"],
+        "HOST_PERMISSION_DENIED",
+      );
+      assert.equal(
+        (response["fallback"] as Record<string, unknown>)["strategy"],
+        "read_only",
+      );
+      assert.ok(!JSON.stringify(response).includes(root));
+      assert.deepEqual(await readFile(join(root, "locked.md"), "utf8"), "locked");
+    } else {
+      const readOnlyDir = join(root, "readonly");
+      await mkdir(readOnlyDir);
+      const sealed = createTestHost(readOnlyDir);
+      const sealedGrant = await selectGrant(sealed);
+      await chmod(readOnlyDir, 0o555);
+      const response = (await sealed.invoke(
+        saveRequest(String(sealedGrant["grant_id"]), "a.md", "x", null),
+      )) as Record<string, unknown>;
+      assert.equal(response["kind"], "failure");
+      assert.equal(
+        (response["error"] as Record<string, unknown>)["code"],
+        "HOST_PERMISSION_DENIED",
+      );
+      assert.equal(
+        (response["fallback"] as Record<string, unknown>)["strategy"],
+        "read_only",
+      );
+      assert.ok(!JSON.stringify(response).includes(readOnlyDir));
+      await chmod(readOnlyDir, 0o755);
+    }
+
+    const deniedSelect = createTestHost(root, {
+      selectDirectory: () => Promise.resolve({ status: "denied" }),
+    });
+    const denied = (await deniedSelect.invoke({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "project.directory.select",
+      capability_version: "0.2.0",
+      input: {},
+    })) as Record<string, unknown>;
+    assert.equal(denied["kind"], "failure");
+    assert.equal(
+      (denied["error"] as Record<string, unknown>)["code"],
+      "HOST_PERMISSION_DENIED",
+    );
+    assert.equal(
+      (denied["fallback"] as Record<string, unknown>)["strategy"],
+      "manual_file_picker",
+    );
+  });
+});
+
+test("cancel is cooperative and terminal state stays unique", async () => {
+  await withIsolatedRoot("lifecycle", async (root) => {
+    let resolveDialog: ((value: { status: "cancelled" }) => void) | undefined;
+    const host = createTestHost(root, {
+      selectDirectory: () =>
+        new Promise((resolve) => {
+          resolveDialog = resolve;
+        }),
+    });
+    const selectRequest = {
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "project.directory.select",
+      capability_version: "0.2.0",
+      input: {},
+    };
+    const pending = host.invoke(selectRequest);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await host.cancel({
+      protocol_version: "0.2.0",
+      kind: "cancel",
+      request_id: selectRequest.request_id,
+      reason: "user",
+    });
+    resolveDialog?.({ status: "cancelled" });
+    const cancelled = (await pending) as Record<string, unknown>;
+    assert.equal(cancelled["kind"], "cancelled");
+    assert.equal(cancelled["reason"], "user");
+    assert.equal(validateHostSession(host.registry, host.transcript()).ok, true);
+
+    const host2 = createTestHost(root);
+    const grant2 = await selectGrant(host2);
+    const save = (await host2.invoke(
+      saveRequest(String(grant2["grant_id"]), "a.md", "content", null),
+    )) as Record<string, unknown>;
+    assert.equal(save["kind"], "success");
+    const lateCancel = {
+      protocol_version: "0.2.0",
+      kind: "cancel",
+      request_id: save["request_id"],
+      reason: "user",
+    };
+    assert.equal(await host2.cancel(lateCancel), null, "late cancel returns nothing");
+    assert.equal(
+      host2.transcript().length,
+      4,
+      "late cancel must not add a second terminal",
+    );
+    const violated = validateHostSession(host2.registry, [
+      ...host2.transcript(),
+      lateCancel,
+    ]);
+    assert.equal(violated.ok, false);
+    if (!violated.ok) {
+      assert.ok(
+        violated.issues.some((issue) => issue.code === "HOST_TERMINAL_STATE_DUPLICATE"),
+      );
+    }
+  });
+});
+
+test("backup create and restore round-trip through a corrupted store", async () => {
+  await withIsolatedRoot("backup", async (root) => {
+    const store = await openProjectStore({
+      databasePath: join(root, "project.sqlite"),
+      backupDirectory: join(root, "backups"),
+    });
+    store.insertProject({
+      id: "prj_00000000000000000000000000000001",
+      title: "PB-10 backup roundtrip",
+      documentJson: JSON.stringify({ schemaVersion: "0.2.0", blocks: [] }),
+    });
+    store.close();
+
+    const host = createTestHost(root);
+    const grant = await selectGrant(host);
+    const grantId = String(grant["grant_id"]);
+    const created = (await host.invoke({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "project.backup.create",
+      capability_version: "0.2.0",
+      input: { grant_id: grantId },
+    })) as Record<string, unknown>;
+    assert.equal(created["kind"], "success", JSON.stringify(created));
+    const backupId = String(
+      (created["output"] as Record<string, unknown>)["backup_id"],
+    );
+    assert.match(backupId, /^backup_[0-9a-f]{32}$/u);
+
+    await writeFile(join(root, "project.sqlite"), "corrupted-by-crash");
+
+    const restored = (await host.invoke({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "project.backup.restore",
+      capability_version: "0.2.0",
+      input: { grant_id: grantId, backup_id: backupId },
+    })) as Record<string, unknown>;
+    assert.equal(restored["kind"], "success", JSON.stringify(restored));
+
+    const reopened = await openProjectStore({
+      databasePath: join(root, "project.sqlite"),
+      backupDirectory: join(root, "backups"),
+      recover: false,
+    });
+    assert.equal(reopened.listProjects().length, 1);
+    reopened.close();
+
+    const unknown = (await host.invoke({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "project.backup.restore",
+      capability_version: "0.2.0",
+      input: { grant_id: grantId, backup_id: `backup_${"0".repeat(32)}` },
+    })) as Record<string, unknown>;
+    assert.equal(unknown["kind"], "failure");
+    assert.equal(
+      (unknown["error"] as Record<string, unknown>)["code"],
+      "HOST_NOT_FOUND",
+    );
+  });
+});
+
+test("capability timeout degrades to a stable HOST_TIMEOUT", async () => {
+  await withIsolatedRoot("timeout", async (root) => {
+    const host = createTestHost(root, {
+      timeoutMs: { "project.directory.select": 200 },
+      selectDirectory: () => new Promise(() => undefined),
+    });
+    const response = (await host.invoke({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "project.directory.select",
+      capability_version: "0.2.0",
+      input: {},
+    })) as Record<string, unknown>;
+    assert.equal(response["kind"], "failure");
+    assert.equal(
+      (response["error"] as Record<string, unknown>)["code"],
+      "HOST_TIMEOUT",
+    );
+    assert.equal((response["error"] as Record<string, unknown>)["retryable"], true);
+  });
+});
+
+test("export write honors the overwrite contract", async () => {
+  await withIsolatedRoot("export", async (root) => {
+    const host = createTestHost(root);
+    const grant = await selectGrant(host);
+    const grantId = String(grant["grant_id"]);
+    const exportRequest = (
+      overwrite: boolean,
+      content: string,
+    ): Record<string, unknown> => ({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "file.export.write",
+      capability_version: "0.2.0",
+      input: {
+        grant_id: grantId,
+        file_name: "out.pdf",
+        content_base64: base64Of(content),
+        content_sha256: sha256(content),
+        media_type: "application/pdf",
+        overwrite,
+      },
+    });
+    const first = (await host.invoke(exportRequest(false, "pdf-v1"))) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(first["kind"], "success");
+    const conflict = (await host.invoke(exportRequest(false, "pdf-v2"))) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(conflict["kind"], "failure");
+    assert.equal(
+      (conflict["error"] as Record<string, unknown>)["code"],
+      "HOST_CONFLICT",
+    );
+    const overwritten = (await host.invoke(exportRequest(true, "pdf-v2"))) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(overwritten["kind"], "success");
+    assert.deepEqual(await readFile(join(root, "out.pdf"), "utf8"), "pdf-v2");
+  });
+});
+
+test("imported originals cannot be overwritten even with overwrite:true", async () => {
+  await withIsolatedRoot("imported", async (root) => {
+    const grants = createGrantTable();
+    const host = createTestHost(root, { grants });
+    const grantOutput = await selectGrant(host);
+    const grantId = String(grantOutput["grant_id"]);
+    const grant = grants.resolve(grantId);
+    assert.ok(grant);
+
+    await host.invoke(
+      saveRequest(grantId, "imported-original.md", "ORIGINAL BYTES", null),
+    );
+    protectImportedFile(grant, "imported-original.md");
+
+    const overwrite = (await host.invoke({
+      protocol_version: "0.2.0",
+      kind: "request",
+      request_id: nextRequestId(),
+      capability: "file.export.write",
+      capability_version: "0.2.0",
+      input: {
+        grant_id: grantId,
+        file_name: "imported-original.md",
+        content_base64: base64Of("CLOBBERED"),
+        content_sha256: sha256("CLOBBERED"),
+        media_type: "text/markdown",
+        overwrite: true,
+      },
+    })) as Record<string, unknown>;
+    assert.equal(overwrite["kind"], "failure");
+    assert.equal(
+      (overwrite["error"] as Record<string, unknown>)["code"],
+      "HOST_PERMISSION_DENIED",
+    );
+    assert.deepEqual(
+      await readFile(join(root, "imported-original.md"), "utf8"),
+      "ORIGINAL BYTES",
+    );
+  });
+});

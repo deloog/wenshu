@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-const channels = new Set(["wenshu.host.registry", "wenshu.host.invoke"]);
+const channels = new Set([
+  "wenshu.host.registry",
+  "wenshu.host.invoke",
+  "wenshu.host.cancel",
+]);
 
 function invoke(channel, request) {
   if (!channels.has(channel)) throw new Error("electron host channel is not allowed");
@@ -12,5 +16,6 @@ contextBridge.exposeInMainWorld(
   Object.freeze({
     registry: () => invoke("wenshu.host.registry"),
     invoke: (request) => invoke("wenshu.host.invoke", request),
+    cancel: (request) => invoke("wenshu.host.cancel", request),
   }),
 );

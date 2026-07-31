@@ -8,10 +8,12 @@
     "build": "vite build --mode production",
     "build:staging": "vite build --mode staging",
     "build:test": "vite build --mode test",
+    "test": "node --test test/*.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@wenshu/config": "workspace:*"
+    "@wenshu/config": "workspace:*",
+    "@wenshu/host-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

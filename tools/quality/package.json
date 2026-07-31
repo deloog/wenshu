@@ -6,6 +6,7 @@
   "scripts": {
     "check": "node scripts/check-repository.ts",
     "test": "node --test test/*.unit.test.ts",
+    "test:integration": "node --test test/*.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
