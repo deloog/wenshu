@@ -143,3 +143,52 @@ test("an L3 shell without a namespace registration fails closed", () => {
     "ARKTS_FORBIDDEN",
   );
 });
+
+test("package-root config files use the auxiliary rule set (G2-03 MI-03 / ADR-0028 D4)", async () => {
+  const fixture = await fixtureRoot();
+  try {
+    // Positive: node builtins are allowed in root config files, and the files
+    // now count as auxiliary instead of silently skipping as unclassified.
+    const allowed = [
+      ["apps/web/vite.config.ts", 'import "node:path";'],
+      ["apps/arkweb-shell/hvigorfile.ts", 'import "node:fs";'],
+      ["apps/arkweb-shell/entry/hvigorfile.ts", 'import "node:os";'],
+    ] as const;
+    const created: string[] = [];
+    for (const [path, source] of allowed) {
+      const file = join(fixture.root, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, source);
+      created.push(file);
+    }
+    const positive = await checkLayering(fixture.root, [...fixture.files, ...created]);
+    assert.equal(positive.findings.length, 0);
+    assert.equal(positive.coverage.auxiliaryFiles, 3);
+    assert.equal(positive.coverage.unclassifiedFiles, 0);
+
+    // Counter-examples: the auxiliary rule set still blocks platform
+    // namespaces and L3 targets from a web-layer config file.
+    const violations = [
+      ["apps/web/vite.config.ts", 'import "electron";', "ELECTRON_FORBIDDEN"],
+      [
+        "apps/web/vite.config.ts",
+        'import "@wenshu/electron-shell";',
+        "LAYER_DIRECTION_FORBIDDEN",
+      ],
+      ["apps/web/vite.config.ts", 'import "@ohos.web.webview";', "ARKTS_FORBIDDEN"],
+    ] as const;
+    for (const [path, source, expected] of violations) {
+      const file = join(fixture.root, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, source);
+      const result = await checkLayering(fixture.root, [...fixture.files, file]);
+      assert.ok(
+        result.findings.some((finding) => finding.message.includes(expected)),
+        `${path} should report ${expected}`,
+      );
+      await rm(file);
+    }
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});

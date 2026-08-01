@@ -96,8 +96,18 @@ function ruleSetFor(filePath: string, workspace: Workspace): RuleSet | undefined
   if (localPath.startsWith("test/") || localPath.startsWith("scripts/")) {
     return "auxiliary";
   }
+  // Package-root build/toolchain configs (vite.config.ts et al. at the workspace
+  // root, hvigorfile.ts at any depth) use the auxiliary rule set: node builtins
+  // allowed, platform namespaces still fail closed. Written ruling: G2-03 MI-03 /
+  // ADR-0028 D4 — config files must not stay exempt merely because "they are not
+  // published"; the exemption now has an owner-visible rule and counter-examples.
+  if (ROOT_CONFIG_PATTERN.test(localPath) || localPath.endsWith("hvigorfile.ts")) {
+    return "auxiliary";
+  }
   return undefined;
 }
+
+const ROOT_CONFIG_PATTERN = /^[^/]+\.config\.(?:ts|mts|cts)$/;
 
 function allows(source: Layer, target: Layer): boolean {
   if (source === "L0") return target === "L0";
