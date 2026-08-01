@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@wenshu/config": "workspace:*",
-    "@wenshu/host-contract": "workspace:*"
+    "@wenshu/host-contract": "workspace:*",
+    "@wenshu/ux-state": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

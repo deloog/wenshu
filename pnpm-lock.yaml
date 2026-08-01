@@ -141,6 +141,9 @@ importers:
       '@wenshu/host-contract':
         specifier: workspace:*
         version: link:../../packages/host-contract
+      '@wenshu/ux-state':
+        specifier: workspace:*
+        version: link:../../packages/ux-state
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
