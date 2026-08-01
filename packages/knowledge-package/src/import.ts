@@ -9,6 +9,7 @@ import {
 } from "@wenshu/project-contract";
 import {
   atomicWriteFile,
+  IMPORT_TEMP_MARKER,
   protectImportedFile,
   type DirectoryGrant,
 } from "@wenshu/project-storage";
@@ -216,7 +217,7 @@ export async function importKnowledgePackage(
     }
 
     await mkdir(dirname(targetRoot), { recursive: true });
-    tempRoot = await mkdtemp(`${targetRoot}.wenshu-import-`);
+    tempRoot = await mkdtemp(`${targetRoot}${IMPORT_TEMP_MARKER}`);
 
     await verifyEntryHashes(manifest, filesByPath, tempRoot);
 

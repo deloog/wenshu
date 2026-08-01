@@ -9,6 +9,16 @@ const SAFE_FILE_NAME =
 export const TEMP_FILE_PREFIX = ".wenshu-tmp-";
 
 /**
+ * Marker of the knowledge-package import staging directory
+ * (`<targetRoot>.wenshu-import-<random>`, a sibling of the import target).
+ * Single source: @wenshu/knowledge-package builds its mkdtemp prefix from it.
+ */
+export const IMPORT_TEMP_MARKER = ".wenshu-import-";
+const IMPORT_TEMP_DIR_PATTERN = /\.wenshu-import-[A-Za-z0-9]+$/u;
+/** Fail-closed budget for the recursive orphan scan. */
+const RECOVERY_SCAN_DIR_BUDGET = 1000;
+
+/**
  * Resolves a core-supplied safe file name inside a grant root. Structural
  * escape is impossible by construction and re-verified after resolution;
  * any surprise fails closed.
@@ -136,9 +146,56 @@ export interface RecoveryResult {
 }
 
 /**
+ * Knowledge-package imports stage into a sibling `<target>.wenshu-import-*`
+ * directory; a hard kill mid-import orphans it. The orphan is always safe to
+ * remove: the import transaction guarantees the real target either appears
+ * complete (via rename) or never exists, so the staging directory can never
+ * hold the only copy of anything. Scan recursively (the import target may sit
+ * at any depth under the grant root), never follow or delete symlinks, and
+ * fail closed on pathological trees.
+ */
+async function removeImportOrphans(root: string): Promise<number> {
+  let visited = 0;
+  let removed = 0;
+  async function walk(directory: string): Promise<void> {
+    visited += 1;
+    if (visited > RECOVERY_SCAN_DIR_BUDGET) {
+      throw new FileBoundaryError("IO_FAILURE");
+    }
+    const entries = await readdir(directory, { withFileTypes: true }).catch(
+      (error: unknown) => {
+        throw classifyFsError(error);
+      },
+    );
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const child = join(directory, entry.name);
+      if (IMPORT_TEMP_DIR_PATTERN.test(entry.name)) {
+        await rm(child, { force: true, recursive: true }).catch((error: unknown) => {
+          throw classifyFsError(error);
+        });
+        removed += 1;
+        continue;
+      }
+      await walk(child);
+    }
+  }
+  await walk(root);
+  return removed;
+}
+
+/**
  * Crash recovery for a grant directory: interrupted atomic writes only ever
  * leave temp residue; the real artifact is either the previous complete file
- * or the new complete file. Residue is removed, never completed.
+ * or the new complete file. Residue is removed, never completed. Two residue
+ * families are covered: `.wenshu-tmp-*` atomic-write files at the root and
+ * `.wenshu-import-*` knowledge-package staging orphans at any depth (PB-12
+ * dual-prefix extension).
  */
 export async function recoverGrantDirectory(root: string): Promise<RecoveryResult> {
   let entries: readonly string[];
@@ -159,5 +216,6 @@ export async function recoverGrantDirectory(root: string): Promise<RecoveryResul
     );
     removed += 1;
   }
+  removed += await removeImportOrphans(root);
   return Object.freeze({ removedResidue: removed });
 }

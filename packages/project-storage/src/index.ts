@@ -6,6 +6,7 @@ export {
 export { readMigrationHistory } from "./migrations.ts";
 export {
   atomicWriteFile,
+  IMPORT_TEMP_MARKER,
   recoverGrantDirectory,
   resolveGrantFile,
   TEMP_FILE_PREFIX,
