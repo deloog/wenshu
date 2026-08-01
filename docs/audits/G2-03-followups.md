@@ -30,6 +30,7 @@
 - **归属**：`A-01`/`A-02`，即 `apps/web` 首次承载真实产品代码时。
 - **验收**：为包根配置文件确定规则集归属（可裁定为"构建配置沿用辅助规则集"），并给出反例；不得以"配置文件不发布"作为免检理由而不留书面裁定。
 - **最迟关闭点**：`apps/web` 承载生产代码之前。
+- **处置注记（2026-08-01，`A-01`）**：**已消费关闭**。裁定 = 构建配置沿用辅助规则集（`*.config.{ts,mts,cts}` 包根 + `hvigorfile.ts` 任意深度），书面裁定落 [ADR-0028 §4](../adr/0028-A-01Alpha信息架构状态机冻结与缺失设计稿处置.md)；反例三条（electron/L3 壳/@ohos 注入 `vite.config.ts` 分别触发 ELECTRON_FORBIDDEN/LAYER_DIRECTION_FORBIDDEN/ARKTS_FORBIDDEN）与正面三条（node:* 放行、计入 auxiliaryFiles、全仓 unclassified 14→11）均在 `tools/quality/test/layering.integration.test.ts`；触发时点即 D2 裁定原型可运行。
 
 ## MI-04：平台宇宙由"有壳登记"派生，无壳平台无法表达为处处禁止
 

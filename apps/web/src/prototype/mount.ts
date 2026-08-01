@@ -75,7 +75,11 @@ export function mountPrototype(root: HTMLElement): void {
   show(0);
 }
 
-function appendList(parent: HTMLElement, heading: string, entries: readonly string[]): void {
+function appendList(
+  parent: HTMLElement,
+  heading: string,
+  entries: readonly string[],
+): void {
   const label = document.createElement("h4");
   label.textContent = heading;
   const list = document.createElement("ul");

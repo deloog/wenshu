@@ -82,9 +82,7 @@ export function buildStateScreens(): readonly StateScreenViewModel[] {
   return Object.freeze(listUxStates().map((state) => buildScreen(state)));
 }
 
-export function buildScreenFor(
-  stateId: string,
-): StateScreenViewModel | undefined {
+export function buildScreenFor(stateId: string): StateScreenViewModel | undefined {
   const state = getUxState(stateId);
   return state === undefined ? undefined : buildScreen(state);
 }

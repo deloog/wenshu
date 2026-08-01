@@ -22,14 +22,10 @@ test("shell nav is exactly the eight ux-spec §3 upper-bound items, verbatim", (
 });
 
 test("exclusion list is exactly the six ux-spec §3 exclusions", () => {
-  assert.deepEqual([...IA_EXCLUSIONS], [
-    "知识图谱视图",
-    "模板市场",
-    "自动同步",
-    "多端协同",
-    "复杂表格",
-    "PPT",
-  ]);
+  assert.deepEqual(
+    [...IA_EXCLUSIONS],
+    ["知识图谱视图", "模板市场", "自动同步", "多端协同", "复杂表格", "PPT"],
+  );
 });
 
 test("settings area carries the browser-Host non-persistence note (PB-10 #5)", () => {

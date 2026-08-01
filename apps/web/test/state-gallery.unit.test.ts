@@ -57,7 +57,10 @@ test("acceptance line: every contract obligation is present in its screen", () =
 test("screen transitions resolve to known state labels", () => {
   for (const screen of buildStateScreens()) {
     for (const target of screen.transitions) {
-      assert.equal(UX_STATES.states.some((state) => state.id === target.id), true);
+      assert.equal(
+        UX_STATES.states.some((state) => state.id === target.id),
+        true,
+      );
       assert.ok(target.label.length > 0);
       assert.notEqual(target.label, target.id);
     }
@@ -72,8 +75,14 @@ test("pagination screen shows incremental-only semantics, never full repaginatio
   assert.ok(names.includes("分页·repaginationScope"));
   assert.ok(values.includes("incremental"));
   assert.ok(names.includes("分页·stalePreviewRetained"));
-  assert.equal(screen.extensions.some((entry) => entry.name.includes("fullRepagination")), false);
-  assert.equal(screen.extensions.some((entry) => entry.value.includes("fullRepagination")), false);
+  assert.equal(
+    screen.extensions.some((entry) => entry.name.includes("fullRepagination")),
+    false,
+  );
+  assert.equal(
+    screen.extensions.some((entry) => entry.value.includes("fullRepagination")),
+    false,
+  );
 });
 
 test("crash-recovery screen carries checkpoint / loss / copy obligations", () => {

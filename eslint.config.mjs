@@ -70,21 +70,40 @@ export default tseslint.config(
     rules: {
       "no-restricted-globals": [
         "error",
-        { name: "process", message: "Node globals are forbidden in apps/web/src (web layer)." },
-        { name: "Buffer", message: "Node globals are forbidden in apps/web/src (web layer)." },
-        { name: "__dirname", message: "Node globals are forbidden in apps/web/src (web layer)." },
-        { name: "__filename", message: "Node globals are forbidden in apps/web/src (web layer)." },
-        { name: "global", message: "Node globals are forbidden in apps/web/src (web layer)." },
+        {
+          name: "process",
+          message: "Node globals are forbidden in apps/web/src (web layer).",
+        },
+        {
+          name: "Buffer",
+          message: "Node globals are forbidden in apps/web/src (web layer).",
+        },
+        {
+          name: "__dirname",
+          message: "Node globals are forbidden in apps/web/src (web layer).",
+        },
+        {
+          name: "__filename",
+          message: "Node globals are forbidden in apps/web/src (web layer).",
+        },
+        {
+          name: "global",
+          message: "Node globals are forbidden in apps/web/src (web layer).",
+        },
       ],
       "no-restricted-syntax": [
         "error",
         {
-          selector: "MemberExpression[object.name='globalThis'][property.name='process']",
-          message: "globalThis.process bypasses no-restricted-globals; Node APIs are forbidden in apps/web/src.",
+          selector:
+            "MemberExpression[object.name='globalThis'][property.name='process']",
+          message:
+            "globalThis.process bypasses no-restricted-globals; Node APIs are forbidden in apps/web/src.",
         },
         {
-          selector: "MemberExpression[object.name='globalThis'][property.name='Buffer']",
-          message: "globalThis.Buffer bypasses no-restricted-globals; Node APIs are forbidden in apps/web/src.",
+          selector:
+            "MemberExpression[object.name='globalThis'][property.name='Buffer']",
+          message:
+            "globalThis.Buffer bypasses no-restricted-globals; Node APIs are forbidden in apps/web/src.",
         },
       ],
     },
