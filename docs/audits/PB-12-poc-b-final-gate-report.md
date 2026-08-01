@@ -27,7 +27,7 @@ deferred：无。
 ## 2. 验证指纹
 
 - 分支：`pb-12-e2e-gate`，PR #52（审计签署前不合入）。
-- 远程验证：run `30685092607`（8/9，链环⑤ ubuntu 杀点窗口 miss，已修复）→ run `30686146939`（static：perf-recovery.mjs 未过 prettier，已修复）→ run `30686284754`（e2e job 绿、链环⑤ 3/3 确定性命中；static：perf-recovery.mjs 裸全局 no-undef/no-unused-vars，已修复为 node: 模块导入）→ 最终全绿验证 run 待文档提交后复跑（以审计签署时 main 合入 SHA + 最终 run id 为准）。
+- 远程验证：run `30685092607`（8/9，链环⑤ ubuntu 杀点窗口 miss，已修复）→ run `30686146939`（static：perf-recovery.mjs 未过 prettier，已修复）→ run `30686284754`（e2e job 绿；static：裸全局 no-undef，已修复）→ run `30686513557`（8/9，build-staging 为 npm registry 502 基础设施抖动，非代码问题）→ **最终验证 run `30686666034` 9/9 success**（覆盖完整审计基线 `fc270e0`；审计签署以 main 合入 SHA 为准）。
 - 本地：`pnpm test:e2e` 8/8 ×6 连跑；`pnpm verify` 全绿；`pnpm quality:check` 分层零违规；SBOM 170 包（diff 仅 vite requested_by 增加 @wenshu/electron-shell）。
 
 ## 3. 诚实性边界与限制（如实登记）
