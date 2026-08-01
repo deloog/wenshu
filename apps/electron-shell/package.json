@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:scenario": "vite build --config scenario/vite.config.ts",
+    "perf:recovery": "node ./scripts/perf-recovery.mjs",
     "reverify": "cmd /d /s /c \"set ELECTRON_RUN_AS_NODE=&& set NODE_OPTIONS=--experimental-strip-types&& electron ./src/main.cjs --reverify&& node --experimental-strip-types ./scripts/verify-output.ts\"",
     "security:test": "pnpm reverify && node ./test/security-probe.mjs",
     "typecheck": "tsc -p tsconfig.json"
