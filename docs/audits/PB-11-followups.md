@@ -21,6 +21,8 @@
 
 ## 3. 强杀孤儿临时目录 → PB-12
 
+> **处置（2026-08-01，PB-12）：已消费，关闭。** W1 `recoverGrantDirectory` 双前缀扩展 + E2E 链环⑤真 SIGKILL 导入中途孤儿恢复清理；见 [PB-12-followups §1](PB-12-followups.md) 与 ADR-0027 §3。
+
 - **内容**：导入使用 `<targetRoot>.wenshu-import-<uuid>` 同级临时目录；正常失败
   路径会清理，但硬杀进程会留下该目录，而 PB-10 的 `recoverGrantDirectory` 只清
   `.wenshu-tmp-*` 前缀，两套前缀互不覆盖。

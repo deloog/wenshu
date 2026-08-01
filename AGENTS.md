@@ -96,7 +96,7 @@ docs/requirements-pool.md            需求池（不入冻结范围的新想法�
 
 ## 推送节奏（2026-07-23 起生效）
 
-本节约束的是**推送远程仓库**；本地提交不受限，应照常原子化、频繁进行。成本依据：每次推送/PR 都会触发 8 作业 ubuntu-24.04 CI 矩阵，消耗 Actions 分钟额度，过频推送会快速消耗远程资源。
+本节约束的是**推送远程仓库**；本地提交不受限，应照常原子化、频繁进行。成本依据：每次推送/PR 都会触发 9 作业 ubuntu-24.04 CI 矩阵（PB-12 起新增 e2e 真 Electron 作业），消耗 Actions 分钟额度，过频推送会快速消耗远程资源。
 
 默认：不逐提交推送；纯文档、台账、审计报告类变更累积 10–20 个再推。以下时点必须推送，不看累积数：
 
@@ -161,7 +161,7 @@ Windows 会话先按 [开发环境基线](docs/development-environment.md) 将 D
 - `pnpm test:render` / `test:integration` / `test:e2e`：运行对应已登记测试；没有真实用例时报告 `not-registered` 并以非零退出，不代表通过。
 - `pnpm test:foundation`：运行测试层级审计与并行隔离设施单元反测。
 - `pnpm format:check` / `pnpm lint` / `pnpm quality:check`：分别检查格式、静态规则和 any/抑制指令/文件体量/typecheck 覆盖。
-- `pnpm ci:job <name>` / `pnpm ci:verify`：运行单个同构 CI 作业或最多 4 路并行的 8 作业本地矩阵；不替代串行完整 `verify`。
+- `pnpm ci:job <name>` / `pnpm ci:verify`：运行单个同构 CI 作业或最多 4 路并行的 9 作业本地矩阵；不替代串行完整 `verify`。
 - `pnpm secrets:check` / `pnpm licenses:check`：扫描已跟踪/暂存秘密与实际安装依赖的许可证快速阻断项。
 - `pnpm generated:check`：动态执行全部工作区包已登记的生成漂移检查。
 - `pnpm typecheck`：严格类型检查。
