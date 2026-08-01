@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, readFile, rename, rm, stat } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
   validateKnowledgeBundle,
@@ -7,7 +7,11 @@ import {
   type ProjectManifest,
   type SemanticAuditEvent,
 } from "@wenshu/project-contract";
-import { atomicWriteFile, protectImportedFile } from "@wenshu/project-storage";
+import {
+  atomicWriteFile,
+  protectImportedFile,
+  type DirectoryGrant,
+} from "@wenshu/project-storage";
 
 import { KnowledgePackageError } from "./errors.ts";
 import { sha256 } from "./serialization.ts";
@@ -16,7 +20,7 @@ import type {
   ImportedKnowledgePackage,
 } from "./types.ts";
 import { mustValidateProjectContract } from "./validate.ts";
-import { readZip } from "./zip.ts";
+import { readZip, ZipError } from "./zip.ts";
 
 function entryBytesByPath(
   entries: ReadonlyArray<{ readonly path: string; readonly bytes: Uint8Array }>,
@@ -47,6 +51,33 @@ async function writeFileAtomicUnderRoot(
     );
   }
   await atomicWriteFile(target, bytes);
+}
+
+/**
+ * The grant is the authorization boundary (ADR-0026 §4): the target root must
+ * resolve to the grant root itself or a descendant, and the grant must be
+ * writable. Anything else fails closed before any filesystem mutation.
+ */
+function assertTargetWithinGrant(targetRoot: string, grant: DirectoryGrant): void {
+  if (grant.mode !== "read_write") {
+    throw new KnowledgePackageError(
+      "PACKAGE_GRANT_SCOPE_VIOLATION",
+      `grant mode ${grant.mode} does not authorize import writes`,
+    );
+  }
+  const grantRoot = resolve(grant.root);
+  const relativePath = relative(grantRoot, targetRoot);
+  const escapes =
+    relativePath !== "" &&
+    (isAbsolute(relativePath) ||
+      relativePath === ".." ||
+      relativePath.startsWith(`..${sep}`));
+  if (escapes) {
+    throw new KnowledgePackageError(
+      "PACKAGE_GRANT_SCOPE_VIOLATION",
+      "import target root is outside the authorized grant directory",
+    );
+  }
 }
 
 function parseManifest(manifestBytes: Uint8Array): KnowledgePackageManifest {
@@ -126,16 +157,19 @@ async function verifyEntryHashes(
 }
 
 /**
- * Import a knowledge package into a brand-new directory. Extraction is staged
- * in a sibling temp directory; only after every byte hash is verified and the
- * project contract bundle validates does the temp directory become the final
- * project root. On any failure the temp directory is removed and the target
- * root is never created.
+ * Import a knowledge package into a brand-new directory. The target root must
+ * be the grant root itself or a descendant of it, and the grant must be
+ * writable; otherwise the import fails closed before touching the filesystem.
+ * Extraction is staged in a sibling temp directory; only after every byte hash
+ * is verified and the project contract bundle validates does the temp
+ * directory become the final project root. On any failure the temp directory
+ * is removed and the target root is never created.
  */
 export async function importKnowledgePackage(
   options: ImportKnowledgePackageOptions,
 ): Promise<ImportedKnowledgePackage> {
   const targetRoot = resolve(options.targetRoot);
+  assertTargetWithinGrant(targetRoot, options.grant);
   const sourceBytes = await readFile(options.sourcePath).catch((error: unknown) => {
     throw new KnowledgePackageError(
       "PACKAGE_IO_FAILURE",
@@ -163,6 +197,23 @@ export async function importKnowledgePackage(
       );
     }
     const manifest = parseManifest(manifestBytes);
+
+    // Bidirectional reconciliation: every archived payload must be declared in
+    // the manifest (undeclared files fail closed), and every declared entry
+    // must exist (covered by verifyEntryHashes below).
+    const declaredPaths = new Set(manifest.entries.map((entry) => entry.path));
+    for (const zipEntry of zipEntries) {
+      if (zipEntry.path === "manifest.json") {
+        continue;
+      }
+      if (!declaredPaths.has(zipEntry.path)) {
+        throw new KnowledgePackageError(
+          "PACKAGE_UNDECLARED_ENTRY",
+          `package contains a file not declared in the manifest: ${zipEntry.path}`,
+          { path: zipEntry.path },
+        );
+      }
+    }
 
     await mkdir(dirname(targetRoot), { recursive: true });
     tempRoot = await mkdtemp(`${targetRoot}.wenshu-import-`);
@@ -195,6 +246,13 @@ export async function importKnowledgePackage(
     }
 
     // Register imported material files as originals before the final rename.
+    // The grant boundary above guarantees grant.root covers targetRoot, so the
+    // registration lands in a grant that actually contains these files. The
+    // PB-10 protection model is flat-name based: host writes can only address
+    // safe file names directly at the grant root, so a registered material
+    // name blocks overwrite of a same-named original at every host-addressable
+    // location; files in subdirectories are structurally unreachable through
+    // host file writes.
     for (const entry of manifest.entries) {
       if (entry.role === "truth.material") {
         protectImportedFile(options.grant, basename(entry.path));
@@ -211,6 +269,12 @@ export async function importKnowledgePackage(
     }
     if (error instanceof KnowledgePackageError) {
       throw error;
+    }
+    if (error instanceof ZipError) {
+      throw new KnowledgePackageError(
+        "PACKAGE_ZIP_INVALID",
+        `invalid zip [${error.code}]: ${error.message}`,
+      );
     }
     throw new KnowledgePackageError(
       "PACKAGE_IO_FAILURE",
