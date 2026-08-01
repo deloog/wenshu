@@ -16,41 +16,47 @@
  * (EN-N2): artifacts/perf/2026-08-01-PB-12/recovery-e2e-samples.json.
  */
 import { spawn, spawnSync } from "node:child_process";
+import console from "node:console";
+import { performance } from "node:perf_hooks";
+import { clearTimeout, setTimeout } from "node:timers";
 import { createRequire } from "node:module";
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const EXPECTED_NODE = "v24.17.0";
 const BATCH_DIR = fileURLToPath(
-  new URL("../../../artifacts/perf/2026-08-01-PB-12/", import.meta.url),
+  new globalThis.URL("../../../artifacts/perf/2026-08-01-PB-12/", import.meta.url),
 );
-const shellDir = fileURLToPath(new URL("..", import.meta.url));
-const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+const shellDir = fileURLToPath(new globalThis.URL("..", import.meta.url));
+const repoRoot = fileURLToPath(new globalThis.URL("../../..", import.meta.url));
 const electronBinary = createRequire(import.meta.url)("electron");
 
 function assertEnvironment() {
-  if (process.version !== EXPECTED_NODE) {
+  if (globalThis.process.version !== EXPECTED_NODE) {
     throw new Error(
       `perf sampling requires Node ${EXPECTED_NODE} with the D-drive toolchain ` +
-        `first in PATH (got ${process.version} at ${process.execPath}); ` +
+        `first in PATH (got ${globalThis.process.version} at ${globalThis.process.execPath}); ` +
         `refusing to pollute machine evidence (PB-10 MAJOR-4)`,
     );
   }
-  if (process.platform === "win32" && !/^[A-Za-z]:[\\/]/.test(process.execPath)) {
-    throw new Error(`unexpected Node location: ${process.execPath}`);
+  if (
+    globalThis.process.platform === "win32" &&
+    !/^[A-Za-z]:[\\/]/.test(globalThis.process.execPath)
+  ) {
+    throw new Error(`unexpected Node location: ${globalThis.process.execPath}`);
   }
 }
 
 function runStep(label, command, args, options = {}) {
-  const npmExecPath = process.env["npm_execpath"];
+  const npmExecPath = globalThis.process.env["npm_execpath"];
   if (npmExecPath === undefined || npmExecPath === "") {
     throw new Error("npm_execpath is required; run this script through pnpm");
   }
   const result = spawnSync(command, [npmExecPath, ...args], {
     cwd: options.cwd ?? repoRoot,
-    env: { ...process.env, ...options.env },
+    env: { ...globalThis.process.env, ...options.env },
     stdio: "inherit",
   });
   if (result.status !== 0) {
@@ -60,7 +66,7 @@ function runStep(label, command, args, options = {}) {
 
 function spawnElectron(args, env) {
   const childEnv = {
-    ...process.env,
+    ...globalThis.process.env,
     NODE_OPTIONS: "--experimental-strip-types",
     ...env,
   };
@@ -190,13 +196,13 @@ async function sampleOnce(iteration) {
 
 async function main() {
   assertEnvironment();
-  console.log(`node: ${process.version} at ${process.execPath}`);
-  runStep("env:record", process.execPath, [
+  console.log(`node: ${globalThis.process.version} at ${globalThis.process.execPath}`);
+  runStep("env:record", globalThis.process.execPath, [
     "--filter",
     "@wenshu/environment",
     "record",
   ]);
-  runStep("build:scenario", process.execPath, [
+  runStep("build:scenario", globalThis.process.execPath, [
     "--filter",
     "@wenshu/electron-shell",
     "build:scenario",
@@ -244,5 +250,5 @@ async function main() {
 
 main().catch((error) => {
   console.error(error instanceof Error ? (error.stack ?? error.message) : error);
-  process.exitCode = 1;
+  globalThis.process.exitCode = 1;
 });
