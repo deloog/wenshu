@@ -169,13 +169,16 @@ async function expectImportFailure(
   grantRoot: string,
   expectedCode: KnowledgePackageError["code"],
   mode: "read_write" | "read_only" = "read_write",
+  messageIncludes?: string,
 ): Promise<void> {
   const grants = createGrantTable();
   const grant = grants.register(grantRoot, mode);
   await assert.rejects(
     () => importKnowledgePackage({ sourcePath, targetRoot, grant }),
     (error: unknown) =>
-      error instanceof KnowledgePackageError && error.code === expectedCode,
+      error instanceof KnowledgePackageError &&
+      error.code === expectedCode &&
+      (messageIncludes === undefined || error.message.includes(messageIncludes)),
   );
   await assert.rejects(
     () => import("node:fs/promises").then((fs) => fs.stat(targetRoot)),
@@ -414,5 +417,56 @@ test("a stored incompressible entry beyond the cap fails closed", async () => {
     join(dir, "project"),
     dir,
     "PACKAGE_ZIP_INVALID",
+  );
+});
+
+test("a lying bomb (declared small, inflates beyond the cap) is stopped mid-inflate", async () => {
+  const exported = buildPackage();
+  const manifestEntry = readZip(exported.bytes).find(
+    (entry) => entry.path === "manifest.json",
+  );
+  assert.ok(manifestEntry);
+  // Real bombs lie: the header declares 100 bytes while the deflate stream
+  // inflates past the per-entry cap. The declared-size precheck is blind to
+  // this; zlib's maxOutputLength is the only guard, so the test asserts the
+  // rejection comes from the inflate path ("inflate failed"), not from the
+  // post-inflate size-mismatch check that would also reject (same code) if
+  // maxOutputLength were silently removed.
+  const zip = createZip([
+    {
+      path: "bomb.bin",
+      bytes: new Uint8Array(MAX_ENTRY_UNCOMPRESSED_BYTES + 1),
+    },
+    { path: manifestEntry.path, bytes: manifestEntry.bytes },
+  ]);
+  const raw = Buffer.from(zip);
+  const bombName = Buffer.from("bomb.bin", "utf8");
+  let patched = 0;
+  for (let offset = 0; offset + 46 <= raw.length; offset += 1) {
+    const signature = raw.readUInt32LE(offset);
+    if (signature === 0x04034b50) {
+      const nameLength = raw.readUInt16LE(offset + 26);
+      if (raw.subarray(offset + 30, offset + 30 + nameLength).equals(bombName)) {
+        raw.writeUInt32LE(100, offset + 22); // local header: uncompressed size
+        patched += 1;
+      }
+    } else if (signature === 0x02014b50) {
+      const nameLength = raw.readUInt16LE(offset + 28);
+      if (raw.subarray(offset + 46, offset + 46 + nameLength).equals(bombName)) {
+        raw.writeUInt32LE(100, offset + 24); // central directory: uncompressed size
+        patched += 1;
+      }
+    }
+  }
+  assert.equal(patched, 2, "both header copies of the declared size patched");
+
+  const dir = await tempDir("wenshu-pkg-lying-bomb-");
+  await expectImportFailure(
+    await writePackage(dir, new Uint8Array(raw)),
+    join(dir, "project"),
+    dir,
+    "PACKAGE_ZIP_INVALID",
+    "read_write",
+    "inflate failed",
   );
 });

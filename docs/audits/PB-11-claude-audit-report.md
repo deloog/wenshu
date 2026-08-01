@@ -109,3 +109,86 @@ pnpm verify                                     # exit 0
 ---
 
 *本报告由独立审计角色出具；台账与代码修复由实施者完成。审计期间仅新增本文件。*
+
+---
+
+# 9. 复审记录（2026-08-01）· 结论 CONDITIONAL PASS
+
+> 复审对象：`e451978`（`fix(pb-11): close audit FAIL findings — grant boundary, zip limits, entry reconciliation`），分支 `pb-11-remediation` / PR #51，**未合入**。
+> 复审方法：隔离克隆更新到 `e451978` → 全套件与 `pnpm verify` 独立复跑 → **自建 20 条对抗探针**（grant 边界六态、走私条目、手工构造的"说谎型"压缩炸弹、原始字节穿越、五类单点篡改不回潮、真实 Host 原件保护）→ **对三条新守卫逐一做失效方向变异**。
+> 我的首审报告（§1–§8）经比对**逐字未被改动**。
+
+## 9.1 结论
+
+**CONDITIONAL PASS —— MAJOR-1、MAJOR-2 与 MI-01～MI-06 全部关闭；一项条件 C1 须在合并前完成。** 无未关闭 BLOCKER/MAJOR。
+
+## 9.2 MAJOR 复核（我的独立结果）
+
+**MAJOR-1（grant 边界）关闭。** 我把六种形态逐个喂进真实 API：
+
+```text
+target == grant root 本身                  -> IMPORTED
+target 位于 grant 之内（正常）              -> IMPORTED
+target 在 grant 之外（首审那个洞）          -> REJECTED  PACKAGE_GRANT_SCOPE_VIOLATION
+前缀陷阱 grant=<b>/ab  target=<b>/abc       -> REJECTED  PACKAGE_GRANT_SCOPE_VIOLATION
+父级逃逸 target = grant/..                  -> REJECTED  PACKAGE_GRANT_SCOPE_VIOLATION
+read_only grant                             -> REJECTED  PACKAGE_GRANT_SCOPE_VIOLATION
+```
+
+`assertTargetWithinGrant` 是 `importKnowledgePackage` 的第一条语句（`resolve` 之后、任何 `mkdir`/`mkdtemp` 之前），fail-closed 先于文件系统变更成立。**决定性变异**：我把该调用去掉 ⇒ 3 条边界测试变红（20→17 pass/3 fail）。
+
+**连带的原件保护我用真实 Host 端到端验了**（这是首审判定"装饰性"的那一条）：用**导入方登记进去的同一张 grant 表**驱动真实 `createFileHost`，对材料文件名发 `file.export.write` 且 `overwrite: true`：
+
+```text
+-> failure HOST_PERMISSION_DENIED
+   material bytes on disk unchanged: true
+```
+
+PB-10 的原件保护现在真的咬得住。`import.ts` 里那段关于"平文件名模型 + 子目录经 Host 结构性不可达"的注释论证成立，且已如实登记为 [followups #4](PB-11-followups.md)。
+
+**MAJOR-2（流程）已按裁定恢复。** `origin/main` 仍停在 `ed0dc27`，修复分支未合入，PR #51 挂起待复审——「审计通过后才合并」的流程已回到 PB-10 的形态。
+
+## 9.3 MINOR 复核
+
+| ID | 判定 | 我的独立证据 |
+|---|---|---|
+| MI-01 | **关闭** | 收窄口径写入 [ADR-0026 §7.1](../adr/0026-PB-11知识包导出与干净环境重导入.md)（业主 2026-08-01 书面批准）与 project-contract，措辞与我首审实测一致——明写"自洽改写不可检出…需签名/外部信任锚，不在 PB-11 范围"，并登记为 PB-12/A-15 承接。**没有把边界说成能力** |
+| MI-02 | **关闭（带条件 C1）** | 上限已落地。我手工构造**说谎型**炸弹（199 KiB 压缩 → 实际 200 MiB，声明 100 字节）⇒ `readZip` 拒（`CORRUPT`），经导入口面成 `PACKAGE_ZIP_INVALID`。另新增 ZIP 重复路径拒绝，属额外加固 |
+| MI-03 | **关闭** | 原始字节穿越包与截断包现在都是 `PACKAGE_ZIP_INVALID`（首审是 `PACKAGE_IO_FAILURE`），且保留 `ZipError` 原因码 |
+| MI-04 | **关闭** | 走私文件 → `PACKAGE_UNDECLARED_ENTRY`；"derived 文件在、manifest 条目不在" → 同样拒绝（首审这条静默通过，是任务书 §4 第 2 项）；"文件与条目都删" 仍正常导入。**决定性变异**：短路对账 ⇒ 1 条测试变红 |
+| MI-05 | **关闭（记录性）** | 批准出处已写入实施记录 §3 D2 行并注明业主 2026-08-01 再次确认。该批准本身属业主与实施者之间的事实，我只能核到"已如实登记"，不能独立证真 |
+| MI-06 | **关闭** | §5 CI 勾选项已按 run `30648388219` 实际结果更正 |
+
+## 9.4 合并前的条件
+
+**C1（MI-02 的回归守卫缺口）**：真正挡住压缩炸弹的是 `inflateRawSync(compressed, { maxOutputLength })`，**但它没有任何测试覆盖**。
+
+- 新增的两条上限测试（`an entry beyond the uncompressed size cap fails closed` / `a stored incompressible entry beyond the cap fails closed`）构造的都是**如实声明**超限的归档，命中的是 `uncompressedSize > MAX_ENTRY_UNCOMPRESSED_BYTES` 这条**声明值**检查。
+- 而真实炸弹一定**说谎**：声明 100 字节、实际解出 GB 级。声明值检查对它无效（声明由攻击者控制），唯一防线是 `maxOutputLength`。
+- **我的变异证据**：把 `maxOutputLength` 选项删掉（回到首审那种裸 `inflateRawSync(compressed)`）⇒ **20/20 仍全绿**。即：这条承重防线可以被静默移除而 CI 毫无反应——与 PB-10 MAJOR-5 同一形态的隐患。
+- **要求**：补一条决定性测试，用**声明小、实际大**的归档（我的探针即可作模板：`deflateRawSync` 一大块零字节，local/central header 里把 uncompressed size 写成 100），断言拒绝；并确认删掉 `maxOutputLength` 后该测试变红。
+
+## 9.5 非回潮与本轮复跑
+
+```text
+隔离克隆 @ e451978（D 盘冻结 Node v24.17.0）
+pnpm install --frozen-lockfile            成功
+pnpm --filter @wenshu/knowledge-package test   20/20
+pnpm verify                                    exit 0
+五类真源单点翻位                                5/5 仍 PACKAGE_HASH_MISMATCH（不回潮）
+变异：去掉 grant 边界检查                       3 条变红
+变异：短路未声明条目对账                        1 条变红
+变异：去掉 inflate maxOutputLength              0 条变红  ← C1
+```
+
+首审 §2 的全部通过项（m-01 字节级哈希、交叉校验第二道、穿越拒绝、派生可删、事务不留半包、子进程 round-trip、零新增依赖、L2 分层）本轮均未回潮。
+
+## 9.6 NOTE（不作为条件）
+
+- `assertTargetWithinGrant` 做的是**字符串包含**判定，不解析 realpath。授权目录内若存在指向外部的符号链接，`targetRoot` 在字符串上"在 grant 内"而实际落在外面。与 PB-10 MI-05 的残余同类；Windows 建符号链接需权限，本项未实测，按语义登记。
+- 路线图 §6 `PB-11` 行的完成证据列仍写着绝对语气的"所有真源篡改拒绝"，收窄口径只记在 ADR §7.1。建议在台账行证据里补一句指向 ADR §7.1，否则只读路线图的人仍会看到未收窄的表述。
+- 台账 `PB-11` 行状态 `🔄 已实现，首审 FAIL 修复待复审` 与事实一致；C1 关闭后同轮改 ✅ 并补修复轮 PR/CI 指纹（按 AGENTS 台账证据指纹规则，用合入 `main` 的提交）。
+
+## 9.7 放行
+
+C1 完成后即可标 ✅、合并 PR #51 并放行 `PB-12`/`A-11`。C1 是补一条测试，不动生产逻辑，完成后把 9.4 的变异实验重跑贴结果，我确认即可，不需重跑完整复审。

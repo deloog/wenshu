@@ -77,7 +77,7 @@ packages/knowledge-package/
 ## 5. 验证清单
 
 - [x] `pnpm --filter @wenshu/knowledge-package typecheck` 通过
-- [x] `pnpm --filter @wenshu/knowledge-package test` 20/20 通过（首审修复后：10 原有 + 10 边界对抗，含 1 条新增存储炸弹用例）
+- [x] `pnpm --filter @wenshu/knowledge-package test` 21/21 通过（首审修复后：10 原有 + 11 边界对抗）
 - [x] 干净环境 round-trip（同一进程）
 - [x] 干净环境 round-trip（独立 Node 子进程）
 - [x] 逐类真源篡改拒绝：truth.project、truth.audit、truth.document、truth.template、truth.material
@@ -117,8 +117,9 @@ Claude 首审 [`FAIL`](../audits/PB-11-claude-audit-report.md)：2 MAJOR + 6 MIN
 | MI-04 未声明文件静默接受 | 已修：ZIP 条目↔manifest 双向对账，`PACKAGE_UNDECLARED_ENTRY`；ZIP 重复路径即拒 |
 | MI-05 归属表批准出处 | 业主 2026-08-01 确认开工裁定 D2 即批准，出处已写入 §3 D2 行 |
 | MI-06 实施记录与事实不符 | 已修：§5 CI 勾选项按 run `30648388219` 实际结果更正 |
+| 复审 C1 挡炸弹行无决定性测试 | 已修：新增说谎型炸弹测试（header 声明 100 字节、deflate 实际超限），断言错误码 **且** 命中 "inflate failed" 路径；仅断言错误码不决定性（删除 maxOutputLength 后会退化为同码 size mismatch），故断言消息路径。变异重跑（复审 §9.4 同法）：删除 `maxOutputLength` → **说谎炸弹测试变红**，如实声明的 DEFLATE/STORE 炸弹仍绿（各自由声明前置检查把守）——三条上限防线各有独立决定性反例 |
 
-新增对抗测试 10 条（`test/package-boundary.integration.test.ts`）：grant 外/前缀陷阱/read_only/相等正例、原件保护真实 Host 强制点、走私文件、截断包、原始字节穿越、DEFLATE/STORE 双炸弹。NOTE 项（崩溃残留孤儿目录、`formal_versions` 空、目标须不存在）转入 [PB-11-followups](PB-11-followups.md)。
+新增对抗测试 11 条（`test/package-boundary.integration.test.ts`）：grant 外/前缀陷阱/read_only/相等正例、原件保护真实 Host 强制点、走私文件、截断包、原始字节穿越、DEFLATE/STORE/说谎三型炸弹。NOTE 项（崩溃残留孤儿目录、`formal_versions` 空、目标须不存在、grant 边界不解析 realpath）转入 [PB-11-followups](PB-11-followups.md)。
 
 ## 8. 变更清单
 
