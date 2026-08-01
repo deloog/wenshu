@@ -173,7 +173,46 @@ export function createFileHost(options: FileHostOptions): FileHost {
     }
   }
 
+  /**
+   * Envelope for the serialized pipeline: any unexpected throw from the
+   * contract-validation phase (before a capability handler is even reached)
+   * must still produce exactly one protocol terminal when the request is
+   * addressable, instead of escaping raw to the caller (host-contract §3/§4;
+   * PB-12 audit MAJOR-1 follow-up hardening). Unaddressable messages keep
+   * the existing fail-closed FileHostProtocolError.
+   */
   async function invokeSerialized(request: unknown): Promise<unknown> {
+    try {
+      return await invokeSerializedInner(request);
+    } catch (error) {
+      if (error instanceof FileHostProtocolError) {
+        throw error;
+      }
+      const protocolVersion =
+        rawField(request, "protocol_version") === "0.1.0"
+          ? "0.1.0"
+          : HOST_PROTOCOL_VERSION_V0_2;
+      const requestId = rawField(request, "request_id");
+      const capability = knownCapability(request);
+      if (
+        requestId === undefined ||
+        !REQUEST_ID_PATTERN.test(requestId) ||
+        capability === undefined
+      ) {
+        throw new FileHostProtocolError();
+      }
+      const terminal = failureMessage(
+        protocolVersion,
+        requestId,
+        capability,
+        "INTERNAL",
+      );
+      assertSelfValid(terminal);
+      return terminal;
+    }
+  }
+
+  async function invokeSerializedInner(request: unknown): Promise<unknown> {
     const parsed = validateHostContract(request);
     const protocolVersion =
       rawField(request, "protocol_version") === "0.1.0"

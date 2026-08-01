@@ -27,6 +27,24 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 
 import { MATERIAL_ID, MATERIAL_MARKDOWN } from "../scenario/fixture.ts";
+
+/**
+ * Deterministic kill-delay PRNG (testing-strategy: failures must be
+ * replayable). The seed is injectable via PB12_KILL_SEED for hunting;
+ * every run logs the seed and the delays it produced.
+ */
+const KILL_DELAY_SEED = Number.parseInt(
+  process.env["PB12_KILL_SEED"] ?? "12648430",
+  10,
+);
+
+function makeKillDelayPrng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
 import {
   awaitExit,
   canonicalJsonBytes,
@@ -134,6 +152,8 @@ test(
   "chain 4: SIGKILL mid-save never leaves a partial document (3 rounds)",
   { timeout: 240_000 },
   async (t) => {
+    const killDelayRandom = makeKillDelayPrng(KILL_DELAY_SEED);
+    t.diagnostic(`kill delay seed=${KILL_DELAY_SEED} (PB12_KILL_SEED injectable)`);
     const dir = await makeTempDir("wenshu-pb12-killsave-");
     t.after(() => rm(dir, { recursive: true, force: true }));
     const workdir = join(dir, "workdir");
@@ -161,7 +181,7 @@ test(
           reportLines.filter((line) => line["type"] === "save-loop").length >= 2,
         60_000,
       );
-      const delay = 100 + Math.floor(Math.random() * 600);
+      const delay = 100 + Math.floor(killDelayRandom() * 600);
       await sleep(delay);
       const killExit = await killAndAwait(loop);
       assert.equal(
@@ -169,7 +189,10 @@ test(
         "SIGKILL",
         `round ${round}: expected SIGKILL, got ${JSON.stringify(killExit)}`,
       );
-      t.diagnostic(`round ${round}: SIGKILL ${delay} ms after 2nd save-loop report`);
+      t.diagnostic(
+        `round ${round}: SIGKILL ${delay} ms after 2nd save-loop report ` +
+          `(seed=${KILL_DELAY_SEED})`,
+      );
 
       const versions = [
         ...new Set(
@@ -316,6 +339,7 @@ test(
   "chain 6: recovery end-to-end reaches the ready marker under 10 s",
   { timeout: 180_000 },
   async (t) => {
+    const killDelayRandom = makeKillDelayPrng(KILL_DELAY_SEED);
     const dir = await makeTempDir("wenshu-pb12-rectime-");
     t.after(() => rm(dir, { recursive: true, force: true }));
     const workdir = join(dir, "workdir");
@@ -341,7 +365,7 @@ test(
         reportLines.filter((line) => line["type"] === "save-loop").length >= 2,
       60_000,
     );
-    await sleep(20 + Math.floor(Math.random() * 60));
+    await sleep(20 + Math.floor(killDelayRandom() * 60));
     assert.equal((await killAndAwait(loop)).signal, "SIGKILL");
     const versions = [
       ...new Set(

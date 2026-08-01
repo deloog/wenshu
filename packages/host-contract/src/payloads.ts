@@ -70,8 +70,46 @@ function issue(code: HostContractIssueCode, path: string): HostContractIssue {
   return Object.freeze({ code, path });
 }
 
+/**
+ * Programmatic RFC 4648 base64 check: exactly the same language as the frozen
+ * pattern `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$`
+ * (groups of 4 alphabet chars, optional final `XX==` or `XXX=` group, empty
+ * string allowed), but O(n) with zero backtracking. The regex form exhausted
+ * the V8 RegExp stack on ~4 MiB inputs — deep inside the advertised 64 MiB
+ * range — and escaped as a raw RangeError with no protocol terminal state
+ * (PB-12 audit MAJOR-1). Exported for the language-equivalence tests.
+ */
+export function isContentBase64(value: string): boolean {
+  const length = value.length;
+  if (length % 4 !== 0) {
+    return false;
+  }
+  let padding = 0;
+  while (padding < length && value.charCodeAt(length - 1 - padding) === 61) {
+    padding += 1;
+  }
+  if (padding > 2) {
+    return false;
+  }
+  const bodyLength = length - padding;
+  for (let index = 0; index < bodyLength; index += 1) {
+    const code = value.charCodeAt(index);
+    const inAlphabet =
+      (code >= 65 && code <= 90) || // A-Z
+      (code >= 97 && code <= 122) || // a-z
+      (code >= 48 && code <= 57) || // 0-9
+      code === 43 || // +
+      code === 47; // /
+    if (!inAlphabet) {
+      return false;
+    }
+  }
+  return true;
+}
+
 const payloadsSchemaId = payloadsSchema.$id;
 const ajv = new Ajv2020({ allErrors: true, strict: true });
+ajv.addFormat("content-base64", { type: "string", validate: isContentBase64 });
 ajv.addSchema(payloadsSchema);
 
 const validators = new Map<string, ValidateFunction>();
