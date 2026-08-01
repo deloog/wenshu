@@ -3,7 +3,7 @@
 > 任务 ID：PB-11
 > 范围来源：路线图 §6
 > R-* 标注：R-OUTPUT / R-DATA
-> 状态：已实现，首审 FAIL 修复完成，待 Claude 复审
+> 状态：✅ 已完成（Claude 独立审计 CONDITIONAL PASS，条件全清；PR #50 `ed0dc27` + 修复轮 PR #51 `890f86f`）
 
 ## 1. 一句话完成目标
 
@@ -94,7 +94,7 @@ packages/knowledge-package/
 - [x] 未声明走私文件 `PACKAGE_UNDECLARED_ENTRY`；截断包与原始字节穿越改写均为 `PACKAGE_ZIP_INVALID`（不再与磁盘故障同码）
 - [x] 解压上限：DEFLATE 炸弹与 STORE 炸弹均 fail-closed
 - [x] `sbom.json` 重建（170 包，仅新增 `@wenshu/knowledge-package` workspace 条目）
-- [x] 远程 CI 8/8（首轮实现 PR #50，run `30648388219` 全部 success）；修复轮 CI 见复审记录
+- [x] 远程 CI 8/8（首轮实现 PR #50，run `30648388219` 全部 success；修复轮 PR #51，run `30676314586` 全部 success）
 
 ## 6. 已知限制
 
