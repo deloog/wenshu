@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Wenshu PB-12 E2E scenario</title>
+  </head>
+  <body>
+    <main id="app">PB-12 E2E scenario runner</main>
+    <!--
+      The bundle is built by `pnpm build:scenario` (vite, IIFE) into
+      dist-scenario/main.js. A classic script tag is required because Chromium
+      blocks ES module scripts over file:// origins.
+    -->
+    <script src="./main.js" defer></script>
+  </body>
+</html>

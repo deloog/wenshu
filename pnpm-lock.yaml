@@ -74,9 +74,21 @@ importers:
 
   apps/electron-shell:
     dependencies:
+      '@wenshu/document-model':
+        specifier: workspace:*
+        version: link:../../packages/document-model
+      '@wenshu/editor-diff':
+        specifier: workspace:*
+        version: link:../../packages/editor-diff
+      '@wenshu/editor-transactions':
+        specifier: workspace:*
+        version: link:../../packages/editor-transactions
       '@wenshu/host-contract':
         specifier: workspace:*
         version: link:../../packages/host-contract
+      '@wenshu/knowledge-package':
+        specifier: workspace:*
+        version: link:../../packages/knowledge-package
       '@wenshu/markdown-import':
         specifier: workspace:*
         version: link:../../packages/markdown-import
@@ -86,12 +98,24 @@ importers:
       '@wenshu/pdf-export':
         specifier: workspace:*
         version: link:../../packages/pdf-export
+      '@wenshu/project-contract':
+        specifier: workspace:*
+        version: link:../../packages/project-contract
       '@wenshu/project-storage':
         specifier: workspace:*
         version: link:../../packages/project-storage
       '@wenshu/report-checks':
         specifier: workspace:*
         version: link:../../packages/report-checks
+      '@wenshu/semantic-audit':
+        specifier: workspace:*
+        version: link:../../packages/semantic-audit
+      '@wenshu/semantic-editor':
+        specifier: workspace:*
+        version: link:../../packages/semantic-editor
+      '@wenshu/semantic-tools':
+        specifier: workspace:*
+        version: link:../../packages/semantic-tools
       '@wenshu/template-model':
         specifier: workspace:*
         version: link:../../packages/template-model
@@ -105,6 +129,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.1.5(@types/node@24.13.3)(yaml@2.9.0)
 
   apps/web:
     dependencies:
