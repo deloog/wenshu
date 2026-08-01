@@ -1,0 +1,224 @@
+{
+  "stateVersion": "1.0.0",
+  "states": [
+    {
+      "id": "empty-project",
+      "label": "初次/空项目",
+      "uxSpecRow": 1,
+      "evidenceSource": "ux-spec-must-present",
+      "requiredPresentation": ["支持的输入", "示例", "下一步"],
+      "forbiddenSemantics": ["不出现无意义空白编辑器"],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "空项目引导以文字列出支持的输入、示例与下一步",
+        "focusEntry": "焦点落在「下一步」主操作",
+        "noColorOnly": true
+      },
+      "transitions": ["importing", "ai-processing"]
+    },
+    {
+      "id": "importing",
+      "label": "导入中",
+      "uxSpecRow": 2,
+      "evidenceSource": "roadmap-completion-evidence",
+      "requiredPresentation": ["文件名", "阶段", "进度", "取消", "原文件只读"],
+      "forbiddenSemantics": [],
+      "cancelable": true,
+      "a11y": {
+        "textEquivalent": "导入进度以文字百分比与阶段名表达，不靠进度条颜色",
+        "focusEntry": "焦点落在「取消」按钮",
+        "noColorOnly": true
+      },
+      "transitions": [
+        "import-partial",
+        "ai-processing",
+        "permission-denied",
+        "crash-recovery"
+      ]
+    },
+    {
+      "id": "import-partial",
+      "label": "导入部分成功",
+      "uxSpecRow": 3,
+      "evidenceSource": "roadmap-completion-evidence",
+      "requiredPresentation": ["成功内容", "失败附件", "原因", "可重试项"],
+      "forbiddenSemantics": ["不整体吞掉结果"],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "成功与失败条目均以文字清单列出，失败原因可读",
+        "focusEntry": "焦点落在第一个可重试项",
+        "noColorOnly": true
+      },
+      "transitions": ["importing", "ai-processing"]
+    },
+    {
+      "id": "ai-processing",
+      "label": "AI 处理中",
+      "uxSpecRow": 4,
+      "evidenceSource": "roadmap-completion-evidence",
+      "requiredPresentation": ["使用的模型/材料范围", "可取消", "预计费用或 BYOK 状态"],
+      "forbiddenSemantics": [],
+      "cancelable": true,
+      "a11y": {
+        "textEquivalent": "处理阶段以文字说明当前动作与所用材料范围",
+        "focusEntry": "焦点落在「取消」按钮",
+        "noColorOnly": true
+      },
+      "transitions": ["ai-result", "offline-degraded", "crash-recovery"]
+    },
+    {
+      "id": "ai-result",
+      "label": "AI 结果",
+      "uxSpecRow": 5,
+      "evidenceSource": "ux-spec-must-present",
+      "requiredPresentation": ["变更范围", "diff", "出处", "accept/reject"],
+      "forbiddenSemantics": ["未接受不改正式内容"],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "diff 增删以文字标记（新增/删除）而非仅红绿着色",
+        "focusEntry": "焦点落在第一处 diff 裁决控件",
+        "noColorOnly": true
+      },
+      "transitions": ["ai-processing", "pagination", "save-result"]
+    },
+    {
+      "id": "pagination",
+      "label": "分页中",
+      "uxSpecRow": 6,
+      "evidenceSource": "roadmap-completion-evidence",
+      "requiredPresentation": ["当前阶段", "可取消", "旧预览保留到新结果可用"],
+      "forbiddenSemantics": [],
+      "cancelable": true,
+      "a11y": {
+        "textEquivalent": "分页阶段与进度以文字表达，旧预览保留时有文字提示",
+        "focusEntry": "焦点落在「取消」按钮",
+        "noColorOnly": true
+      },
+      "transitions": ["page-issues", "pre-export", "crash-recovery"],
+      "pagination": {
+        "phase": "测量/排版/渲染的当前阶段与进度",
+        "cancelable": true,
+        "stalePreviewRetained": true,
+        "repaginationScope": "incremental",
+        "updatedPageRange": "本次增量更新的页范围（部分页已更新时旧预览仍有效）"
+      }
+    },
+    {
+      "id": "page-issues",
+      "label": "页面有问题",
+      "uxSpecRow": 7,
+      "evidenceSource": "ux-spec-must-present",
+      "requiredPresentation": [
+        "类型",
+        "严重度",
+        "页码",
+        "定位",
+        "建议",
+        "允许的人工豁免"
+      ],
+      "forbiddenSemantics": ["阻断项未处理不得默认导出正式版"],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "问题严重度以文字分级（阻断交付/建议修复/信息），不仅靠颜色",
+        "focusEntry": "焦点落在第一条阻断项的定位链接",
+        "noColorOnly": true
+      },
+      "transitions": ["pagination", "pre-export"]
+    },
+    {
+      "id": "save-result",
+      "label": "保存成功/失败",
+      "uxSpecRow": 8,
+      "evidenceSource": "dual",
+      "requiredPresentation": ["明确保存位置和版本"],
+      "forbiddenSemantics": ["失败不假装已保存"],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "保存结果以文字明确成功或失败及保存位置与版本",
+        "focusEntry": "失败时焦点落在重试/诊断入口",
+        "noColorOnly": true
+      },
+      "transitions": ["ai-result", "pre-export"]
+    },
+    {
+      "id": "pre-export",
+      "label": "导出前",
+      "uxSpecRow": 9,
+      "evidenceSource": "ux-spec-must-present",
+      "requiredPresentation": [
+        "格式承诺",
+        "字体/引用/页面检查结果",
+        "目标路径和覆盖风险"
+      ],
+      "forbiddenSemantics": [],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "各格式质量承诺与检查结果以文字列出",
+        "focusEntry": "焦点落在格式选择控件",
+        "noColorOnly": true
+      },
+      "transitions": ["save-result", "pagination", "permission-denied"]
+    },
+    {
+      "id": "offline-degraded",
+      "label": "离线/模型不可用",
+      "uxSpecRow": 10,
+      "evidenceSource": "roadmap-completion-evidence",
+      "requiredPresentation": ["本地编辑、排版、检查和导出继续可用", "AI 功能解释降级"],
+      "forbiddenSemantics": [],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "降级状态以文字说明哪些能力可用、AI 如何降级",
+        "focusEntry": "焦点落在降级说明文本",
+        "noColorOnly": true
+      },
+      "transitions": ["ai-processing", "pagination", "pre-export"],
+      "offline": {
+        "localCapabilitiesIntact": ["编辑", "排版", "检查", "导出"],
+        "aiDegradationExplanation": "模型不可用：AI 生成/改写暂停并解释原因，本地编辑、排版、检查、导出完整可用（AI 降级实现归 A-07P，本契约只冻结状态）"
+      }
+    },
+    {
+      "id": "permission-denied",
+      "label": "权限拒绝",
+      "uxSpecRow": 11,
+      "evidenceSource": "roadmap-completion-evidence",
+      "requiredPresentation": ["为什么需要", "当前可做什么", "如何重新授权"],
+      "forbiddenSemantics": ["不循环弹窗"],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "权限需求原因与可降级路径以文字说明",
+        "focusEntry": "焦点落在「如何重新授权」说明（不自动重弹授权框）",
+        "noColorOnly": true
+      },
+      "transitions": ["importing", "pre-export"],
+      "permission": {
+        "reason": "为什么需要该目录/文件权限（对应 PB-10 HOST_PERMISSION_DENIED）",
+        "availableActions": ["继续本地编辑内存中的项目", "使用已授权目录"],
+        "reauthorization": "如何重新授权：由用户主动在设置中重新发起目录授权",
+        "degradationOptions": ["仅内存会话继续工作", "导出到已授权位置"],
+        "noRetryLoop": true
+      }
+    },
+    {
+      "id": "crash-recovery",
+      "label": "崩溃恢复",
+      "uxSpecRow": 12,
+      "evidenceSource": "roadmap-completion-evidence",
+      "requiredPresentation": ["恢复到哪个检查点", "可能丢失什么", "是否另存恢复副本"],
+      "forbiddenSemantics": [],
+      "cancelable": false,
+      "a11y": {
+        "textEquivalent": "恢复检查点与丢失范围以文字明确说明",
+        "focusEntry": "焦点落在「恢复/另存副本」选择控件",
+        "noColorOnly": true
+      },
+      "transitions": ["empty-project", "ai-result"],
+      "recovery": {
+        "checkpoint": "上次成功保存（PB-12 实测恢复语义；PB-12 N3 为输入，用户沟通口径归 A-12）",
+        "potentialLoss": "至多丢失在途事务/未保存编辑",
+        "recoveryCopy": true
+      }
+    }
+  ]
+}

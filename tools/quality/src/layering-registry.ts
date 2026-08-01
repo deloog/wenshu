@@ -31,6 +31,7 @@ export const LAYERED_WORKSPACES: readonly LayeredWorkspace[] = Object.freeze([
   { directory: "packages/host-contract", layer: "L0" },
   { directory: "packages/project-contract", layer: "L0" },
   { directory: "packages/template-model", layer: "L0" },
+  { directory: "packages/ux-state", layer: "L0" },
   { directory: "packages/editor-diff", layer: "L1" },
   { directory: "packages/editor-transactions", layer: "L1" },
   { directory: "packages/semantic-audit", layer: "L1" },

@@ -425,6 +425,7 @@
         "@wenshu/template-map",
         "@wenshu/template-model",
         "@wenshu/test-support",
+        "@wenshu/ux-state",
         "@wenshu/web"
       ]
     },
@@ -531,7 +532,8 @@
         "@wenshu/pdf-evidence",
         "@wenshu/project-contract",
         "@wenshu/report-checks",
-        "@wenshu/template-model"
+        "@wenshu/template-model",
+        "@wenshu/ux-state"
       ]
     },
     {
@@ -823,7 +825,8 @@
         "@wenshu/pdf-evidence",
         "@wenshu/project-contract",
         "@wenshu/report-checks",
-        "@wenshu/template-model"
+        "@wenshu/template-model",
+        "@wenshu/ux-state"
       ]
     },
     {
@@ -1216,6 +1219,7 @@
         "@wenshu/template-map",
         "@wenshu/template-model",
         "@wenshu/test-support",
+        "@wenshu/ux-state",
         "@wenshu/web",
         "wenshu"
       ]

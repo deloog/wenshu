@@ -141,6 +141,9 @@ importers:
       '@wenshu/host-contract':
         specifier: workspace:*
         version: link:../../packages/host-contract
+      '@wenshu/ux-state':
+        specifier: workspace:*
+        version: link:../../packages/ux-state
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -536,6 +539,25 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  packages/ux-state:
+    dependencies:
+      '@wenshu/contract-runtime':
+        specifier: workspace:*
+        version: link:../contract-runtime
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      json-schema-to-typescript:
+        specifier: 'catalog:'
+        version: 15.0.4
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
