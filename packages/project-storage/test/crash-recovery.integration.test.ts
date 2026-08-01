@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
@@ -239,7 +247,10 @@ test("recovery never follows or deletes a symlink matching the orphan pattern", 
       const recovery = await recoverGrantDirectory(root);
 
       assert.equal(recovery.removedResidue, 0);
-      assert.equal(await readFile(join(outside, "precious.txt"), "utf8"), "must survive");
+      assert.equal(
+        await readFile(join(outside, "precious.txt"), "utf8"),
+        "must survive",
+      );
       assert.ok((await readdir(root)).length === 1, "symlink must survive recovery");
     } finally {
       await rm(outside, { recursive: true, force: true });

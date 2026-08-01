@@ -30,7 +30,7 @@
     "test:contract": "node packages/test-support/scripts/run-test-layer.ts contract",
     "test:render": "node packages/test-support/scripts/run-test-layer.ts render",
     "test:integration": "node packages/test-support/scripts/run-test-layer.ts integration",
-    "test:e2e": "node packages/test-support/scripts/run-test-layer.ts e2e",
+    "test:e2e": "pnpm --filter @wenshu/electron-shell build:scenario && node packages/test-support/scripts/run-test-layer.ts e2e",
     "test:foundation": "pnpm test:layers && pnpm test:unit",
     "secrets:check": "node tools/ci/scripts/check-secrets.ts",
     "licenses:check": "node tools/ci/scripts/check-licenses.ts",

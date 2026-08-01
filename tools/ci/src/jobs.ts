@@ -7,6 +7,7 @@ export const CI_JOB_NAMES = Object.freeze([
   "build-staging",
   "build-production",
   "security",
+  "e2e",
 ] as const);
 
 export type CiJobName = (typeof CI_JOB_NAMES)[number];
@@ -88,6 +89,10 @@ export const CI_JOBS: Readonly<Record<CiJobName, readonly CiCommand[]>> = Object
       command("fonts", "fonts:check"),
       command("supply-chain", "supply:check"),
     ]),
+    // Real Electron e2e (PB-12): builds the scenario bundle, then runs the
+    // .e2e.test.ts layer. On ubuntu the workflow wraps this job in xvfb-run
+    // with ELECTRON_DISABLE_SANDBOX=1; locally it runs unwrapped.
+    e2e: Object.freeze([command("e2e", "test:e2e")]),
   },
 );
 
