@@ -28,7 +28,9 @@
 
 ## 2. PB-12 新登记承接项
 
-### N1. Host 0.2.0 ContentBase64 schema 的 V8 RegExp 栈上限 → schema 未来演进 / A-15
+### N1. Host 0.2.0 ContentBase64 schema 的 V8 RegExp 栈上限 → ~~schema 未来演进 / A-15~~ **已关闭（2026-08-01 首审修复轮）**
+
+> **处置：已关闭。** Claude 首审 MAJOR-1 指出该项不能停留为「规避」——它是签署契约广告区间内的崩溃路径（零终态 + 原始错误穿透）。修复：schema 改自定义 Ajv `format: content-base64`（O(n) 零回溯、与冻结正则语言逐项等价对拍 5000 例）+ file-host 校验相包络（意外抛错收敛为单个 INTERNAL 终态）；1/2/4/8 MiB 全区间决定性测试 + schema 防回归守卫 + hostile Proxy 包络测试。见 ADR-0027 §5.1 增补。
 
 - **内容**：冻结 0.2.0 `ContentBase64` pattern 在 ~4 MiB base64 载荷上耗尽 V8 RegExp 栈（实测）；PB-12 save-loop 载荷因此取 2 MiB。schema 属冻结协议未触碰。
 - **要求**：0.2.0 之后的协议演进或 A-15 评审时重估大载荷校验实现（如改分片校验或程序式 base64 校验）；在此之前单请求 base64 载荷不得逼近 4 MiB。

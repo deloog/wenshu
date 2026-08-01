@@ -49,3 +49,35 @@
 - 知识包不防自洽改写（ADR-0026 §7.1 收窄口径，闸门报告 §限制如实登记）。
 - 恢复点=上次成功保存，丢失范围至多在途事务（followups N3）。
 - ContentBase64 ~4 MiB RegExp 栈上限（followups N1）。
+
+## 6. 首审修复轮（2026-08-01）
+
+首审结论 FAIL（唯一 MAJOR + 4 MINOR，[审计报告](PB-12-claude-audit-report.md)）。同轮处置：
+
+### MAJOR-1：ContentBase64 契约广告区间内崩溃、零终态 → 关闭
+
+- **根因**：冻结 0.2.0 schema 的 `ContentBase64` 正则 pattern 在 ~4 MiB 输入上耗尽 V8 RegExp 栈，`RangeError` 从 `validateHostContract` 裸逃逸（消费点 `invokeSerialized` 当时无包络），请求不产生任何协议终态；而 schema `maxLength: 89478488` 与注册表 `max_payload_bytes: 67108864` 主动广告了该区间。
+- **修复（审计认可方向②，语言不变、广告区间保住）**：
+  - `host-payloads-0.2.0.schema.json`：`pattern` → `format: content-base64`（maxLength 不动；description 书面记录缺陷史）；生成物重跑（`generate` + `generate:check` 绿）。
+  - `payloads.ts`：新增 `isContentBase64` 程序式校验（O(n)、零回溯），注册为 Ajv 自定义 format；与冻结正则语言等价——5000 例确定性种子对拍（短串全字符类混合，含 `=`/越界字符/非 ASCII）。
+  - `file-host.ts`：`invokeSerialized` 包络——校验相意外抛错在请求可寻址（request_id 合式 + capability 已知）时收敛为恰好一个 INTERNAL 终态，不可寻址维持既有 fail-closed `FileHostProtocolError`。
+- **决定性测试**：
+  - `host-content-base64.contract.test.ts`（4 条）：1/2/4/8 MiB 全区间 ok；6 种畸形输入 HOST_PAYLOAD_SCHEMA 不抛错；5000 例语言等价对拍；schema 防回归守卫（format 在位、pattern 不回、maxLength 不变）。
+  - `host-large-payload.integration.test.ts`（2 条）：真 Host 4 MiB 保存恰好一个 success 终态 + 落盘字节逐字一致；hostile Proxy（信封字段真实自有、读 input 即抛 RangeError）→ 恰好一个 `HOST_INTERNAL` 终态、无裸逃逸。
+  - **变异自证**：schema 退回正则形态 → 上述两测试文件全红（host-contract 4 条中 2 条红 + project-storage 2 条全红）。
+- **配套验证**：host-contract 52/52、project-storage 33/33、contracts:check 绿、全量 `pnpm test:e2e` 8/8（seeded 杀点 199/401/383 ms）。
+
+### MINOR 同轮处置
+
+- MI-01 → 链环④/⑥杀点改确定性 PRNG（seed 12648430，`PB12_KILL_SEED` 可注入，diagnostic 记录 seed+延迟）。
+- MI-02 → 闸门报告 §1 行 1.5 改「测试保证 ≥1 次命中」口径。
+- MI-03 → 承认并记录（闸门报告 §5）；本修复轮起门槛类文件单独成提交。
+- MI-04 → 闸门报告 §2 写明最终 run 自覆盖的结构性事实。
+
+### 修复轮提交（顺序）
+
+1. 代码修复（schema/payloads/file-host + 两测试文件 + 生成物 + MI-01）。
+2. 文档更新（ADR-0027 §5.1 增补【§4 门槛零触碰】、闸门报告 §1/§2/§3/§4/§5、实施记录 §6、followups N1 关闭）。
+3. 台账 PB-12 行（🔄 已实现，首审 FAIL 修复待复审）。
+
+最终验证 run 待推送后补记于此：【待填】

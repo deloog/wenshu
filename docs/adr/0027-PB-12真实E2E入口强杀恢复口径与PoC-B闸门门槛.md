@@ -48,6 +48,8 @@ PB-12 通过不得读作 A-12 的任何部分完成；不得宣称三端贯通�
 
 ### 5.1 Host 0.2.0 ContentBase64 schema 的 V8 RegExp 栈上限
 
+> **2026-08-01 增补（首审 MAJOR-1 关闭）**：本节原把该上限登记为「载荷取 2 MiB 规避」的测试取舍。Claude 首审判定：这不是测试取舍，而是**签署契约在其广告区间（maxLength ~64 MiB、注册表 `max_payload_bytes: 67108864`）内的崩溃路径**——4 MiB 起 `RangeError` 裸逃逸、请求零终态，违反 host-contract §3/§4（MAJOR-1）。修复（选项②，审计认可）：schema `pattern` 改为自定义 Ajv `format: content-base64`，以 O(n) 零回溯程序式校验实现**完全相同的语言**（5000 例与冻结正则等价性对拍 + 1/2/4/8 MiB 全区间决定性测试 + schema 防回归守卫）；file-host `invokeSerialized` 增包络——校验相意外抛错在请求可寻址时收敛为恰好一个 INTERNAL 终态（hostile Proxy 决定性测试）。广告区间不再含有崩渍段。save-loop 2 MiB 载荷保留（与上限无关，仅是测试规模）。历史症状描述保留于下，登记意义由「规避」改为「已修复的缺陷记录」。
+
 save-loop 载荷原计划 4 MiB；实测冻结 0.2.0 `ContentBase64` schema 的正则 pattern 在 ~4 MiB base64 字符串上耗尽 V8 RegExp 栈（`Maximum call stack size exceeded`）。schema 属冻结协议、PB-12「明确不做」不可触碰，故载荷取 2 MiB（保存占空比 ~100 ms，任意杀点仍落在飞行中）。登记为 schema 未来演进/A-15 评估项。
 
 ### 5.2 导入中途杀点须确定性轮询
