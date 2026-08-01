@@ -7,6 +7,7 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/oh_modules/**",
       "**/dist/**",
+      "**/dist-scenario/**",
       "**/build/**",
       "**/out/**",
       "**/coverage/**",
@@ -48,6 +49,14 @@ export default tseslint.config(
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
+  {
+    // Electron injects a limited `process` binding (with argv) into sandboxed
+    // preload scripts; it is a real runtime global, not a rule exemption.
+    files: ["apps/electron-shell/src/preload.cjs"],
+    languageOptions: {
+      globals: { process: "readonly" },
     },
   },
 );

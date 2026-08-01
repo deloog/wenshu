@@ -1,5 +1,6 @@
 **/node_modules/**
 **/dist/**
+**/dist-scenario/**
 **/build/**
 **/out/**
 **/coverage/**

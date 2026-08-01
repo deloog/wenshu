@@ -4,22 +4,33 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:scenario": "vite build --config scenario/vite.config.ts",
+    "perf:recovery": "node ./scripts/perf-recovery.mjs",
     "reverify": "cmd /d /s /c \"set ELECTRON_RUN_AS_NODE=&& set NODE_OPTIONS=--experimental-strip-types&& electron ./src/main.cjs --reverify&& node --experimental-strip-types ./scripts/verify-output.ts\"",
     "security:test": "pnpm reverify && node ./test/security-probe.mjs",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@wenshu/document-model": "workspace:*",
+    "@wenshu/editor-diff": "workspace:*",
+    "@wenshu/editor-transactions": "workspace:*",
     "@wenshu/host-contract": "workspace:*",
+    "@wenshu/knowledge-package": "workspace:*",
     "@wenshu/markdown-import": "workspace:*",
     "@wenshu/pdf-evidence": "workspace:*",
     "@wenshu/pdf-export": "workspace:*",
+    "@wenshu/project-contract": "workspace:*",
     "@wenshu/project-storage": "workspace:*",
     "@wenshu/report-checks": "workspace:*",
+    "@wenshu/semantic-audit": "workspace:*",
+    "@wenshu/semantic-editor": "workspace:*",
+    "@wenshu/semantic-tools": "workspace:*",
     "@wenshu/template-model": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "electron": "43.1.1",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vite": "catalog:"
   }
 }

@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 9
       matrix:
         job:
           - static
@@ -30,6 +30,7 @@ jobs:
           - build-staging
           - build-production
           - security
+          - e2e
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -56,5 +57,14 @@ jobs:
             ${{ runner.os }}-node-24.17.0-pnpm-11.15.1-
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install Electron runtime libraries (e2e only)
+        if: matrix.job == 'e2e'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libgtk-3-0 libnss3 libasound2t64 libgbm1
       - name: Run ${{ matrix.job }}
+        if: matrix.job != 'e2e'
         run: pnpm ci:job ${{ matrix.job }}
+      - name: Run e2e (headless Electron)
+        if: matrix.job == 'e2e'
+        run: ELECTRON_DISABLE_SANDBOX=1 xvfb-run -a pnpm ci:job ${{ matrix.job }}

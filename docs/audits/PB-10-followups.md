@@ -4,6 +4,8 @@
 
 ## 1. `protectImportedFile` 的调用责任 → A-02 / PB-11
 
+> **处置（2026-08-01，PB-12）：已消费，关闭。** PB-11 导入已登记原件保护，PB-12 E2E 链环⑦干净重导入真实行使该登记路径；见 [PB-12-followups §1](PB-12-followups.md)。
+
 - **内容**：PB-10 只提供导入原件只读保护机制（`grant.protectedFiles` + `isImportedOriginal`），本身没有导入能力；`file.import.select` 在 `0.2.0` 中仍为 `unsupported`。
 - **要求**：A-02/PB-11 在实现新建/打开项目与导入流程时，必须在创建/复制原件后显式调用 `protectImportedFile` 进行登记。未登记的既有文件仍可能被 `overwrite:true` 覆盖。
 - **已记录于**：ADR-0025 §2 / PB-10-implementation-record.md §已知承接与限制。
@@ -15,6 +17,8 @@
 - **建议**：若将来出现不走 `\\?\` 语义的调用路径，需重新评估是否一并拒绝。
 
 ## 3. ≤10 s 恢复指标的范围 → PB-12 / A-12
+
+> **处置（2026-08-01，PB-12）：已消费，关闭。** 端到端「重开到可操作」复测完成：链环⑥（本地 402–436 ms、ubuntu CI 892.7 ms）+ 采样批次 `artifacts/perf/2026-08-01-PB-12/`（p95 664.0 ms）；见 [PB-12-followups §1](PB-12-followups.md) 与 ADR-0027 §2。
 
 - **内容**：PB-10 的 `≤10 s` 指标度量的是存储层 `recoverGrantDirectory` + `openProjectStore` + 工件校验。
 - **要求**：PB-12/A-12 必须做端到端“强杀后重开到可操作”的复测，不得直接引用本批次结果冒充端到端恢复。

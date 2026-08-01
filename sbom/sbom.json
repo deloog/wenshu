@@ -1256,6 +1256,7 @@
       "license": "MIT",
       "direct": true,
       "requested_by": [
+        "@wenshu/electron-shell",
         "@wenshu/web"
       ]
     },

@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
 import {
   atomicWriteFile,
+  IMPORT_TEMP_MARKER,
   openProjectStore,
   recoverGrantDirectory,
   TEMP_FILE_PREFIX,
@@ -161,5 +170,113 @@ test("crash recovery to an operable store stays within the 10 second budget", as
   assert.ok(
     (p95 ?? Number.POSITIVE_INFINITY) <= 10000,
     `p95 recovery ${p95}ms exceeds the 10s budget`,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// PB-12 W1: dual-prefix recovery — knowledge-package import staging orphans
+// (`<target>.wenshu-import-*` sibling directories) at any depth are residue of
+// a killed import transaction and must be removed; everything else survives.
+// ---------------------------------------------------------------------------
+
+test("recovery removes an import staging orphan at the grant root", async () => {
+  await withIsolatedRoot("import-orphan-root", async (root) => {
+    const orphan = join(root, `proj${IMPORT_TEMP_MARKER}ab12cd`);
+    await mkdir(orphan, { recursive: true });
+    await writeFile(join(orphan, "truth.json"), "{}");
+    await writeFile(join(root, "keep.json"), "real data");
+
+    const recovery = await recoverGrantDirectory(root);
+
+    assert.equal(recovery.removedResidue, 1);
+    await assert.rejects(stat(orphan), /ENOENT/u);
+    assert.equal(await readFile(join(root, "keep.json"), "utf8"), "real data");
+  });
+});
+
+test("recovery removes a nested import staging orphan without touching normal dirs", async () => {
+  await withIsolatedRoot("import-orphan-nested", async (root) => {
+    const nested = join(root, "library", "references");
+    await mkdir(nested, { recursive: true });
+    const orphan = join(nested, `report${IMPORT_TEMP_MARKER}zz99qq`);
+    await mkdir(orphan, { recursive: true });
+    await writeFile(join(orphan, "partial.bin"), "half-imported");
+    await writeFile(join(nested, "normal.txt"), "keep me");
+
+    const recovery = await recoverGrantDirectory(root);
+
+    assert.equal(recovery.removedResidue, 1);
+    await assert.rejects(stat(orphan), /ENOENT/u);
+    assert.equal(await readFile(join(nested, "normal.txt"), "utf8"), "keep me");
+  });
+});
+
+test("recovery never deletes look-alikes that are not staging orphans", async () => {
+  await withIsolatedRoot("import-orphan-lookalikes", async (root) => {
+    // Empty random suffix: not produced by mkdtemp.
+    await mkdir(join(root, `proj${IMPORT_TEMP_MARKER}`), { recursive: true });
+    // Dot in suffix: mkdtemp only appends [A-Za-z0-9].
+    await mkdir(join(root, `proj${IMPORT_TEMP_MARKER}ab.12`), { recursive: true });
+    // A regular FILE matching the pattern is not a staging directory.
+    await writeFile(join(root, `proj${IMPORT_TEMP_MARKER}ab12cd`), "not a dir");
+
+    const recovery = await recoverGrantDirectory(root);
+
+    assert.equal(recovery.removedResidue, 0);
+    assert.equal((await readdir(root)).length, 3);
+  });
+});
+
+test("recovery never follows or deletes a symlink matching the orphan pattern", async (t) => {
+  await withIsolatedRoot("import-orphan-symlink", async (root) => {
+    const outside = await isolatedRoot("import-orphan-outside");
+    try {
+      const link = join(root, `proj${IMPORT_TEMP_MARKER}ab12cd`);
+      try {
+        await symlink(
+          resolve(outside),
+          link,
+          process.platform === "win32" ? "junction" : "dir",
+        );
+      } catch (error) {
+        t.skip(`symlink unavailable: ${String(error)}`);
+        return;
+      }
+      await writeFile(join(outside, "precious.txt"), "must survive");
+
+      const recovery = await recoverGrantDirectory(root);
+
+      assert.equal(recovery.removedResidue, 0);
+      assert.equal(
+        await readFile(join(outside, "precious.txt"), "utf8"),
+        "must survive",
+      );
+      assert.ok((await readdir(root)).length === 1, "symlink must survive recovery");
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+});
+
+test("recovery fails closed on pathological trees beyond the scan budget", async () => {
+  await withIsolatedRoot("import-orphan-budget", async (root) => {
+    // 1001 sibling directories exceed the 1000-directory scan budget.
+    for (let index = 0; index < 1001; index += 1) {
+      await mkdir(join(root, `dir-${String(index).padStart(4, "0")}`));
+    }
+    await assert.rejects(recoverGrantDirectory(root), /IO_FAILURE/u);
+  });
+});
+
+test("knowledge-package builds its staging prefix from the shared marker", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(
+    resolve(import.meta.dirname, "../../knowledge-package/src/import.ts"),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /mkdtemp\(`\$\{targetRoot\}\$\{IMPORT_TEMP_MARKER\}`\)/u,
+    "staging prefix must be single-sourced from project-storage",
   );
 });

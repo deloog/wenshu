@@ -20,6 +20,9 @@ export type HostPayloadSchemas =
   | FileExportWriteOutput;
 export type GrantId = string;
 export type SafeFileName = string;
+/**
+ * RFC 4648 base64 with canonical padding. Validated programmatically (O(n), no backtracking) by the content-base64 Ajv format: the previous pattern form exhausted the V8 RegExp stack inside the advertised maxLength range (PB-12 audit MAJOR-1).
+ */
 export type ContentBase64 = string;
 export type Sha256 = string;
 export type BackupId = string;

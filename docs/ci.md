@@ -4,7 +4,7 @@
 
 ## 1. 单一作业定义
 
-`tools/ci/src/jobs.ts` 是本地与 GitHub Actions 共用的作业真源。`pnpm ci:job <name>` 执行单项，`pnpm ci:verify` 以最多 4 路并发执行全部作业；远程 workflow 使用同名 8 路 matrix，不另写一套更宽松的命令。
+`tools/ci/src/jobs.ts` 是本地与 GitHub Actions 共用的作业真源。`pnpm ci:job <name>` 执行单项，`pnpm ci:verify` 以最多 4 路并发执行全部作业；远程 workflow 使用同名 9 路 matrix，不另写一套更宽松的命令。第 9 个作业 `e2e`（PB-12）跑真 Electron 链环测试：远程在 `xvfb-run` + `ELECTRON_DISABLE_SANDBOX=1` 下执行同一 `pnpm ci:job e2e`（含 apt 安装 xvfb/gtk/nss/asound/gbm 运行库），本地 `pnpm test:e2e` 自动先构建 scenario bundle。
 
 | 作业 | 门禁 |
 |---|---|
