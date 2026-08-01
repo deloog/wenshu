@@ -143,6 +143,35 @@ test("pinned content: offline keeps all four local capabilities intact", () => {
   );
 });
 
+test("forbiddenSemantics pinned verbatim for all 12 states (red lines cannot be silently emptied)", () => {
+  // MINOR-1 guard: the six states WITH prohibitions are pinned to their exact
+  // ux-spec §4 '不得' clauses; the six WITHOUT are pinned as empty (faithful
+  // anchoring — those rows have no prohibition). Clearing ai-result's entry
+  // (i.e. silently dropping "未接受不改正式内容") turns this red.
+  const expected: Readonly<Record<string, readonly string[]>> = Object.freeze({
+    "empty-project": Object.freeze(["不出现无意义空白编辑器"]),
+    importing: Object.freeze([]),
+    "import-partial": Object.freeze(["不整体吞掉结果"]),
+    "ai-processing": Object.freeze([]),
+    "ai-result": Object.freeze(["未接受不改正式内容"]),
+    pagination: Object.freeze([]),
+    "page-issues": Object.freeze(["阻断项未处理不得默认导出正式版"]),
+    "save-result": Object.freeze(["失败不假装已保存"]),
+    "pre-export": Object.freeze([]),
+    "offline-degraded": Object.freeze([]),
+    "permission-denied": Object.freeze(["不循环弹窗"]),
+    "crash-recovery": Object.freeze([]),
+  });
+  assert.equal(Object.keys(expected).length, 12);
+  const withProhibitions = Object.values(expected).filter(
+    (entries) => entries.length > 0,
+  );
+  assert.equal(withProhibitions.length, 6);
+  for (const state of listUxStates()) {
+    assert.deepEqual(state.forbiddenSemantics, expected[state.id], state.id);
+  }
+});
+
 test("transition graph: closed, no self-loops, all states reachable from empty-project", () => {
   for (const state of listUxStates()) {
     for (const target of state.transitions) {
