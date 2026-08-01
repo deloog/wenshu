@@ -73,6 +73,24 @@ export const MODEL_CONTEXT = Object.freeze({
 
 export const MATERIAL_MARKDOWN = "# 参考资料\nPB-12 E2E 场景材料。\n";
 
+export const BULK_MATERIAL_ID = hexId("mat", "e2e6");
+
+/**
+ * Deterministic bulk material bytes for the W3 mid-import SIGKILL window.
+ * An 8 KiB pseudo-random block repeated: highly DEFLATE-compressible, so the
+ * exported zip stays tiny (the frozen ContentBase64 schema pattern cannot
+ * validate multi-MB base64), while import still inflates/hashes/writes the
+ * full uncompressed size — the real kill window.
+ */
+export function buildBulkMaterialBytes(size: number): Uint8Array {
+  const bytes = new Uint8Array(size);
+  for (let index = 0; index < size; index += 1) {
+    const block = index % 8192;
+    bytes[index] = (block * 31 + (block >> 5) * 17 + 7) % 256;
+  }
+  return bytes;
+}
+
 /**
  * Minimal real template (DSL 0.1.0), same shape the knowledge-package
  * integration suite exports.

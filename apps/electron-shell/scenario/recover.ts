@@ -26,15 +26,24 @@ export async function runRecoverScenario(): Promise<void> {
   });
 
   await recorder.step("recover-hash-reconcile", () => {
+    // W3: after a mid-save SIGKILL the on-disk document may legitimately be
+    // either of the two complete save-loop versions, so the orchestrator can
+    // pass a comma-separated expected set; a single hash behaves exactly as
+    // before. Empty or malformed sets fail closed.
+    const expectedList = expected.split(",").filter((value) => value.length > 0);
     assert(
-      /^[0-9a-f]{64}$/u.test(expected),
+      expectedList.length > 0 &&
+        expectedList.every((value) => /^[0-9a-f]{64}$/u.test(value)),
       "expected digest not provided (E2E_EXPECTED_DOC_SHA256); fail-closed",
     );
     assert(
-      actual === expected,
-      `recovered document digest ${actual.slice(0, 16)}… != expected ${expected.slice(0, 16)}…`,
+      expectedList.includes(actual),
+      `recovered document digest ${actual.slice(0, 16)}… not in expected set ` +
+        `{${expectedList.map((value) => value.slice(0, 16)).join(", ")}}`,
     );
-    return "recovered document byte-identical to the pre-kill saved version";
+    return expectedList.length === 1
+      ? "recovered document byte-identical to the pre-kill saved version"
+      : `recovered document is one of ${expectedList.length} complete pre-kill versions (no partial write)`;
   });
 
   const results: readonly ChainResult[] = recorder.results;

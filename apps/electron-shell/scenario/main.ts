@@ -1,6 +1,8 @@
 import { runEditChain } from "./chain-edit.ts";
 import { runPersistChain } from "./chain-persist.ts";
+import { runImportScenario } from "./import.ts";
 import { runRecoverScenario } from "./recover.ts";
+import { runSaveLoopScenario } from "./save-loop.ts";
 import { ChainFailed, reportAll, reportSummary, type ChainResult } from "./report.ts";
 
 function overall(results: readonly ChainResult[]): "pass" | "fail" {
@@ -8,13 +10,19 @@ function overall(results: readonly ChainResult[]): "pass" | "fail" {
 }
 
 async function runE2EScenario(): Promise<void> {
+  const params = new URLSearchParams(window.location.search);
+  const bulkMiB = Number(params.get("bulkMaterialMiB") ?? "0");
+  const bulkMaterialBytes =
+    Number.isFinite(bulkMiB) && bulkMiB > 0 ? Math.floor(bulkMiB * 1024 * 1024) : 0;
   const results: ChainResult[] = [];
   let savedDocument: Record<string, unknown> = {};
   let knowledgePackage: Record<string, unknown> = {};
   try {
     const edit = await runEditChain();
     results.push(...edit.results);
-    const persist = await runPersistChain(edit.finalDocument, edit.audits);
+    const persist = await runPersistChain(edit.finalDocument, edit.audits, {
+      bulkMaterialBytes,
+    });
     results.push(...persist.results);
     savedDocument = {
       fileName: "document.json",
@@ -46,6 +54,14 @@ async function main(): Promise<void> {
   }
   if (mode === "recover") {
     await runRecoverScenario();
+    return;
+  }
+  if (mode === "save-loop") {
+    await runSaveLoopScenario();
+    return;
+  }
+  if (mode === "import") {
+    await runImportScenario();
     return;
   }
   await reportSummary({

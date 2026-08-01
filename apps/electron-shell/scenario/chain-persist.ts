@@ -11,6 +11,8 @@ import {
 } from "./bridge.ts";
 import {
   buildTemplate,
+  buildBulkMaterialBytes,
+  BULK_MATERIAL_ID,
   DOCUMENT_ID,
   MATERIAL_ID,
   MATERIAL_MARKDOWN,
@@ -44,6 +46,7 @@ function outputOf(response: Record<string, unknown>, capability: string) {
 export async function runPersistChain(
   finalDocument: SupportedDocument,
   audits: readonly SemanticAuditEvent[],
+  options?: { readonly bulkMaterialBytes?: number },
 ): Promise<PersistChainOutcome> {
   const recorder = new ChainRecorder();
   const documentJson = JSON.stringify(finalDocument);
@@ -113,6 +116,25 @@ export async function runPersistChain(
   });
 
   await recorder.step("knowledge-export", async () => {
+    const materials = [
+      {
+        materialId: MATERIAL_ID,
+        displayName: "参考资料.md",
+        mediaType: "text/markdown",
+        bytesBase64: base64Encode(new TextEncoder().encode(MATERIAL_MARKDOWN)),
+      },
+    ];
+    const bulkSize = options?.bulkMaterialBytes ?? 0;
+    if (bulkSize > 0) {
+      // W3 chain 5: a real deterministic bulk material goes through the real
+      // export channel so the later import has a genuine SIGKILL window.
+      materials.push({
+        materialId: BULK_MATERIAL_ID,
+        displayName: "大体积参考资料.md",
+        mediaType: "text/markdown",
+        bytesBase64: base64Encode(buildBulkMaterialBytes(bulkSize)),
+      });
+    }
     const result = await e2eBridge().export({
       packageId: PACKAGE_ID,
       projectId: PROJECT_ID,
@@ -125,14 +147,7 @@ export async function runPersistChain(
         version: "1.0.0",
         value: buildTemplate(),
       },
-      materials: [
-        {
-          materialId: MATERIAL_ID,
-          displayName: "参考资料.md",
-          mediaType: "text/markdown",
-          bytesBase64: base64Encode(new TextEncoder().encode(MATERIAL_MARKDOWN)),
-        },
-      ],
+      materials,
       audits,
     });
     assert(

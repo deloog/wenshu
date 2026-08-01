@@ -6,7 +6,9 @@
  * orchestration channels that exist only in this mode:
  *   e2e.knowledge.export / e2e.knowledge.import / e2e.report
  * Knowledge-package export/import run main-process side because they need
- * node:crypto/fs; the sandboxed renderer never touches node: APIs.
+ * node:crypto/fs; the sandboxed renderer never touches node: APIs. Import
+ * reads the real on-disk package from the grant workdir (flat source file
+ * name only), so arbitrarily large packages never cross IPC as base64.
  * main.cjs is untouched; non-e2e behavior of the product shell is unchanged.
  */
 const { app, BrowserWindow, ipcMain } = require("electron");
@@ -84,6 +86,9 @@ function finish(code) {
   app.exit(code);
 }
 
+/** Flat file/dir names only: no separators, no traversal, no trailing dot. */
+const FLAT_NAME = /^(?!.*\.$)[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
+
 function registerE2EChannels(storage) {
   ipcMain.handle("e2e.knowledge.export", async (_event, input) => {
     const { exportKnowledgePackage } = await import("@wenshu/knowledge-package");
@@ -111,11 +116,12 @@ function registerE2EChannels(storage) {
   ipcMain.handle("e2e.knowledge.import", async (_event, input) => {
     const markerPath = requiredEnv("E2E_IMPORT_MARKER");
     const targetDirName = input.targetDirName;
-    if (
-      typeof targetDirName !== "string" ||
-      !/^(?!.*\.$)[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(targetDirName)
-    ) {
+    const sourceFileName = input.sourceFileName;
+    if (typeof targetDirName !== "string" || !FLAT_NAME.test(targetDirName)) {
       throw new Error("E2E_INVALID_TARGET_DIR");
+    }
+    if (typeof sourceFileName !== "string" || !FLAT_NAME.test(sourceFileName)) {
+      throw new Error("E2E_INVALID_SOURCE_FILE");
     }
     // The marker lets the W3 orchestrator SIGKILL mid-import; it is removed on
     // any clean completion (success or handled failure).
@@ -126,8 +132,10 @@ function registerE2EChannels(storage) {
     );
     try {
       const { importKnowledgePackage } = await import("@wenshu/knowledge-package");
-      const sourcePath = join(workdir, "import-source.zip");
-      await writeFile(sourcePath, Buffer.from(input.zipBase64, "base64"));
+      // W3: the source is the real on-disk artifact inside the grant workdir
+      // (flat name joined above), read main-process side by the importer
+      // itself; large packages never cross IPC as base64.
+      const sourcePath = join(workdir, sourceFileName);
       const grants = storage.createGrantTable();
       const grant = grants.register(workdir, "read_write");
       const targetRoot = join(workdir, targetDirName);
@@ -145,6 +153,11 @@ function registerE2EChannels(storage) {
       };
     } catch (error) {
       await rm(markerPath, { force: true }).catch(() => undefined);
+      // KnowledgePackageError.code does not appear in .message; embed it so the
+      // renderer (and the W3 report) can assert the real rejection code.
+      if (error instanceof Error && typeof error.code === "string") {
+        throw new Error(`${error.code}: ${error.message}`, { cause: error });
+      }
       throw error;
     }
   });
@@ -214,13 +227,31 @@ app
       app.exit(2);
     }, WATCHDOG_MS);
 
-    const query = { mode: recoverMode ? "recover" : "e2e" };
+    const scenarioMode = recoverMode
+      ? "recover"
+      : (globalThis.process.env["E2E_SCENARIO_MODE"] ?? "e2e");
+    const query = { mode: scenarioMode };
     if (recoverMode) {
       const marker = await recoverArtifacts(storage);
       query.docSha256 = marker.artifacts["document.json"] ?? "";
       query.expected = expectedDocSha256;
       query.removedResidue = String(marker.removedResidue);
       query.recoverySource = marker.recoverySource ?? "";
+    } else if (scenarioMode === "save-loop") {
+      // W3 chain 4/6: previous complete document digest for save chaining.
+      query.previous = globalThis.process.env["E2E_SAVE_LOOP_PREVIOUS_SHA256"] ?? "";
+    } else if (scenarioMode === "import") {
+      // W3 chain 5/7: re-import a real on-disk package from the workdir.
+      query.source = requiredEnv("E2E_IMPORT_SOURCE");
+      query.target = requiredEnv("E2E_IMPORT_TARGET");
+      query.expected = globalThis.process.env["E2E_IMPORT_EXPECTED_DOC_SHA256"] ?? "";
+    } else if (scenarioMode === "e2e") {
+      // W3 chain 5: deterministic bulk material so import takes long enough
+      // for a mid-import SIGKILL window.
+      const bulkMiB = globalThis.process.env["E2E_BULK_MATERIAL_MIB"];
+      if (bulkMiB !== undefined && bulkMiB !== "") {
+        query.bulkMaterialMiB = bulkMiB;
+      }
     }
 
     const window = new BrowserWindow({ show: false, webPreferences: preferences });
