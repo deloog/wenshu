@@ -122,7 +122,9 @@ function envFor(workdir, reportDir) {
  */
 async function sampleOnce(iteration) {
   const workdir = await mkdtemp(join(tmpdir(), `wenshu-pb12-perf-${iteration}-`));
-  const reportDir = await mkdtemp(join(tmpdir(), `wenshu-pb12-perf-report-${iteration}-`));
+  const reportDir = await mkdtemp(
+    join(tmpdir(), `wenshu-pb12-perf-report-${iteration}-`),
+  );
   try {
     const baseline = spawnElectron(
       ["./src/e2e-main.cjs", "--e2e"],
@@ -143,14 +145,11 @@ async function sampleOnce(iteration) {
     if (typeof baselineSha !== "string") {
       throw new Error("baseline summary savedDocument.sha256 missing");
     }
-    const crash = spawnElectron(
-      ["./src/e2e-main.cjs", "--e2e"],
-      {
-        ...envFor(workdir, reportDir),
-        E2E_SCENARIO_MODE: "save-loop",
-        E2E_SAVE_LOOP_PREVIOUS_SHA256: baselineSha,
-      },
-    );
+    const crash = spawnElectron(["./src/e2e-main.cjs", "--e2e"], {
+      ...envFor(workdir, reportDir),
+      E2E_SCENARIO_MODE: "save-loop",
+      E2E_SAVE_LOOP_PREVIOUS_SHA256: baselineSha,
+    });
     // 11 chain lines + 1 summary from the baseline e2e run are already in
     // the report; the first save-loop line is the 13th.
     await waitReportLines(reportPath, 13, 30_000);
@@ -172,10 +171,10 @@ async function sampleOnce(iteration) {
       .join(",");
 
     const started = performance.now();
-    const recover = spawnElectron(
-      ["./src/e2e-main.cjs", "--e2e", "--recover"],
-      { ...envFor(workdir, reportDir), E2E_EXPECTED_DOC_SHA256: expectedSet },
-    );
+    const recover = spawnElectron(["./src/e2e-main.cjs", "--e2e", "--recover"], {
+      ...envFor(workdir, reportDir),
+      E2E_EXPECTED_DOC_SHA256: expectedSet,
+    });
     await waitForFile(join(workdir, "ready-marker.json"), 60_000);
     const elapsed = performance.now() - started;
     const recoverExit = await waitExit(recover, 60_000, "recovery run");
