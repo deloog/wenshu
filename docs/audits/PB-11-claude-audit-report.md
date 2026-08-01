@@ -192,3 +192,56 @@ pnpm verify                                    exit 0
 ## 9.7 放行
 
 C1 完成后即可标 ✅、合并 PR #51 并放行 `PB-12`/`A-11`。C1 是补一条测试，不动生产逻辑，完成后把 9.4 的变异实验重跑贴结果，我确认即可，不需重跑完整复审。
+
+---
+
+# 10. C1 确认（2026-08-01）· PB-11 签署放行
+
+> 确认对象：`73a37a6`（`test(pb-11): decisive lying-bomb test closes review condition C1`），仍在 `pb-11-remediation` / PR #51，**未合入**（`origin/main` 仍为 `ed0dc27`）。我的 §1–§9 原稿经比对逐字未被改动。
+
+## 10.1 结论
+
+**PB-11 独立审计终局：CONDITIONAL PASS，条件全清，无未关闭 BLOCKER/MAJOR/MINOR。**
+**可标 ✅、合并 PR #51、放行 `PB-12` / `A-11`。**
+
+## 10.2 C1 复核
+
+- **测试构造正确**：新增 `a lying bomb (declared small, inflates beyond the cap) is stopped mid-inflate`——`createZip` 打包 64 MiB+1 的零字节条目（deflate 后约 63 KiB），再按条目名定位、把 **local header +22** 与 **central directory +24** 两处 declared uncompressed size 改写为 100，并断言恰好 patch 到 2 处。这正是真实炸弹的形态：声明小、实际大。
+- **关键设计我认可**：断言不止错误码，还要求消息命中 `"inflate failed"`。这一点是本条测试成立与否的分水岭——若只断言 `PACKAGE_ZIP_INVALID`，删掉 `maxOutputLength` 后 inflate 会成功、随后被 `uncompressed.length !== uncompressedSize` 以**同一个错误码**拒绝，测试会假绿。实施者在注释里把这层道理写清楚了。
+- **我的独立变异**（隔离克隆，做完还原）：
+
+  ```text
+  基线                                        21/21
+  删除 inflateRawSync 的 maxOutputLength 选项  20 pass / 1 fail
+     ✖ a lying bomb (declared small, inflates beyond the cap) is stopped mid-inflate
+     （如实声明的 DEFLATE / STORE 两条炸弹测试仍绿——它们由声明前置检查把守，各司其职）
+  ```
+
+  与实施者自述一致。**三条上限防线（声明前置 × 2 路径、`maxOutputLength`）现在各有独立决定性反例，任一被静默移除 CI 都会红。**
+- **判定：C1 关闭。**
+
+## 10.3 两条 NOTE 的处置
+
+- **NOTE 1（realpath/符号链接）** → [PB-11-followups](PB-11-followups.md) 第 7 项「grant 边界不解析 realpath → A-15（与 PB-10 MI-05 残余同类）」，归属与我的判断一致。
+- **NOTE 2（§6 绝对语气）** → 台账 `PB-11` 行已改为显式写明「§6 验收句"所有真源篡改拒绝"按 [ADR-0026 §7.1] 收窄口径理解——业主 2026-08-01 书面批准」。只读路线图的人现在会被指到收窄口径，误读空间已消除。
+
+## 10.4 本轮复跑
+
+```text
+隔离克隆 @ 73a37a6（D 盘冻结 Node v24.17.0）
+pnpm install --frozen-lockfile                 成功
+pnpm --filter @wenshu/knowledge-package test   21/21
+pnpm verify                                    exit 0
+pnpm quality:check                             exit 0
+变异：删除 maxOutputLength                      仅说谎炸弹一条变红
+```
+
+§2 与 §9.5 的全部通过项未回潮。
+
+## 10.5 签署
+
+PB-11 从首审 `FAIL`（2 MAJOR / 6 MINOR）到终局，全部发现由实施者修复、由我复审关闭，实施者未自行关闭任何一条，本报告正文三轮未被改动一字。承重结论：**G1-07 m-01 真闭合**（五类真源单点篡改 5/5 字节级拒绝，`truth.project`/`truth.audit` 的哈希确从 canonical 字节重算）；**grant 授权边界 fail-closed**（六种形态实测，含前缀陷阱与 read_only）；**导入原件保护在真实 Host 上生效**（`file.export.write overwrite:true` → `HOST_PERMISSION_DENIED`，盘上字节不变）；**包内条目双向对账**与**三层解压上限**各有决定性反例。检出口径的信任模型边界（自洽改写需签名）已由业主书面收窄并登记承接，未被包装成能力。
+
+**PB-11 独立审计签署：CONDITIONAL PASS（条件全清）。**
+
+合并时请按 [AGENTS 台账证据指纹规则](../../AGENTS.md)：台账 `PB-11` 行改 ✅ 并**当轮**补修复轮的合入提交（squash 后 `main` 上的那个 SHA）与最终 CI run；`PR #50（合入 ed0dc27）` 的既有指纹保留即可，两者并存不冲突。
