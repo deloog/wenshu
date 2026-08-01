@@ -245,8 +245,29 @@ test(
         },
       });
       await waitForFile(importing.importMarkerPath, 60_000);
-      const delay = 100 + Math.floor(Math.random() * 500);
-      await sleep(delay);
+      // Deterministic kill point: poll for the staging directory itself and
+      // SIGKILL the moment it exists (mid-import by construction). The earlier
+      // random-delay variant missed the window entirely on the faster ubuntu
+      // CI runner (pre-staging work finishes at different speeds there).
+      const stagingDeadline = Date.now() + 60_000;
+      let orphans = await residueNames(workdir);
+      while (
+        orphans.length === 0 &&
+        Date.now() <= stagingDeadline &&
+        importing.child.exitCode === null &&
+        importing.child.signalCode === null
+      ) {
+        await sleep(20);
+        orphans = await residueNames(workdir);
+      }
+      if (orphans.length === 0) {
+        const killExit = await killAndAwait(importing);
+        t.diagnostic(
+          `round ${round}: staging never appeared before kill/exit ` +
+            `(signal=${killExit.signal} code=${killExit.code}), no orphan`,
+        );
+        continue;
+      }
       const killExit = await killAndAwait(importing);
       if (killExit.signal !== "SIGKILL") {
         t.diagnostic(
@@ -254,17 +275,13 @@ test(
         );
         continue;
       }
-      const orphans = await residueNames(workdir);
+      orphans = await residueNames(workdir);
       if (orphans.length === 0) {
-        t.diagnostic(
-          `round ${round}: killed before staging (delay ${delay} ms), no orphan`,
-        );
+        t.diagnostic(`round ${round}: staging vanished before kill, no orphan`);
         continue;
       }
       orphanHits += 1;
-      t.diagnostic(
-        `round ${round}: orphan ${orphans.join(",")} after kill (${delay} ms)`,
-      );
+      t.diagnostic(`round ${round}: orphan ${orphans.join(",")} after SIGKILL`);
 
       const recover = spawnE2E({
         workdir,
