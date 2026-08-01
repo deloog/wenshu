@@ -21,7 +21,7 @@
 |---|---|---|---|
 | W0 | 决策 #14 + 分支 | `9cacde2` | prettier |
 | W1 | `@wenshu/ux-state` 契约包 | `14e9aca` | 包 22/22、typecheck、generate:check、quality:check（31 workspaces）、supply:check |
-| W2 | G2-03 MI-03 关闭 | `f8f4e96` | tools/quality 35/35、unclassified 14→11 |
+| W2 | G2-03 MI-03 关闭 | `f8f4e96` | tools/quality 35/35、unclassified 14→11（W2 时点值；审计者 HEAD 实测为 10——W3 又增 apps/web/src 文件所致，非矛盾） |
 | W3 | apps/web 原型 + eslint 收口 | `f3405b2` + 修复 `（本提交）` | apps/web 17/17、typecheck、build、lint、SBOM 零漂移 |
 | W3-fix | **main.ts 挂载版本被 W3 反例回退步骤误丢**——W3 提交中 main.ts 实为旧 hello-world（构建产物 0.82 kB 旧 hash 在 verify 第四轮暴露）；教训：反例注入后的回退对**未提交文件**不得用 `git checkout`（会回到上次提交版本而非改动前），应定向删除注入行。本修复提交恢复薄挂载，构建回到 145 kB 原型 bundle | `（本提交）` | build 145 kB、lint、typecheck |
 | W4 | ADR-0028/冻结文档/承接项注记/本记录/审计任务书 | 本提交 | prettier、quality:check |
@@ -41,6 +41,22 @@
   `not.required` 未定义属性，ADR-0028 §8.2）。
 
 ## 4. W5 验证记录
+
+### 首审 CONDITIONAL PASS → MINOR-1 修复轮（2026-08-01）
+
+首审唯一 MINOR：`forbiddenSemantics` 无非空守卫——审计者把 `ai-result`
+的该字段清空（丢掉 ux-spec §4「未接受不改正式内容」红线），22/22 全绿。
+按审计认可方向修复（**不**一刀切 `minItems: 1`：6 个状态空数组是忠实锚定）：
+
+- `ux-states.contract.test.ts` 新增「forbiddenSemantics pinned verbatim for
+  all 12 states」：12 状态逐一 deepEqual 钉定（6 确有禁令状态钉逐字条款、
+  6 无禁令状态钉空数组，双向防篡改），包内 23/23。
+- **变异自证**：重演审计者攻击（清空 `ai-result`）→ 恰好该新测试红
+  （22/23），回退后 23/23 绿。
+- 审计者 §4 NOTE 三处（别名绕道已披露、bundle 体积已登记、unclassified
+  计数时点）均无需整改；W2 行计数已按时点补注。
+- 审计者 §5 自我更正（任务书 §5.1 的 7+5 拆分错误，正确口径 7+4+dual=12）
+  与交付物一致，无行动项。
 
 - 本地 `pnpm verify` 全量绿（含 quality:check 31 workspaces、contracts:check
   含 ux-state 22/22、test:unit 含 apps/web 17/17、typecheck、build）。
