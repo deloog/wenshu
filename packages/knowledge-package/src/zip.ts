@@ -68,13 +68,26 @@ function validateEntryPath(path: string): void {
 }
 
 export class ZipError extends Error {
-  readonly code: "INVALID_PATH" | "CORRUPT" | "UNSUPPORTED";
+  readonly code: "INVALID_PATH" | "CORRUPT" | "UNSUPPORTED" | "TOO_LARGE";
 
-  constructor(code: "INVALID_PATH" | "CORRUPT" | "UNSUPPORTED", message: string) {
+  constructor(
+    code: "INVALID_PATH" | "CORRUPT" | "UNSUPPORTED" | "TOO_LARGE",
+    message: string,
+  ) {
     super(message);
     this.code = code;
   }
 }
+
+/**
+ * Cheap decompression-bomb mitigations (MI-02): the declared uncompressed
+ * size is attacker-controlled, so extraction is additionally bounded by fixed
+ * caps, enforced both up front and through zlib's maxOutputLength. The full
+ * threat model for hostile archives is owned by the A-15 security track.
+ */
+export const MAX_ZIP_ENTRIES = 1000;
+export const MAX_ENTRY_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;
+export const MAX_TOTAL_UNCOMPRESSED_BYTES = 256 * 1024 * 1024;
 
 /**
  * Build a minimal ZIP archive using raw DEFLATE when it shrinks the entry,
@@ -182,9 +195,14 @@ export function readZip(bytes: Uint8Array): readonly ParsedZipEntry[] {
 
   const entries: ParsedZipEntry[] = [];
   let offset = centralOffset;
+  let totalUncompressed = 0;
+  const seenPaths = new Set<string>();
   const pathDecoder = new TextDecoder("utf-8");
 
   for (let index = 0; index < totalEntries; index += 1) {
+    if (index >= MAX_ZIP_ENTRIES) {
+      throw new ZipError("TOO_LARGE", `entry count exceeds ${MAX_ZIP_ENTRIES}`);
+    }
     if (readUInt32(bytes, offset) !== CENTRAL_DIRECTORY_SIGNATURE) {
       throw new ZipError(
         "CORRUPT",
@@ -202,6 +220,16 @@ export function readZip(bytes: Uint8Array): readonly ParsedZipEntry[] {
     const pathEnd = offset + 46 + pathLength;
     const path = pathDecoder.decode(bytes.subarray(offset + 46, pathEnd));
     validateEntryPath(path);
+    if (seenPaths.has(path)) {
+      throw new ZipError("CORRUPT", `duplicate entry path: ${path}`);
+    }
+    seenPaths.add(path);
+    if (uncompressedSize > MAX_ENTRY_UNCOMPRESSED_BYTES) {
+      throw new ZipError(
+        "TOO_LARGE",
+        `declared size ${uncompressedSize} exceeds per-entry cap for ${path}`,
+      );
+    }
 
     if (localOffset + 30 > bytes.length) {
       throw new ZipError("CORRUPT", `local header offset out of bounds for ${path}`);
@@ -222,7 +250,18 @@ export function readZip(bytes: Uint8Array): readonly ParsedZipEntry[] {
     if (method === 0) {
       uncompressed = compressed;
     } else if (method === 8) {
-      uncompressed = inflateRawSync(compressed);
+      try {
+        uncompressed = inflateRawSync(compressed, {
+          maxOutputLength: MAX_ENTRY_UNCOMPRESSED_BYTES,
+        });
+      } catch (error) {
+        throw new ZipError(
+          "CORRUPT",
+          `inflate failed (corrupt data or size cap exceeded) for ${path}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
     } else {
       throw new ZipError(
         "UNSUPPORTED",
@@ -234,6 +273,13 @@ export function readZip(bytes: Uint8Array): readonly ParsedZipEntry[] {
     }
     if (crc32(uncompressed) !== checksum) {
       throw new ZipError("CORRUPT", `CRC mismatch for ${path}`);
+    }
+    totalUncompressed += uncompressed.length;
+    if (totalUncompressed > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+      throw new ZipError(
+        "TOO_LARGE",
+        `total uncompressed size exceeds ${MAX_TOTAL_UNCOMPRESSED_BYTES}`,
+      );
     }
 
     entries.push({ path, bytes: uncompressed });

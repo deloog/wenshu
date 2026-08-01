@@ -52,9 +52,11 @@ export interface ExportedKnowledgePackage {
 export interface ImportKnowledgePackageOptions {
   /** Path to the .zip knowledge package file. */
   readonly sourcePath: string;
-  /** Directory that must not yet exist; will become the project root. */
+  /** Directory that must not yet exist; will become the project root. Must be
+   * the grant root itself or a descendant of it (fail-closed otherwise). */
   readonly targetRoot: string;
-  /** Grant for the target directory; imported material files are registered as originals. */
+  /** Writable grant whose root covers the target directory; imported material
+   * files are registered as originals in this grant. */
   readonly grant: DirectoryGrant;
 }
 
