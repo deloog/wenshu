@@ -24,7 +24,9 @@ export {
   createGrantTable,
   isImportedOriginal,
   protectImportedFile,
+  readGrantedFile,
   type DirectoryGrant,
+  type FileGrant,
   type GrantMode,
   type GrantTable,
 } from "./file-boundary/grants.ts";
@@ -34,4 +36,8 @@ export {
   type FileHost,
   type FileHostOptions,
 } from "./file-boundary/file-host.ts";
-export { type DirectorySelection } from "./file-boundary/handlers.ts";
+export {
+  type DirectorySelection,
+  type FileSelection,
+  type FileSelectRequest,
+} from "./file-boundary/handlers.ts";

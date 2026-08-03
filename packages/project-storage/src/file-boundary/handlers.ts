@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { access, readFile, readdir, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 
 import { restoreFromSpecificBackup } from "../backup.ts";
 import { openProjectStore } from "../store.ts";
@@ -18,6 +18,22 @@ export type DirectorySelection =
   | { readonly status: "denied" }
   | { readonly status: "cancelled" };
 
+/**
+ * Shell-side file dialog result for file.import.select (ADR-0029): the shell
+ * hands over absolute paths only; the host side snapshots and pins them into
+ * single-file grants. What crosses the protocol boundary back is handles plus
+ * display metadata, never a path.
+ */
+export type FileSelection =
+  | { readonly status: "selected"; readonly files: readonly string[] }
+  | { readonly status: "cancelled" };
+
+export interface FileSelectRequest {
+  readonly purpose?: string;
+  readonly multiple: boolean;
+  readonly extensions?: readonly string[];
+}
+
 export type CancelReason = "user" | "superseded" | "shutdown" | "deadline";
 
 export type CapabilityOutcome =
@@ -27,6 +43,7 @@ export type CapabilityOutcome =
 export interface FileHostContext {
   readonly grants: GrantTable;
   readonly selectDirectory: (purpose?: string) => Promise<DirectorySelection>;
+  readonly selectFiles?: (request: FileSelectRequest) => Promise<FileSelection>;
   readonly now: () => Date;
 }
 
@@ -139,6 +156,65 @@ export async function handleDirectorySelect(
     kind: "success",
     output: { grant_id: grant.id, display_name: selection.displayName },
   };
+}
+
+const MAX_IMPORT_FILE_BYTES = 256 * 1024 * 1024;
+
+export async function handleFileImportSelect(
+  context: FileHostContext,
+  input: Record<string, unknown>,
+  signal: AbortSignal,
+): Promise<CapabilityOutcome> {
+  if (signal.aborted) {
+    throw new FileBoundaryError("CANCELLED");
+  }
+  const selectFiles = context.selectFiles;
+  if (selectFiles === undefined) {
+    // Declaring file.import.select without injecting the shell dialog is a
+    // programming error on the host side, not a user-facing failure.
+    throw new FileBoundaryError("INVALID");
+  }
+  const request: FileSelectRequest = {
+    ...(typeof input["purpose"] === "string"
+      ? { purpose: input["purpose"] as string }
+      : {}),
+    multiple: input["multiple"] === true,
+    ...(Array.isArray(input["extensions"])
+      ? { extensions: input["extensions"] as readonly string[] }
+      : {}),
+  };
+  const selection = await selectFiles(request);
+  if (selection.status === "cancelled") {
+    return { kind: "cancelled", reason: "user" };
+  }
+  const files: Record<string, unknown>[] = [];
+  for (const filePath of selection.files) {
+    if (!isAbsolute(filePath)) {
+      throw new FileBoundaryError("INVALID");
+    }
+    const fileStat = await stat(filePath).catch((error: unknown) => {
+      throw classifyFsError(error);
+    });
+    if (!fileStat.isFile() || fileStat.size > MAX_IMPORT_FILE_BYTES) {
+      throw new FileBoundaryError("INVALID");
+    }
+    const bytes = await readFile(filePath).catch((error: unknown) => {
+      throw classifyFsError(error);
+    });
+    const digest = sha256(bytes);
+    const grant = context.grants.registerFile({
+      filePath,
+      sha256: digest,
+      sizeBytes: bytes.length,
+    });
+    files.push({
+      grant_id: grant.id,
+      file_name: basename(filePath),
+      content_sha256: digest,
+      size_bytes: bytes.length,
+    });
+  }
+  return { kind: "success", output: { files } };
 }
 
 export async function handleDirectoryAuthorize(
