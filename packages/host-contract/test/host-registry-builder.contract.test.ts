@@ -12,6 +12,7 @@ test("payload host registry builder produces a self-valid 0.2.0 registry", () =>
     hostKind: "electron",
     hostVersion: "test-1.0",
     instanceId: "host_02020202020202020202020202020202",
+    payloadRegistryVersion: "0.2.0",
     additionalDeclarations: [
       {
         name: "print.pdf.export",

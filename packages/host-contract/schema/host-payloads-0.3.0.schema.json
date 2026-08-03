@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/host/0.3.0/host-payloads.schema.json",
+  "title": "HostPayloadSchemasV03",
+  "description": "A-02 frozen concrete payload schemas for file.import.select (protocol 0.3.0, ADR-0029). The output expresses the selection only as single-file FileGrant handles (grant_id) plus display metadata: it must never carry a system path (ADR-0029 section 1, item 1-a). file_name is display metadata only and never participates in file-system addressing.",
+  "oneOf": [
+    { "$ref": "#/$defs/FileImportSelectInput" },
+    { "$ref": "#/$defs/FileImportSelectOutput" }
+  ],
+  "$defs": {
+    "GrantId": {
+      "type": "string",
+      "pattern": "^grant_[0-9a-f]{32}$"
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "FileDisplayName": {
+      "type": "string",
+      "pattern": "^(?!\\.\\.?$)[^/\\\\:\\u0000-\\u001f]{1,128}$",
+      "description": "Display metadata only: no path separators, no colon, no control characters, never a bare dot segment, at most 128 characters. Never participates in file-system addressing."
+    },
+    "FileImportSelectInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "enum": ["import_markdown"]
+        },
+        "multiple": {
+          "type": "boolean"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]{1,8}$"
+          },
+          "maxItems": 8,
+          "uniqueItems": true
+        }
+      }
+    },
+    "FileImportSelectOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files"],
+      "properties": {
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["grant_id", "file_name", "content_sha256", "size_bytes"],
+            "properties": {
+              "grant_id": { "$ref": "#/$defs/GrantId" },
+              "file_name": { "$ref": "#/$defs/FileDisplayName" },
+              "content_sha256": { "$ref": "#/$defs/Sha256" },
+              "size_bytes": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

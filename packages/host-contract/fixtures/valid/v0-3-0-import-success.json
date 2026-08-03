@@ -1,0 +1,22 @@
+{
+  "protocol_version": "0.3.0",
+  "kind": "success",
+  "request_id": "req_03030303030303030303030303030303",
+  "capability": "file.import.select",
+  "output": {
+    "files": [
+      {
+        "grant_id": "grant_03030303030303030303030303030303",
+        "file_name": "季度分析草稿.md",
+        "content_sha256": "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969",
+        "size_bytes": 5
+      },
+      {
+        "grant_id": "grant_04040404040404040404040404040404",
+        "file_name": "chart-data.svg",
+        "content_sha256": "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33d4f6e2f3b74d2d3d6c1a1b01",
+        "size_bytes": 2048
+      }
+    ]
+  }
+}

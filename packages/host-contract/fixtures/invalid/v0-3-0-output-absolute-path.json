@@ -1,0 +1,18 @@
+{
+  "expectedIssue": "HOST_PLATFORM_FIELD_FORBIDDEN",
+  "expectedPath": "/output/files/0/file_name",
+  "protocol_version": "0.3.0",
+  "kind": "success",
+  "request_id": "req_03030303030303030303030303030304",
+  "capability": "file.import.select",
+  "output": {
+    "files": [
+      {
+        "grant_id": "grant_03030303030303030303030303030303",
+        "file_name": "C:\\Users\\owner\\secret.md",
+        "content_sha256": "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969",
+        "size_bytes": 5
+      }
+    ]
+  }
+}
