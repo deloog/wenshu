@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "allowImportingTsExtensions": true,
-    "types": ["node"]
+    "allowImportingTsExtensions": true
   },
   "include": ["src", "vite.config.ts", "test/**/*.ts"]
 }
