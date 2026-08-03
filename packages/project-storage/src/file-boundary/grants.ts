@@ -87,7 +87,7 @@ export function isImportedOriginal(grant: DirectoryGrant, fileName: string): boo
   return grant.protectedFiles.has(fileName);
 }
 
-function isSafeFileName(fileName: string): boolean {
+export function isSafeFileName(fileName: string): boolean {
   return /^(?!.*\.$)(?!CON$|PRN$|AUX$|NUL$|COM[1-9]$|LPT[1-9]$)[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/iu.test(
     fileName,
   );

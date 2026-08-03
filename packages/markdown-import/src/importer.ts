@@ -1,53 +1,20 @@
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, posix, relative, resolve, sep } from "node:path";
 
-import { validateDocument } from "@wenshu/document-model";
-
-import { MarkdownImportError } from "./errors.ts";
 import {
-  assembleDocument,
-  type ResolvedAsset,
-  type ResolvedFigure,
-} from "./document.ts";
-import { parseMarkdown } from "./parser.ts";
-import { buildReconciliation } from "./reconcile.ts";
+  buildContentAddressedAsset,
+  validateAssetReference,
+} from "./asset-resolution.ts";
+import type { ResolvedAsset } from "./document.ts";
+import { MarkdownImportError } from "./errors.ts";
+import { importCore } from "./import-from-text.ts";
 import type { ImportResult } from "./types.ts";
-
-const MEDIA_TYPES: Readonly<Record<string, string>> = Object.freeze({
-  svg: "image/svg+xml",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-});
-
-function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
 
 async function resolveAsset(
   sourcePath: string,
   reference: string,
 ): Promise<{ asset: ResolvedAsset; bytes: Uint8Array }> {
-  if (
-    reference.includes("\\") ||
-    reference.startsWith("/") ||
-    /^[A-Za-z]:/u.test(reference) ||
-    reference.split("/").some((segment) => segment === ".." || segment === ".")
-  ) {
-    throw new MarkdownImportError(
-      "IMPORT_ASSET_INVALID",
-      "asset reference escapes the import root",
-    );
-  }
-  const extension = reference.split(".").pop()?.toLowerCase() ?? "";
-  const mediaType = MEDIA_TYPES[extension];
-  if (mediaType === undefined) {
-    throw new MarkdownImportError(
-      "IMPORT_ASSET_INVALID",
-      "asset type is outside the v0 whitelist; convert to png/jpeg/svg first",
-    );
-  }
+  validateAssetReference(reference);
   const absolute = posix.join(dirname(sourcePath), reference);
   let bytes: Uint8Array;
   try {
@@ -58,17 +25,7 @@ async function resolveAsset(
       "referenced asset cannot be read",
     );
   }
-  const digest = sha256(bytes);
-  return {
-    asset: Object.freeze({
-      id: `asset_${digest.slice(0, 32)}`,
-      kind: "image",
-      path: `assets/${digest.slice(0, 16)}.${extension}`,
-      mediaType,
-      sha256: digest,
-    }),
-    bytes,
-  };
+  return { asset: buildContentAddressedAsset(reference, bytes), bytes };
 }
 
 export async function importMarkdownDocument(
@@ -90,43 +47,20 @@ export async function importMarkdownDocument(
   }
   const documentNamespace = relativeSource.split(sep).join(posix.sep);
   const source = await readFile(sourcePath, "utf8");
-  const parsed = parseMarkdown(source);
-  const figures: ResolvedFigure[] = [];
-  const assets = new Map<string, ResolvedAsset>();
-  const renames: Record<string, string> = {};
-  for (const block of parsed.blocks) {
-    if (block.kind !== "figure") {
-      continue;
-    }
-    const { asset } = await resolveAsset(sourcePath, block.source);
-    assets.set(asset.id, asset);
-    renames[block.source] = asset.path;
-    figures.push(
-      Object.freeze({ source: block.source, alt: block.alt, assetId: asset.id }),
-    );
-  }
-  const document = assembleDocument(
-    parsed,
-    figures,
-    [...assets.values()],
+  // 与文本入口共用同一解析核心；此入口任一资源失败即整单抛错
+  // （all-or-nothing），靠回调直接抛错保持既有行为逐字节不变。
+  const result = await importCore({
+    source,
     documentNamespace,
-  );
-  const validation = validateDocument(document);
-  if (!validation.ok) {
-    // 只携带稳定 code 与 JSON 路径，不回显正文、标题或资源内容（document-model §5）。
-    const detail = validation.issues
-      .map((issue) => `${issue.code} at ${issue.path}`)
-      .join("; ");
-    throw new MarkdownImportError(
-      "IMPORT_RECONCILE_FAILED",
-      `assembled document does not satisfy the document contract: ${detail}`,
-    );
-  }
-  const reconciliation = buildReconciliation(parsed, document);
+    resolveFigureAsset: async (reference) => {
+      const { asset } = await resolveAsset(sourcePath, reference);
+      return Object.freeze({ status: "resolved" as const, asset });
+    },
+  });
   return Object.freeze({
-    document,
-    reconciliation,
-    renames: Object.freeze(renames),
-    metadata: parsed.metadata,
+    document: result.document,
+    reconciliation: result.reconciliation,
+    renames: result.renames,
+    metadata: result.metadata,
   });
 }

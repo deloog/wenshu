@@ -280,6 +280,9 @@ importers:
       '@wenshu/document-model':
         specifier: workspace:*
         version: link:../document-model
+      '@wenshu/project-storage':
+        specifier: workspace:*
+        version: link:../project-storage
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

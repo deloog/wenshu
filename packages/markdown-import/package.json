@@ -16,7 +16,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@wenshu/document-model": "workspace:*"
+    "@wenshu/document-model": "workspace:*",
+    "@wenshu/project-storage": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

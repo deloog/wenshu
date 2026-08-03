@@ -23,6 +23,7 @@ export {
 export {
   createGrantTable,
   isImportedOriginal,
+  isSafeFileName,
   protectImportedFile,
   readGrantedFile,
   type DirectoryGrant,
