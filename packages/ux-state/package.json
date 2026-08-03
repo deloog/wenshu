@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./data": "./src/data.ts",
+    "./import-flow": "./src/import-flow.ts"
   },
   "wenshu": {
     "generatedFiles": [
