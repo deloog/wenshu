@@ -15,7 +15,8 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const { Buffer } = require("node:buffer");
 const { createHash } = require("node:crypto");
 const { appendFile, mkdir, readFile, rm, writeFile } = require("node:fs/promises");
-const { dirname, join, resolve } = require("node:path");
+const { dirname, isAbsolute, join, resolve } = require("node:path");
+const { registerProjectChannels } = require("./project-channels.cjs");
 
 const appDir = dirname(require.resolve("./e2e-main.cjs"));
 const instanceId = "host_e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0";
@@ -64,6 +65,23 @@ function scriptedSelectDirectory() {
     root: workdir,
     displayName: "e2e-workdir",
   });
+}
+
+/**
+ * A-02: scripted file.import.select. E2E_SELECT_FILES is a JSON array of flat
+ * file names relative to the workdir (joined here) or absolute paths (kept
+ * as-is); the env unset means the scripted user cancelled the dialog.
+ */
+function scriptedSelectFiles() {
+  const raw = globalThis.process.env["E2E_SELECT_FILES"];
+  if (raw === undefined || raw === "") {
+    return Promise.resolve({ status: "cancelled" });
+  }
+  const names = JSON.parse(raw);
+  const files = names.map((name) =>
+    isAbsolute(name) ? name : join(workdir, name),
+  );
+  return Promise.resolve({ status: "selected", files });
 }
 
 function sha256(bytes) {
@@ -207,11 +225,16 @@ app
   .then(async () => {
     await mkdir(reportDir, { recursive: true });
     const { storage, contract } = await loadHostModules();
+    // A-02 (ADR-0029 §4): one shared grant table for the protocol handlers
+    // (directory.select / file.import.select) and the orchestration channels.
+    const grants = storage.createGrantTable();
     const fileHost = storage.createFileHost({
       hostKind: "electron",
       hostVersion: app.getVersion(),
       instanceId,
       selectDirectory: scriptedSelectDirectory,
+      selectFiles: scriptedSelectFiles,
+      grants,
     });
     const registryValidation = contract.validateHostContract(fileHost.registry);
     if (!registryValidation.ok) {
@@ -265,6 +288,7 @@ app
       finish(3);
     });
     await window.loadFile(resolve(appDir, "../dist-scenario/index.html"), { query });
+    registerProjectChannels(ipcMain, window, { grants });
   })
   .catch((error) => {
     globalThis.process.stderr.write(`Electron e2e host failed: ${String(error)}\n`);

@@ -3,17 +3,20 @@ const { createHash } = require("node:crypto");
 const { mkdir, writeFile } = require("node:fs/promises");
 const { resolve, dirname } = require("node:path");
 const { createElectronSession } = require("./electron-session.cjs");
+const { registerProjectChannels } = require("./project-channels.cjs");
 
 const appDir = dirname(require.resolve("./main.cjs"));
 const instanceId = "host_14e00000000000000000000000000000";
 
 async function loadHostModules() {
-  const [{ createFileHost }, { validateHostContract, validateHostSession }] =
-    await Promise.all([
-      import("@wenshu/project-storage"),
-      import("@wenshu/host-contract"),
-    ]);
-  return { createFileHost, validateHostContract, validateHostSession };
+  const [
+    { createFileHost, createGrantTable },
+    { validateHostContract, validateHostSession },
+  ] = await Promise.all([
+    import("@wenshu/project-storage"),
+    import("@wenshu/host-contract"),
+  ]);
+  return { createFileHost, createGrantTable, validateHostContract, validateHostSession };
 }
 
 function hostDialog(window) {
@@ -34,6 +37,29 @@ function hostDialog(window) {
       root: selected,
       displayName: "electron-directory",
     };
+  };
+}
+
+function hostFileDialog(window) {
+  return async function selectFiles(request) {
+    const result = await dialog.showOpenDialog(window, {
+      title: request.purpose === undefined ? "选择导入文件" : request.purpose,
+      properties: request.multiple
+        ? ["openFile", "multiSelections"]
+        : ["openFile"],
+      ...(request.extensions === undefined
+        ? {}
+        : {
+            filters: request.extensions.map((extension) => ({
+              name: extension,
+              extensions: [extension],
+            })),
+          }),
+    });
+    if (result.canceled) {
+      return { status: "cancelled" };
+    }
+    return { status: "selected", files: result.filePaths };
   };
 }
 
@@ -71,13 +97,25 @@ const preferences = Object.freeze({
 app
   .whenReady()
   .then(async () => {
-    const [{ validateHostContract, validateHostSession, createFileHost }, window] =
-      await Promise.all([loadHostModules(), createWindow()]);
+    const [
+      {
+        validateHostContract,
+        validateHostSession,
+        createFileHost,
+        createGrantTable,
+      },
+      window,
+    ] = await Promise.all([loadHostModules(), createWindow()]);
+    // A-02 (ADR-0029 §4): one shared grant table so file.import.select FileGrants
+    // and directory.select grants are visible to the orchestration channels.
+    const grants = createGrantTable();
     const fileHost = await createFileHost({
       hostKind: "electron",
       hostVersion: app.getVersion(),
       instanceId,
       selectDirectory: hostDialog(window),
+      selectFiles: hostFileDialog(window),
+      grants,
       additionalDeclarations: [printPdfCapability],
     });
 
@@ -96,6 +134,7 @@ app
       return fileHost.invoke(request);
     });
     ipcMain.handle("wenshu.host.cancel", (_event, request) => fileHost.cancel(request));
+    registerProjectChannels(ipcMain, window, { grants });
 
     async function handlePrintPdf(request) {
       const targetWindow =

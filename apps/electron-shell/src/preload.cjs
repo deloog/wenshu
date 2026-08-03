@@ -11,6 +11,10 @@ const channels = new Set([
   "wenshu.host.registry",
   "wenshu.host.invoke",
   "wenshu.host.cancel",
+  "wenshu.project.new",
+  "wenshu.project.open",
+  "wenshu.project.import",
+  "wenshu.project.import.cancel",
   ...(e2eMode ? ["e2e.knowledge.export", "e2e.knowledge.import", "e2e.report"] : []),
 ]);
 
@@ -25,6 +29,36 @@ contextBridge.exposeInMainWorld(
     registry: () => invoke("wenshu.host.registry"),
     invoke: (request) => invoke("wenshu.host.invoke", request),
     cancel: (request) => invoke("wenshu.host.cancel", request),
+  }),
+);
+
+const PROGRESS_CHANNEL = "wenshu.project.import.progress";
+let progressListener;
+
+function onImportProgress(callback) {
+  offImportProgress();
+  progressListener = (_event, payload) => callback(payload);
+  ipcRenderer.on(PROGRESS_CHANNEL, progressListener);
+}
+
+function offImportProgress() {
+  if (progressListener !== undefined) {
+    ipcRenderer.removeListener(PROGRESS_CHANNEL, progressListener);
+    progressListener = undefined;
+  }
+}
+
+// A-02 orchestration surface (ADR-0029 §4): grant ids, flat names and display
+// metadata only; payloads are forwarded verbatim to the whitelisted channels.
+contextBridge.exposeInMainWorld(
+  "wenshuProject",
+  Object.freeze({
+    newProject: (input) => invoke("wenshu.project.new", input),
+    openProject: (input) => invoke("wenshu.project.open", input),
+    importProject: (input) => invoke("wenshu.project.import", input),
+    cancelImport: (input) => invoke("wenshu.project.import.cancel", input),
+    onImportProgress,
+    offImportProgress,
   }),
 );
 
