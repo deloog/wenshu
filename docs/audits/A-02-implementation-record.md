@@ -127,3 +127,55 @@ web 侧子记录见 [A-02-web-implementation-record](A-02-web-implementation-rec
 | ⑥ | `consumeFile` 不注销 | file-import-select.integration（R-2） | 红 |
 
 （E2E 层反例已落 §4.5：handle-reuse NOT_FOUND、target-exists CONFLICT、①-a 键集精确断言均为真实 Electron 端决定性断言，非变异注入。）
+
+## 8. 首审 MAJOR-1 处置（待 Claude 复审关闭）
+
+**发现**（[A-02-claude-audit-report](A-02-claude-audit-report.md) MAJOR-1）：审计探针
+`buildPayloadHostRegistry({ protocolVersion: "0.2.0" })` 得到
+`file.import.select: supported/0.3.0`（与 0.3.0 注册表完全相同），判「0.2.0 注册表
+把该能力登记为 supported/0.3.0，违背 §5 同版本语义不变」。
+
+**实施者独立复现结论：所报缺陷的表象成立、归因不成立**——`protocolVersion` 不是
+builder 的选项（PB-10 签署版起就不存在该键，0.2.0 旧建路径的合法 opt-out 键是
+`payloadRegistryVersion`）。传入不存在的键被**静默忽略**，落到默认 0.3.0 构建，
+于是观察到「与 0.3.0 注册表完全相同」。真实 0.2.0 路径复现（同机同时）：
+
+```text
+payloadRegistryVersion: "0.2.0" → protocol_version 0.2.0,
+  file.import.select = 0.1.0 / unsupported / PB10_PAYLOAD_UNFROZEN  （恰为 PB-10 签署占位形态）
+protocolVersion: "0.2.0"（不存在的键）→ protocol_version 0.3.0,
+  file.import.select = 0.3.0 / supported                              （= 审计探针观察）
+```
+
+①-b 决定性测试自 `deaf1a7` 起即按原文构造且绿（host-v0-3.contract.test.ts「decisive
+dual-version: a frozen 0.2.0 registry still validates unchanged」：经
+`payloadRegistryVersion: "0.2.0"` 构造，断言 0.1.0/unsupported/PB10_PAYLOAD_UNFROZEN）。
+「builder 不产出该形态」不成立。但**静默忽略未知选项键**这一健壮性缺口真实存在——
+它正是误探得以发生的原因，且对 JS 侧消费者（无 TS excess property check）是真实
+fail-open 人机工程风险。按选项一的精神做结构化根治而非措辞澄清：
+
+**修复**（本棒 additive，零行为变化于合法调用）：
+
+1. `buildPayloadHostRegistry` 未知选项键 **fail-closed 抛错**（`Unknown payload
+   registry option: <key>`）——审计探针形态现在直接抛错，不再静默给出最新版注册表。
+2. 决定性测试升级为**字节级形态钉定**：builder 0.2.0 产出的 file.import.select 声明
+   与 PB-10 签署冻结 fixture（`fixtures/valid/v0-2-0-registry.json`）对应条目
+   `deepEqual`；另断言 0.2.0 构建全文不含任何 `/0.3.0` schema id。
+3. 新增 fail-closed 测试：`protocolVersion`/`payloadregistryVersion`/`version` 三种
+   误写键全抛错。
+
+**验证**：host-contract **72/72 pass**（71+1 新增）；typecheck 干净；下游
+project-storage 41/41、web 30/30 零回潮；`pnpm verify` 全绿。
+
+**变异自证**（均红后回退，diff 确认源一致）：
+
+| # | 变异 | 结果 |
+|---|---|---|
+| ⑦ | 删 0.3.0 分支的版本守卫（0.2.0 构建发 supported/0.3.0） | 红 ×2（强化后决定性测试 + 既有 builder 自洽测试） |
+| ⑧ | 删未知键拒绝 | 红（新 fail-closed 测试） |
+
+§5 措辞未动（契约语义未变——0.2.0 冻结语义自始至终保持）；「0.2.0 可含 0.3.0 能力」
+的书面裁定路径未启用。请 Claude 复审关闭 MAJOR-1，并一并补齐首审 §4 六项未审项
+（原件哈希三异常路径字节级比对、A-01 契约消费方式、followups #2 表态、承接项归属、
+决策 #15↔ADR 互引、CI 侧 permission-denied 实证——后者现成证据：PR #55 run
+`30918444973` e2e 日志 `permission-denied reconciled (linux: chmod 0o555)`）。
