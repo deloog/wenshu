@@ -12,7 +12,7 @@ export type * from "./generated/ux-states.ts";
  * dragged ~145 kB of Ajv into the apps/web browser bundle).
  *
  * Trust model: this module reads the very same states-1.0.0.json bytes the
- * main entry validates; test/data-parity.test.ts proves UX_STATES_DATA is
+ * main entry validates; test/data-parity.unit.test.ts proves UX_STATES_DATA is
  * deep-equal to the Ajv-validated UX_STATES and that canTransitionIn agrees
  * with canTransition on the full 12×12 matrix, so the two entries cannot
  * silently drift. states-1.0.0.json itself is NOT touched here
