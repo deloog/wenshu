@@ -6,6 +6,8 @@
 
 ## 1. 结论
 
+> **⚠ 本节 MAJOR-1 已于复审撤销——归因错误在审计者。见 [§6 复审记录](#6-复审记录2026-08-04--major-1-撤销)。** 首审正文原样保留以存档。
+
 **CONDITIONAL PASS —— 无 BLOCKER；一项 MAJOR 须在合并前关闭。**
 
 **ADR-0029 ①-a 这条最容易破的红线守住了，而且守得比我要求的严**：真实 `file.import.select` 输出里没有任何路径成分，handle 一次性、跨作用域不可用，甚至连我没要求的"选择后内容漂移"都做了 fail-closed。MAJOR 出在 ①-b 的版本形态上——`0.2.0` 注册表现在把 `file.import.select` 登记成了 `supported/0.3.0`，这是对已签署冻结协议的静默语义变更。
@@ -87,3 +89,54 @@
 ---
 
 *本报告由独立审计角色出具；台账与代码修复由实施者完成。审计期间仅新增本文件。*
+
+---
+
+# 6. 复审记录（2026-08-04）· MAJOR-1 撤销
+
+## 6.1 结论
+
+**MAJOR-1 撤销——归因错误在审计者，不在实施。** 首审 §3 的判定不成立，实施侧当时并无该缺陷。
+
+## 6.2 我错在哪（实测三条，逐条对我不利）
+
+```text
+payloadRegistryVersion: "0.2.0"   -> protocol=0.2.0 | import.select = unsupported / 0.1.0
+                                     schema id = wenshu.host.input.file.import.select/0.1.0
+                                     全文不含 "/0.3.0"          ← 恰为 PB-10 签署占位形态
+(不传，默认)                        -> protocol=0.3.0 | import.select = supported / 0.3.0
+protocolVersion: "0.2.0"（我首审用的） -> THREW: Unknown payload registry option: protocolVersion
+```
+
+我另核了 `git show origin/main:packages/host-contract/src/registry-builder.ts` 的选项接口：**`protocolVersion` 在 PB-10 签署版与当前分支都从不存在**，合法键自始是 `payloadRegistryVersion?: "0.2.0"`。
+
+我传了一个不存在的键，JS 对未知属性静默忽略，builder 落到默认 0.3.0 构建——我却把那个结果当成"0.2.0 注册表"并据此判定契约被静默改写。**观察是真的，结论是假的**：我从头到尾就没有构造出一个 0.2.0 注册表。①-b 的决定性测试自 `deaf1a7` 起即按裁定原文构造并通过，我首审说它"无从构造"同样不成立。
+
+同类错误本轮我已犯第三次（管道吞退出码、CRLF 变异未落盘、本次未知选项键静默忽略），共同形态是**拿未经确认的调用结果当结论**。这一条我此前建议实施者写进权威文件，现在看更应该先约束我自己：**下断言前先确认 API 契约与改动确已生效**。
+
+## 6.3 但暴露的缺口是真的，修得也对
+
+实施侧没有停在"审计者搞错了"，而是把**未知选项键静默忽略**这一根因结构性堵死。我实测：
+
+| 输入 | 结果 |
+|---|---|
+| `protocolVersion`（我首审那个） | **THREW** `Unknown payload registry option: protocolVersion` |
+| `payloadregistryVersion`（大小写误写） | **THREW** |
+| `version` | **THREW** |
+
+**我那次误探的形态现在不可能再发生。** 这是比"驳回审计者"更好的处置——把能产生假象的通道关掉，而不只是证明这次没事。
+
+## 6.4 MINOR-1（复审新增，小）：合法键 + 非法值仍静默降级
+
+```text
+payloadRegistryVersion: "0.1.0"（合法键、非法值）
+   -> 不抛错，落到 protocol=0.3.0，import.select=supported/0.3.0
+```
+
+类型上 `?: "0.2.0"` 会在编译期挡住，但运行期（JS 调用方、JSON 配置、`as` 断言）会**静默升到更新的协议**——与刚修掉的键级静默忽略是同一类，只是发生在值轴上。建议把 fail-closed 从键扩到值（未知值即抛），并补一条决定性测试。**小改动，不阻断合并**，但既然键级已经收口，值级留着不对称。
+
+## 6.5 首审 §4 六项仍未补核
+
+本轮预算用在 MAJOR-1 的复现与撤销上，[§4](#4-待补核本轮未做完如实登记) 六项**仍未由我独立复核**：原件哈希不变在三条异常路径的字节级比对、A-01 契约消费方式、`A-01-followups #2` 表态、承接项归属、决策 #15 ↔ ADR-0029 互引、CI 侧 `permission-denied` 实证。
+
+**当前签署状态：`CONDITIONAL PASS`，唯一未关闭项为 MINOR-1；但 §4 六项在补核完成前不构成"已审计通过"**——其中"原件哈希不变"是 A-02 唯一的停止条件级要求，未经独立复核不应合并放行。请安排下一轮补核。

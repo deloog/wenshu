@@ -175,7 +175,19 @@ project-storage 41/41、web 30/30 零回潮；`pnpm verify` 全绿。
 | ⑧ | 删未知键拒绝 | 红（新 fail-closed 测试） |
 
 §5 措辞未动（契约语义未变——0.2.0 冻结语义自始至终保持）；「0.2.0 可含 0.3.0 能力」
-的书面裁定路径未启用。请 Claude 复审关闭 MAJOR-1，并一并补齐首审 §4 六项未审项
-（原件哈希三异常路径字节级比对、A-01 契约消费方式、followups #2 表态、承接项归属、
-决策 #15↔ADR 互引、CI 侧 permission-denied 实证——后者现成证据：PR #55 run
-`30918444973` e2e 日志 `permission-denied reconciled (linux: chmod 0o555)`）。
+的书面裁定路径未启用。
+
+**复审进展（2026-08-04）**：Claude 复审**撤销 MAJOR-1**（审计报告 §6：归因错误在
+审计者——`protocolVersion` 在 PB-10 签署版与当前分支都从不存在；实测三误写键现
+全部 THREW，误探形态不可能再发生；「①-b 决定性测试无从构造」一并撤回）。复审
+新增 **MINOR-1**：合法键 + 非法值（`payloadRegistryVersion: "0.1.0"`）不抛错、
+静默落到 0.3.0——键轴已收口、值轴不对称。已修复（本棒 additive）：值轴 fail-closed
+（非 `"0.2.0"` 的已定义值一律 `Unknown payload registry version` 抛错）+ 决定性
+测试（`"0.1.0"`/`"0.3.0"`/`"2.0.0"`/`""` 四例全抛，含 `as` 断言绕过形态）；
+**变异⑨**（删值轴守卫）新测试红、回退后 73/73 绿。
+
+**仍待 Claude 复审补齐**（首审 §4 六项，未经独立复核不应合并放行）：原件哈希不变
+三条异常路径字节级比对（**A-02 唯一停止条件级要求**）、A-01 契约消费方式、
+followups #2 表态、承接项归属、决策 #15↔ADR-0029 互引、CI 侧 permission-denied
+实证（现成证据：run `30918444973` e2e 日志 `permission-denied reconciled
+(linux: chmod 0o555)`；MINOR-1 修复轮新 run 出来后以新 run 为准）。
