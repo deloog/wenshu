@@ -59,10 +59,33 @@ async function loadHostModules() {
   return { storage, contract };
 }
 
+/**
+ * A-02: scripted project.directory.select override. E2E_SELECT_DIRECTORY is a
+ * JSON array of directory selectors (flat names relative to the workdir, or
+ * absolute paths kept as-is), consumed one per call in order; the last entry
+ * repeats when the queue is exhausted. Unset keeps the PB-12 behavior (every
+ * call selects the workdir itself).
+ */
+const selectDirectoryQueue = (() => {
+  const raw = globalThis.process.env["E2E_SELECT_DIRECTORY"];
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  return JSON.parse(raw);
+})();
+
 function scriptedSelectDirectory() {
+  let name = ".";
+  if (selectDirectoryQueue !== undefined) {
+    name =
+      selectDirectoryQueue.length > 1
+        ? selectDirectoryQueue.shift()
+        : selectDirectoryQueue[0];
+  }
+  const root = isAbsolute(name) ? name : resolve(workdir, name);
   return Promise.resolve({
     status: "selected",
-    root: workdir,
+    root,
     displayName: "e2e-workdir",
   });
 }
@@ -78,9 +101,7 @@ function scriptedSelectFiles() {
     return Promise.resolve({ status: "cancelled" });
   }
   const names = JSON.parse(raw);
-  const files = names.map((name) =>
-    isAbsolute(name) ? name : join(workdir, name),
-  );
+  const files = names.map((name) => (isAbsolute(name) ? name : join(workdir, name)));
   return Promise.resolve({ status: "selected", files });
 }
 
@@ -268,6 +289,9 @@ app
       query.source = requiredEnv("E2E_IMPORT_SOURCE");
       query.target = requiredEnv("E2E_IMPORT_TARGET");
       query.expected = globalThis.process.env["E2E_IMPORT_EXPECTED_DOC_SHA256"] ?? "";
+    } else if (scenarioMode === "project-import") {
+      // A-02: real-file project import sub-scenarios; E2E_SUB picks which one.
+      query.sub = globalThis.process.env["E2E_SUB"] ?? "happy";
     } else if (scenarioMode === "e2e") {
       // W3 chain 5: deterministic bulk material so import takes long enough
       // for a mid-import SIGKILL window.

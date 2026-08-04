@@ -25,7 +25,8 @@
     "@wenshu/semantic-audit": "workspace:*",
     "@wenshu/semantic-editor": "workspace:*",
     "@wenshu/semantic-tools": "workspace:*",
-    "@wenshu/template-model": "workspace:*"
+    "@wenshu/template-model": "workspace:*",
+    "@wenshu/ux-state": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

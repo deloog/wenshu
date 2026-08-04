@@ -52,6 +52,10 @@ export interface SummaryLine {
   };
   readonly imported?: Readonly<Record<string, unknown>> | null;
   readonly recovery?: { readonly removedResidue: number };
+  /** A-02 project-import mode: which sub-scenario produced this summary. */
+  readonly sub?: string;
+  /** A-02 project-import mode: per-sub outcome payload for on-disk reconciliation. */
+  readonly projectImport?: Readonly<Record<string, unknown>>;
 }
 
 export interface ChainLine {
