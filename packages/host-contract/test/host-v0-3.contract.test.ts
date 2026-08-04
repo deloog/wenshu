@@ -154,7 +154,41 @@ test("decisive dual-version: a frozen 0.2.0 registry still validates unchanged",
     "wenshu.host.input.file.import.select/0.1.0",
   );
   assert.equal(legacyImport?.fallback.reason_code, "PB10_PAYLOAD_UNFROZEN");
+  // ①-b byte-level form: the builder's 0.2.0 placeholder declaration is
+  // deep-equal to the PB-10-signed frozen fixture entry (MAJOR-1 remediation).
+  if (!isRecord(fixture) || !Array.isArray(fixture["capabilities"])) {
+    throw new Error("0.2.0 registry fixture must carry a capabilities array");
+  }
+  const fixtureImport = (
+    fixture["capabilities"] as readonly Record<string, unknown>[]
+  ).find((entry) => entry["name"] === "file.import.select");
+  assert.deepEqual(legacyImport, fixtureImport);
+  // The 0.2.0 build carries no 0.3.0 schema id anywhere.
+  assert.equal(
+    JSON.stringify(legacy).includes("/0.3.0"),
+    false,
+    "a 0.2.0 registry must not reference any 0.3.0 schema id",
+  );
   assert.equal(validateHostContract(legacy).ok, true);
+});
+
+test("fail-closed: unknown builder option keys throw (MAJOR-1 remediation)", () => {
+  // The audit probe that reported MAJOR-1 passed `protocolVersion` (a
+  // nonexistent option) and silently received the default 0.3.0 registry.
+  // Unknown keys must now be an explicit error, never a silent fallback.
+  for (const bogus of ["protocolVersion", "payloadregistryVersion", "version"]) {
+    assert.throws(
+      () =>
+        buildPayloadHostRegistry({
+          hostKind: "electron",
+          hostVersion: "test-bogus-1.0",
+          instanceId: "host_04040404040404040404040404040404",
+          [bogus]: "0.2.0",
+        }),
+      /Unknown payload registry option/u,
+      `unknown option ${bogus} must throw`,
+    );
+  }
 });
 
 test("decisive dual-version: the 0.2.0 request/terminal chain is unchanged", async () => {

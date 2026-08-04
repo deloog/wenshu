@@ -245,6 +245,16 @@ function placeholderDeclaration(name: string): Record<string, unknown> {
   };
 }
 
+const KNOWN_OPTION_KEYS: ReadonlySet<string> = new Set([
+  "hostKind",
+  "hostVersion",
+  "instanceId",
+  "capabilitySupport",
+  "additionalDeclarations",
+  "timeoutMs",
+  "payloadRegistryVersion",
+]);
+
 export function buildPayloadHostRegistry(
   options: PayloadHostRegistryOptions & { readonly payloadRegistryVersion: "0.2.0" },
 ): HostRegistryV02;
@@ -254,6 +264,15 @@ export function buildPayloadHostRegistry(
 export function buildPayloadHostRegistry(
   options: PayloadHostRegistryOptions,
 ): HostRegistryV02 | HostRegistryV03 {
+  // Fail-closed on unknown option keys (A-02 audit MAJOR-1 remediation): a
+  // caller intending the legacy 0.2.0 shape who mistypes the option name
+  // (e.g. protocolVersion) must get an explicit error, never a silent
+  // latest-version registry advertising capabilities it did not ask about.
+  for (const key of Object.keys(options)) {
+    if (!KNOWN_OPTION_KEYS.has(key)) {
+      throw new Error(`Unknown payload registry option: ${key}`);
+    }
+  }
   const registryVersion =
     options.payloadRegistryVersion === "0.2.0"
       ? HOST_PROTOCOL_VERSION_V0_2
