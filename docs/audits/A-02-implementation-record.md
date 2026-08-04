@@ -24,7 +24,8 @@
 | `38a2412` | ux-state：`./data` 纯数据子路径 + 导入流程控制器（additive） |
 | `5d4822b` | apps/web：流程 UI + 浏览器 Host 诚实降级 + tsconfig 处置 |
 | `511e6a4` | electron-shell：`wenshu.project.*` 编排通道（main/e2e 共享） |
-| （待补） | E2E 场景与测试 |
+| `214553a` | style：A-02 已入库 15 文件 prettier 重排（repo-wide format:check 卫生，零逻辑） |
+| `36cd161` | electron-shell：A-02 真实文件 E2E 场景 + 测试（见 §4.5） |
 
 ## 3. 关键设计决定（详见 ADR-0029）
 
@@ -63,9 +64,25 @@
 - **`pnpm test:e2e` PB-12 七链环 8/8 全绿**（161s，kill seed=12648430）——协议 0.3.0 落地后 0.2.0 请求全链路零回潮（双版本 in vivo）。
 - `quality:check` / `lint` 全绿。
 
-### 4.5 A-02 真实文件 E2E（待补：E2E 场景落地后填写）
+### 4.5 A-02 真实文件 E2E（提交 `36cd161`，本机实测）
 
-（取消 / 部分失败 / 权限拒绝 / 原件哈希不变逐路径断言、target-exists、handle-reuse 反例——见后续提交。）
+`node --test apps/electron-shell/test/a-02-project-import.e2e.test.ts`：**6 例 = 5 pass + 1 诚实 skip（124s）**。每例子场景 spawn 真实 Electron（e2e-main + 场景 bundle）对真实 fixture 文件跑真实协议与编排通道，编排器只做写 fixture / 起杀进程 / 对账磁盘实物；**每例运行前后全部源文件 sha256 快照逐字节比对**（停止条件级不变量）。
+
+| 子场景 | 实测结果 |
+|---|---|
+| happy+open | select→new→import→open 全链 PASS；`document.json`/`materials/`/`assets/` 磁盘实物与源字节逐一对账（documentSha256===磁盘文件摘要；materials/资源=内容寻址名且字节===未动源文件）；重开项目 document_sha256 与导入一致、标题逐字；空项目 `report-a` 保持空（D2 不合并）；零 temp 残留；轨迹 `empty-project→importing→project-view:import-succeeded→project-view:project-opened` |
+| partial | 引用但**未选**的 img2.png 逐项降级 `asset_not_provided`（retryable）；R-3 实测：同目录未选文件从未被读取、从未落盘；`import-partial` 态逐项枚举失败，forbiddenSemantics「不整体吞掉结果」逐字随行 |
+| cancel | 首个真实进度事件即发 cancel（32 MiB bulk 资源撑窗口）；**attempt 1 即真取消**（progress events=2），cancelled 为诚实终态（不带 digest/错误码），无半写 target、零 temp 残留；窗口丢失语义=仅重试一次且 scenario 失败绝不重试 |
+| permission-denied | **本机诚实 skip**（特权 token 绕过 ACL deny，探针实测后跳过不伪装拒绝）；ubuntu CI 以 chmod 0o555 真实行使。断言面：真实 PERMISSION_DENIED、错误载荷恰为 `{status,code,import_id}` 三键（无任何路径回显）、importAttempts===1（noRetryLoop）、permission-denied 态「不循环弹窗」逐字 |
+| target-exists（D2） | 第二次 project.new → `{status:"exists"}` 单键（不带改名）；import 入已存在目录 → CONFLICT；原目录保持空、零残留 |
+| handle-reuse（R-2 E2E 反例） | 同一 source handle 第二次 import → fail-closed `NOT_FOUND`；第一次导入产物完整、第二次零残留 |
+
+- **①-a 红线在 E2E 层钉死**：`file.import.select` 每条 file 条目键集断言**恰为** `grant_id/file_name/content_sha256/size_bytes`，file_name 禁分隔符/冒号（project-import-shared.ts:145-185）。
+- **状态视图逐字对账**：每个发出的流程视图与冻结 ux-state 1.0.0 数据 `requiredPresentation/forbiddenSemantics/a11y/label/cancelable` 逐项 JSON 相等断言；进度事件经真实通道进控制器，dispatch 错误记录不吞咽并断言为空。
+- **PB-12 零回潮**：本提交后全套 `pnpm test:e2e` **14 例 = 13 pass + 1 skip**（PB-12 七链环+提案拒写 8 例全绿，kill seed=12648430）；`security:test` PASS（sandbox/contextIsolation/白名单零回潮）；`format:check`/`lint`/`typecheck`/`quality:check` 全绿（quality 无新增 WARN——场景按 400 行闸拆分四模块）。
+- e2e-main 增项：脚本化目录选择队列 `E2E_SELECT_DIRECTORY`（逐次消费、末项重复）+ `project-import` 场景模式；编排器 summary 增可选 `sub`/`projectImport` 字段（additive，PB-12 解析零影响）。
+
+web 侧子记录见 [A-02-web-implementation-record](A-02-web-implementation-record.md)（ux-state data/import-flow/web flow UI 的变更清单、裁定与验证表，与本记录 §4.3 同源）。
 
 ## 5. 承接项处置（任务书 §6 三类口径）
 
@@ -91,7 +108,7 @@
 ## 6. 已知边界（如实声明）
 
 1. **流程区 dev-only 动态挂载**：生产构建剪除 dev 分支意味着打包器不覆盖该分支；typecheck 与 30 例单测覆盖其逻辑，dev 端真实浏览器运行未实测（证据限制，补验时点：A-12 贯通或本棒审计要求时）。
-2. **cancel 竞态**：执行器按阶段查 signal；极小文件可能在 cancel 到达前完成——E2E 用 bulk 资源撑窗口（见 §4.5）。
+2. **cancel 竞态**：执行器按阶段查 signal；极小文件可能在 cancel 到达前完成——E2E 用 32 MiB bulk 资源撑窗口，本机 attempt 1 即真取消（§4.5）；窗口丢失只重试一次，双失则测试红（不伪装）。
 3. **权限拒绝在 win32 本机**：特权 token 可绕过 ACL deny，测试以诚实 skip 结案；决定性在 POSIX/ubuntu CI（与 PB-10 口径一致）。
 4. **符号链接/realpath**：FileGrant 钉定路径沿用字符串语义，穿透评估归 A-15（PB-11 #7 同类，ADR-0029 §5 已登记）。
 5. **盘符引用**（`C:/x.png`）在 parse 期即被 IMPORT_REMOTE_REF 整单拒（既有 parser 行为），from-text 逃逸校验的盘符分支不可达。
@@ -109,4 +126,4 @@
 | ⑤ | consistency 0.3.0 分支放宽（允许 /0.2.0 id） | host-v0-3.contract | 红 |
 | ⑥ | `consumeFile` 不注销 | file-import-select.integration（R-2） | 红 |
 
-（E2E 变异与 handle-reuse 反例待 §4.5 补充。）
+（E2E 层反例已落 §4.5：handle-reuse NOT_FOUND、target-exists CONFLICT、①-a 键集精确断言均为真实 Electron 端决定性断言，非变异注入。）
