@@ -85,7 +85,9 @@ export function buildFlowScreen(
     }
     actions = Object.freeze(["retry-import", "return-to-project"]);
   } else if (view.stateId === "permission-denied") {
-    detailLines.push(`为什么需要：导入需要选择并读取本地文件（${view.reasonCode ?? ""}）`);
+    detailLines.push(
+      `为什么需要：导入需要选择并读取本地文件（${view.reasonCode ?? ""}）`,
+    );
     if (view.fallbackNote !== undefined) {
       detailLines.push(`当前可做什么 / 降级路径：${view.fallbackNote}`);
     }

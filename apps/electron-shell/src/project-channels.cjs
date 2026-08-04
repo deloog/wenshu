@@ -84,11 +84,7 @@ function registerProjectChannels(ipcMain, window, context) {
       raw = await readFile(join(grant.root, "document.json"));
     } catch (error) {
       // Missing document.json is a legal empty project, not a failure.
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        error.code === "ENOENT"
-      ) {
+      if (typeof error === "object" && error !== null && error.code === "ENOENT") {
         return { status: "opened", has_document: false };
       }
       return errorResult("IO_FAILURE");

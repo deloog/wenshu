@@ -16,7 +16,12 @@ async function loadHostModules() {
     import("@wenshu/project-storage"),
     import("@wenshu/host-contract"),
   ]);
-  return { createFileHost, createGrantTable, validateHostContract, validateHostSession };
+  return {
+    createFileHost,
+    createGrantTable,
+    validateHostContract,
+    validateHostSession,
+  };
 }
 
 function hostDialog(window) {
@@ -44,9 +49,7 @@ function hostFileDialog(window) {
   return async function selectFiles(request) {
     const result = await dialog.showOpenDialog(window, {
       title: request.purpose === undefined ? "选择导入文件" : request.purpose,
-      properties: request.multiple
-        ? ["openFile", "multiSelections"]
-        : ["openFile"],
+      properties: request.multiple ? ["openFile", "multiSelections"] : ["openFile"],
       ...(request.extensions === undefined
         ? {}
         : {
@@ -98,12 +101,7 @@ app
   .whenReady()
   .then(async () => {
     const [
-      {
-        validateHostContract,
-        validateHostSession,
-        createFileHost,
-        createGrantTable,
-      },
+      { validateHostContract, validateHostSession, createFileHost, createGrantTable },
       window,
     ] = await Promise.all([loadHostModules(), createWindow()]);
     // A-02 (ADR-0029 §4): one shared grant table so file.import.select FileGrants

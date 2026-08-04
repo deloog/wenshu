@@ -110,15 +110,9 @@ export type ProjectCancelResult =
 export interface ProjectBridge {
   readonly newProject: (input: ProjectNewInput) => Promise<ProjectNewResult>;
   readonly openProject: (input: ProjectOpenInput) => Promise<ProjectOpenResult>;
-  readonly importProject: (
-    input: ProjectImportInput,
-  ) => Promise<ProjectImportResult>;
-  readonly cancelImport: (
-    input: ProjectCancelInput,
-  ) => Promise<ProjectCancelResult>;
-  readonly onImportProgress: (
-    callback: (progress: ImportProgress) => void,
-  ) => void;
+  readonly importProject: (input: ProjectImportInput) => Promise<ProjectImportResult>;
+  readonly cancelImport: (input: ProjectCancelInput) => Promise<ProjectCancelResult>;
+  readonly onImportProgress: (callback: (progress: ImportProgress) => void) => void;
   readonly offImportProgress: () => void;
 }
 

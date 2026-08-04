@@ -25,10 +25,7 @@ import { UX_STATES_DATA, canTransitionIn, getUxStateFrom } from "./data.ts";
  * surfaces as project-view cause "import-failed" carrying the real code.
  */
 export type ImportFlowStateId =
-  | "empty-project"
-  | "importing"
-  | "import-partial"
-  | "permission-denied";
+  "empty-project" | "importing" | "import-partial" | "permission-denied";
 
 export const IMPORT_FLOW_STATE_IDS: readonly ImportFlowStateId[] = Object.freeze([
   "empty-project",
@@ -266,9 +263,7 @@ export function createImportFlowController(
         ...(context.projectName === undefined
           ? {}
           : { projectName: context.projectName }),
-        ...(context.reasonCode === undefined
-          ? {}
-          : { reasonCode: context.reasonCode }),
+        ...(context.reasonCode === undefined ? {} : { reasonCode: context.reasonCode }),
       };
       return Object.freeze(projectView);
     }
@@ -288,12 +283,8 @@ export function createImportFlowController(
       ...(context.fileName === undefined ? {} : { fileName: context.fileName }),
       ...(context.progress === undefined ? {} : { progress: context.progress }),
       ...(context.items === undefined ? {} : { items: context.items }),
-      ...(context.reasonCode === undefined
-        ? {}
-        : { reasonCode: context.reasonCode }),
-      ...(context.retryable === undefined
-        ? {}
-        : { retryable: context.retryable }),
+      ...(context.reasonCode === undefined ? {} : { reasonCode: context.reasonCode }),
+      ...(context.retryable === undefined ? {} : { retryable: context.retryable }),
       ...(context.fallbackNote === undefined
         ? {}
         : { fallbackNote: context.fallbackNote }),

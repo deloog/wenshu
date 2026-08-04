@@ -94,13 +94,17 @@ export function mountPrototype(root: HTMLElement): void {
 }
 
 async function mountBrowserFlow(section: HTMLElement): Promise<void> {
-  const [{ mountFlow }, { createBrowserFlowBridge }, { createProjectFlow }, { createBrowserHost }] =
-    await Promise.all([
-      import("../flow/mount.ts"),
-      import("../flow/bridge.ts"),
-      import("../flow/session.ts"),
-      import("../host.ts"),
-    ]);
+  const [
+    { mountFlow },
+    { createBrowserFlowBridge },
+    { createProjectFlow },
+    { createBrowserHost },
+  ] = await Promise.all([
+    import("../flow/mount.ts"),
+    import("../flow/bridge.ts"),
+    import("../flow/session.ts"),
+    import("../host.ts"),
+  ]);
   mountFlow(section, createProjectFlow(createBrowserFlowBridge(createBrowserHost())));
 }
 

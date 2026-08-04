@@ -74,7 +74,10 @@ export function buildReconciliation(
   const documentContentChars =
     titleLength + contentCharsOfBlocks(document.blocks as unknown[]);
   // 被排除 figure 的 alt 字符已按源行消费记帐，但不进入文档内容，此处如实扣回。
-  const excludedChars = excludedFigures.reduce((sum, figure) => sum + figure.alt.length, 0);
+  const excludedChars = excludedFigures.reduce(
+    (sum, figure) => sum + figure.alt.length,
+    0,
+  );
   // 段落/引用跨行合并产生的块内换行来自源换行符，不属于行内容字符。
   if (documentContentChars - parsed.embeddedBreaks + excludedChars !== contentChars) {
     throw new MarkdownImportError(

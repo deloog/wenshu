@@ -68,13 +68,15 @@ test("import unsupported degrades to permission-denied with fallback and no retr
   assert.equal(screen.kind, "state");
   assert.equal(screen.heading.includes("permission-denied"), true);
   // Verbatim frozen obligations for permission-denied.
-  assert.deepEqual(screen.requiredItems, ["为什么需要", "当前可做什么", "如何重新授权"]);
+  assert.deepEqual(screen.requiredItems, [
+    "为什么需要",
+    "当前可做什么",
+    "如何重新授权",
+  ]);
   assert.deepEqual(screen.forbiddenNotes, ["不循环弹窗"]);
   // One failed call stops the flow: no retry affordance, only return.
   assert.deepEqual(screen.actions, ["return-to-project"]);
-  assert.ok(
-    screen.detailLines.some((line) => line.includes("HOST_UNSUPPORTED")),
-  );
+  assert.ok(screen.detailLines.some((line) => line.includes("HOST_UNSUPPORTED")));
   assert.ok(
     screen.detailLines.some((line) =>
       line.includes("manual_file_picker/BROWSER_HOST_NO_IMPORT_PIPELINE"),
@@ -182,7 +184,13 @@ test("view-model passes frozen obligations through verbatim for all four states"
     fileName: "a.md",
     progress: { phase: "解析", percent: 10 },
   });
-  assert.deepEqual(screen.requiredItems, ["文件名", "阶段", "进度", "取消", "原文件只读"]);
+  assert.deepEqual(screen.requiredItems, [
+    "文件名",
+    "阶段",
+    "进度",
+    "取消",
+    "原文件只读",
+  ]);
   assert.deepEqual(screen.actions, ["cancel-import"]);
   assert.ok(screen.detailLines.some((line) => line.includes("10%")));
 });

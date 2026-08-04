@@ -77,7 +77,8 @@ function toTerminal(message: unknown): BridgeTerminal {
     typeof record["fallback"] === "object" && record["fallback"] !== null
       ? (record["fallback"] as Record<string, unknown>)
       : undefined;
-  const strategy = fallback === undefined ? undefined : readString(fallback, "strategy");
+  const strategy =
+    fallback === undefined ? undefined : readString(fallback, "strategy");
   const reasonCode =
     fallback === undefined ? undefined : readString(fallback, "reason_code");
   const fallbackNote =

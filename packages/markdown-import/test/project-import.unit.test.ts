@@ -9,12 +9,8 @@ import { assertWithinTemp } from "../src/index.ts";
 test("assertWithinTemp accepts targets inside the staging directory", () => {
   const temp = join(process.cwd(), "tmp-guard-root");
   assert.doesNotThrow(() => assertWithinTemp(temp, join(temp, "document.json")));
-  assert.doesNotThrow(() =>
-    assertWithinTemp(temp, join(temp, "assets", "ab12.png")),
-  );
-  assert.doesNotThrow(() =>
-    assertWithinTemp(temp, join(temp, "materials", "cd34.md")),
-  );
+  assert.doesNotThrow(() => assertWithinTemp(temp, join(temp, "assets", "ab12.png")));
+  assert.doesNotThrow(() => assertWithinTemp(temp, join(temp, "materials", "cd34.md")));
 });
 
 test("assertWithinTemp fails closed on escape, self and absolute targets", () => {

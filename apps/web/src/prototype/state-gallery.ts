@@ -83,7 +83,9 @@ export function buildScreen(state: UxState): StateScreenViewModel {
 
 /** One screen per frozen contract state, in ux-spec §4 table order. */
 export function buildStateScreens(): readonly StateScreenViewModel[] {
-  return Object.freeze(listUxStatesFrom(UX_STATES_DATA).map((state) => buildScreen(state)));
+  return Object.freeze(
+    listUxStatesFrom(UX_STATES_DATA).map((state) => buildScreen(state)),
+  );
 }
 
 export function buildScreenFor(stateId: string): StateScreenViewModel | undefined {

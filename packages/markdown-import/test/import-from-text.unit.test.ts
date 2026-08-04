@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  importMarkdownDocumentFromText,
-  MarkdownImportError,
-} from "../src/index.ts";
+import { importMarkdownDocumentFromText, MarkdownImportError } from "../src/index.ts";
 
 const PNG_BYTES = new TextEncoder().encode("fake-png-bytes");
 const SVG_BYTES = new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'/>");
@@ -34,8 +31,7 @@ test("all assets resolve: failedAssets empty, figures in document, books balance
   const result = await importMarkdownDocumentFromText(
     source("正文段落。\n\n![图一](images/a.png)\n\n![图二](b.svg)"),
     "doc.md",
-    (reference) =>
-      Promise.resolve(reference.endsWith(".svg") ? SVG_BYTES : PNG_BYTES),
+    (reference) => Promise.resolve(reference.endsWith(".svg") ? SVG_BYTES : PNG_BYTES),
   );
   assert.equal(result.failedAssets.length, 0);
   assert.deepEqual(figureAlts(result.document), ["图一", "图二"]);
@@ -54,8 +50,7 @@ test("single asset missing: partial collection, figure excluded, reconciliation 
   const result = await importMarkdownDocumentFromText(
     source("正文段落。\n\n![图一](a.png)\n\n![图二](missing.png)"),
     "doc.md",
-    (reference) =>
-      Promise.resolve(reference === "a.png" ? PNG_BYTES : undefined),
+    (reference) => Promise.resolve(reference === "a.png" ? PNG_BYTES : undefined),
   );
   assert.deepEqual(
     result.failedAssets.map((failed) => ({
@@ -91,9 +86,7 @@ test("resolver throwing maps to asset_unreadable", async () => {
 
 test("escape and non-whitelist references degrade to asset_type_unsupported", async () => {
   const result = await importMarkdownDocumentFromText(
-    source(
-      "正文。\n\n![逃逸](../secret.png)\n\n![相对](./a.png)\n\n![类型](a.gif)",
-    ),
+    source("正文。\n\n![逃逸](../secret.png)\n\n![相对](./a.png)\n\n![类型](a.gif)"),
     "doc.md",
     () => Promise.resolve(PNG_BYTES),
   );
@@ -146,8 +139,7 @@ test("all blocks are figures and all fail: whole import fails IMPORT_RECONCILE_F
         () => Promise.resolve(undefined),
       ),
     (error: unknown) =>
-      error instanceof MarkdownImportError &&
-      error.code === "IMPORT_RECONCILE_FAILED",
+      error instanceof MarkdownImportError && error.code === "IMPORT_RECONCILE_FAILED",
   );
 });
 

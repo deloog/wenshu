@@ -124,9 +124,7 @@ test("partial import: missing asset recorded, document excludes it, successes la
     assert.equal(assetNames.length, 1);
     assert.equal(assetNames[0], result.importedAssets[0]?.fileName);
     const document = JSON.parse(
-      new TextDecoder().decode(
-        await readFile(join(target, "document.json")),
-      ),
+      new TextDecoder().decode(await readFile(join(target, "document.json"))),
     ) as { assets: readonly unknown[] };
     assert.equal(document.assets.length, 1);
     // 未选文件的原件从未被读取、从未落盘。

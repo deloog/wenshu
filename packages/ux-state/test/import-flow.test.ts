@@ -32,7 +32,9 @@ async function frozenRows(): Promise<readonly FrozenStateRow[]> {
   return (JSON.parse(raw) as { states: FrozenStateRow[] }).states;
 }
 
-function stateView(view: ReturnType<ReturnType<typeof createImportFlowController>["view"]>): ImportFlowStateView {
+function stateView(
+  view: ReturnType<ReturnType<typeof createImportFlowController>["view"]>,
+): ImportFlowStateView {
   assert.equal(view.kind, "state");
   return view as ImportFlowStateView;
 }
@@ -62,7 +64,9 @@ test("all four state views carry verbatim frozen obligations", async () => {
   views["import-partial"] = stateView(
     controller.dispatch({
       type: "import-partial",
-      items: [{ fileName: "chart.svg", reasonCode: "ASSET_NOT_SELECTED", retryable: true }],
+      items: [
+        { fileName: "chart.svg", reasonCode: "ASSET_NOT_SELECTED", retryable: true },
+      ],
     }),
   );
   controller.dispatch({ type: "import-started", fileName: "draft.md" });
@@ -129,8 +133,14 @@ test("illegal transitions throw ImportFlowTransitionError (fail-closed)", () => 
       }),
     ImportFlowTransitionError,
   );
-  assert.throws(() => controller.dispatch({ type: "import-succeeded" }), ImportFlowTransitionError);
-  assert.throws(() => controller.dispatch({ type: "import-cancelled" }), ImportFlowTransitionError);
+  assert.throws(
+    () => controller.dispatch({ type: "import-succeeded" }),
+    ImportFlowTransitionError,
+  );
+  assert.throws(
+    () => controller.dispatch({ type: "import-cancelled" }),
+    ImportFlowTransitionError,
+  );
   assert.throws(
     () => controller.dispatch({ type: "return-to-project" }),
     ImportFlowTransitionError,

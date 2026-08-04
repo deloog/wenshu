@@ -42,8 +42,7 @@ test("canTransitionIn matches canTransition on the full 12×12 matrix plus unkno
 
 test("data subpath does not import Ajv (bundle-lean guard)", async () => {
   const source = await readFile(new URL("../src/data.ts", import.meta.url), "utf8");
-  const importLines =
-    source.match(/^import\b[^;]*$/gmu)?.join("\n") ?? "";
+  const importLines = source.match(/^import\b[^;]*$/gmu)?.join("\n") ?? "";
   assert.equal(/ajv/iu.test(importLines), false);
 });
 
