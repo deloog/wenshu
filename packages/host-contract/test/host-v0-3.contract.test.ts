@@ -191,6 +191,25 @@ test("fail-closed: unknown builder option keys throw (MAJOR-1 remediation)", () 
   }
 });
 
+test("fail-closed: illegal payloadRegistryVersion values throw (MINOR-1)", () => {
+  // A legal key with an illegal value must not silently upgrade to the
+  // latest registry (JS callers, JSON config, `as` assertions bypass the
+  // type-level literal). Value axis closed symmetrically with the key axis.
+  for (const bogus of ["0.1.0", "0.3.0", "2.0.0", ""]) {
+    assert.throws(
+      () =>
+        buildPayloadHostRegistry({
+          hostKind: "electron",
+          hostVersion: "test-bogus-1.0",
+          instanceId: "host_05050505050505050505050505050505",
+          payloadRegistryVersion: bogus as "0.2.0",
+        }),
+      /Unknown payload registry version/u,
+      `illegal version ${JSON.stringify(bogus)} must throw`,
+    );
+  }
+});
+
 test("decisive dual-version: the 0.2.0 request/terminal chain is unchanged", async () => {
   const registry = await readJson(
     new URL("../fixtures/valid/v0-2-0-registry.json", import.meta.url),

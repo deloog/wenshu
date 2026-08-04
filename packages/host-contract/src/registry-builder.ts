@@ -273,6 +273,18 @@ export function buildPayloadHostRegistry(
       throw new Error(`Unknown payload registry option: ${key}`);
     }
   }
+  // Fail-closed on the value axis too (A-02 audit MINOR-1): a legal key with
+  // an illegal value (e.g. payloadRegistryVersion: "0.1.0" from a JS caller,
+  // JSON config, or an `as` assertion) must throw, never silently build the
+  // latest-version registry. Type-level literals cannot guard runtime input.
+  if (
+    options.payloadRegistryVersion !== undefined &&
+    options.payloadRegistryVersion !== "0.2.0"
+  ) {
+    throw new Error(
+      `Unknown payload registry version: ${String(options.payloadRegistryVersion)}`,
+    );
+  }
   const registryVersion =
     options.payloadRegistryVersion === "0.2.0"
       ? HOST_PROTOCOL_VERSION_V0_2
