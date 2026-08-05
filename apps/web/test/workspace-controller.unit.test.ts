@@ -64,6 +64,13 @@ async function focusOn(controller: WorkspaceController, id: string): Promise<num
 }
 
 describe("A-03 workspace: focus/caret + confirm phase", () => {
+  it("constructor re-validates fail-closed: schema-breaking document never mounts", () => {
+    assert.throws(
+      () => new WorkspaceController(doc({ blocks: [] })),
+      /WORKSPACE_DOCUMENT_INVALID/,
+      "second-line validation (after the channel) rejects blocks: []",
+    );
+  });
   it("import meta present → confirm phase; Enter confirms, Escape skips (separate controllers)", async () => {
     const confirming = new WorkspaceController(doc(), buildSampleImportMeta());
     assert.equal(confirming.snapshot().phase, "confirm");
