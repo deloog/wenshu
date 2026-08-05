@@ -48,7 +48,26 @@
   requiredPresentation + a11y.* + label，拆开必留部分覆盖；钉定只落在契约
   测试层（packages/ux-state/test/ux-states.contract.test.ts），不得复制进
   apps/web 或场景层（内容钉进消费者即成第二份真源，踩本文件 #4 要防的
-  漂移）。未加固前任何文档不得宣称 1.0.0 防静默改写已机械化全覆盖。
+  漂移）。~~未加固前任何文档不得宣称 1.0.0 防静默改写已机械化全覆盖。~~
+  （2026-08-05 按审计措辞解除并收紧为精确口径，见下方处置注记。）
 - **来源**：[A-02-claude-audit-report §7.5 MINOR-3](A-02-claude-audit-report.md)（2026-08-05 签署 PASS，不阻断 A-02 合并）。
 
-> **处置（2026-08-05，A-01 契约加固）：已实施，待独立审计。** 12 态 × 5 字段（`label` / `requiredPresentation` 逐条按序 / `a11y.textEquivalent` / `a11y.focusEntry` / `cancelable`）以测试内写死字面量逐字钉定，纯增落于 `packages/ux-state/test/ux-states.contract.test.ts`（478 行，file-size 门禁 500 硬顶内），冻结数据 `states-1.0.0.json` 零字节改动，消费者层无钉定复制；60 格变异矩阵（含「原文件只读」复刻变异）+ 顺序钉定补格 + 恒真反向证据见 [A-01-minor3-remediation](A-01-minor3-remediation.md)。**上述限制句本棒不撤**：按任务书 §5 须待独立审计签署后方可解除，解除时须注明覆盖范围 = 12 态 × 5 字段。
+> **处置（2026-08-05，A-01 契约加固）：已关闭——Claude 独立审计签署 PASS（[A-01-minor3-claude-audit](A-01-minor3-claude-audit.md)，审计者自建 9 格结构化变异与反向证据独立复现，未采信实施自述）。** 12 态 × 5 字段（`label` / `requiredPresentation` 逐条按序 / `a11y.textEquivalent` / `a11y.focusEntry` / `cancelable`）以测试内写死字面量逐字钉定，纯增落于 `packages/ux-state/test/ux-states.contract.test.ts`（478 行，file-size 门禁 500 硬顶内），冻结数据 `states-1.0.0.json` 零字节改动，消费者层无钉定复制；60 格变异矩阵（含「原文件只读」复刻变异）+ 顺序钉定补格 + 恒真反向证据见 [A-01-minor3-remediation](A-01-minor3-remediation.md)。
+>
+> **限制句按审计措辞解除，替换为精确口径**：1.0.0 的 **12 态 × 5 个用户可见字段**（`label` / `requiredPresentation` / `a11y.textEquivalent` / `a11y.focusEntry` / `cancelable`）防静默改写已机械化覆盖（连同既有的 `forbiddenSemantics` 12 态、`a11y.noColorOnly` 与结构不变量——schema 全层 `additionalProperties: false`，字段维度此为全集）；**显式排除 `transitions` 边集**（关系维度缺口，MINOR-5，见 #6）——MINOR-5 关闭前，任何文档不得宣称 1.0.0 内容+关系全维度防静默改写已机械化全覆盖。
+
+## 6. `transitions` 边集未锚定（A-01 契约加固审计 MINOR-5 登记）→ A-01 契约加固（后续小棒）
+
+- **内容**：用户可见字段 12 态 × 5 已钉死（#5），但关系维度仍有静默改写
+  缺口：删掉 `transitions` 中一条边时，只要不破坏从 empty-project 出发的
+  全态可达性，现有图论断言（闭合 / 无自环 / 全可达）无红。审计者实测删
+  `importing → crash-recovery` 边后 ux-state 41/41 全绿（crash-recovery
+  仍经 ai-processing / pagination 可达）。新增悬空边会被
+  `UX_STATE_TRANSITION_DANGLING` 拦，但**删边**不被任何内容锚定发现。
+- **要求**：按 #5 同款做法补钉 transitions 边集（纯增测试、写死字面量、
+  不动冻结数据）；注意归因分工——条目删除类变异红在模块加载期 Ajv
+  自校验（`UX_STATE_SCHEMA@/states`，比钉定断言更早更强），边集钉定的
+  论域是已加载状态集内的边列表逐项相等，二者不可互相冒充。归口建议
+  （审计者）：A-01 契约加固，单独小棒排期，不并入已签署的 MINOR-3
+  修复基线。
+- **来源**：[A-01-minor3-claude-audit](A-01-minor3-claude-audit.md) MINOR-5（2026-08-05 签署 PASS，不阻断 MINOR-3 修复棒合并）。
