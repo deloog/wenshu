@@ -11,6 +11,8 @@ export interface EditResult {
   readonly document: ProseMirrorDocument;
   /** Stable identities whose rendered regions may need refreshing. */
   readonly affectedNodeIds: readonly string[];
+  /** Identities the operation explicitly removed (PB-03 deletion accounting). */
+  readonly removedNodeIds: readonly string[];
 }
 
 interface BlockLocation {
@@ -20,11 +22,11 @@ interface BlockLocation {
   readonly parentId: string;
 }
 
-function cloneDocument(document: SupportedDocument): SupportedDocument {
+export function cloneDocument(document: SupportedDocument): SupportedDocument {
   return structuredClone(document);
 }
 
-function findBlock(
+export function findBlock(
   blocks: Block[],
   id: string,
   parentId: string,
@@ -43,7 +45,10 @@ function findBlock(
   return undefined;
 }
 
-function findContainer(document: SupportedDocument, id: string): Block[] | undefined {
+export function findContainer(
+  document: SupportedDocument,
+  id: string,
+): Block[] | undefined {
   if (id === document.documentId) {
     return document.blocks;
   }
@@ -51,7 +56,7 @@ function findContainer(document: SupportedDocument, id: string): Block[] | undef
   return found?.block.type === "section" ? found.block.children : undefined;
 }
 
-function collectIds(block: Block): string[] {
+export function collectIds(block: Block): string[] {
   const ids = [block.id];
   if (block.type === "section") {
     for (const child of block.children) {
@@ -68,7 +73,7 @@ function collectIds(block: Block): string[] {
   return ids;
 }
 
-function allocateUnique(
+export function allocateUnique(
   prefix: "node" | "item" | "col" | "row" | "cell",
   allocator: IdAllocator,
   existing: Set<string>,
@@ -148,9 +153,10 @@ function cloneForInsertion(
   }
 }
 
-function checkedResult(
+export function checkedResult(
   document: SupportedDocument,
   affectedNodeIds: readonly string[],
+  removedNodeIds: readonly string[] = [],
 ): EditResult {
   const pm = toProseMirrorDocument(document);
   const roundTripped = fromProseMirrorDocument(pm);
@@ -159,10 +165,11 @@ function checkedResult(
   return Object.freeze({
     document: pm,
     affectedNodeIds: Object.freeze([...affectedNodeIds]),
+    removedNodeIds: Object.freeze([...removedNodeIds]),
   });
 }
 
-function collectDocumentIds(document: SupportedDocument): string[] {
+export function collectDocumentIds(document: SupportedDocument): string[] {
   return [
     document.documentId,
     ...document.assets.map((asset) => asset.id),
@@ -170,7 +177,7 @@ function collectDocumentIds(document: SupportedDocument): string[] {
   ];
 }
 
-function rejectMissing(value: unknown): asserts value {
+export function rejectMissing(value: unknown): asserts value {
   if (value === undefined) {
     throw new Error("PB02_OPERATION_TARGET_MISSING");
   }
@@ -212,6 +219,7 @@ export function moveBlock(
   input: ProseMirrorDocument,
   id: string,
   destinationParentId: string,
+  destinationIndex?: number,
 ): EditResult {
   const document = cloneDocument(fromProseMirrorDocument(input));
   const source = findBlock(document.blocks, id, document.documentId);
@@ -228,7 +236,19 @@ export function moveBlock(
   source.parent.splice(source.index, 1);
   const destination = findContainer(document, destinationParentId);
   rejectMissing(destination);
-  destination.push(source.block);
+  if (destinationIndex === undefined) {
+    destination.push(source.block);
+  } else {
+    // Final index in the post-removal array; same-parent reorders stay plain.
+    if (
+      !Number.isInteger(destinationIndex) ||
+      destinationIndex < 0 ||
+      destinationIndex > destination.length
+    ) {
+      throw new Error("PB02_OPERATION_INVALID");
+    }
+    destination.splice(destinationIndex, 0, source.block);
+  }
   return checkedResult(document, [
     source.parentId,
     destinationParentId,
