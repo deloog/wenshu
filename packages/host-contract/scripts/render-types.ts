@@ -46,6 +46,22 @@ export const generatedPayloadsPath = resolve(
   import.meta.dirname,
   "../src/generated/payloads.ts",
 );
+export const schemaV03Path = resolve(
+  import.meta.dirname,
+  "../schema/host-0.3.0.schema.json",
+);
+export const generatedV03Path = resolve(
+  import.meta.dirname,
+  "../src/generated/host-0.3.0.ts",
+);
+export const payloadsSchemaV03Path = resolve(
+  import.meta.dirname,
+  "../schema/host-payloads-0.3.0.schema.json",
+);
+export const generatedPayloadsV03Path = resolve(
+  import.meta.dirname,
+  "../src/generated/payloads-0.3.0.ts",
+);
 
 function generatorOptions(bannerComment: string): GeneratorOptions {
   return {
@@ -93,6 +109,24 @@ export function renderPayloadTypes(): Promise<string> {
   );
 }
 
+export function renderHostV03Types(): Promise<string> {
+  return loadCompileFromFile()(
+    schemaV03Path,
+    generatorOptions(
+      "/* Generated from schema/host-0.3.0.schema.json. Do not edit directly. */",
+    ),
+  );
+}
+
+export function renderPayloadV03Types(): Promise<string> {
+  return loadCompileFromFile()(
+    payloadsSchemaV03Path,
+    generatorOptions(
+      "/* Generated from schema/host-payloads-0.3.0.schema.json. Do not edit directly. */",
+    ),
+  );
+}
+
 export interface GeneratedFile {
   readonly path: string;
   readonly relativeName: string;
@@ -114,5 +148,15 @@ export const GENERATED_FILES: readonly GeneratedFile[] = Object.freeze([
     path: generatedPayloadsPath,
     relativeName: "src/generated/payloads.ts",
     render: renderPayloadTypes,
+  }),
+  Object.freeze({
+    path: generatedV03Path,
+    relativeName: "src/generated/host-0.3.0.ts",
+    render: renderHostV03Types,
+  }),
+  Object.freeze({
+    path: generatedPayloadsV03Path,
+    relativeName: "src/generated/payloads-0.3.0.ts",
+    render: renderPayloadV03Types,
   }),
 ]);

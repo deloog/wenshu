@@ -1,7 +1,9 @@
 import {
-  buildPayloadHostRegistry,
   HOST_PROTOCOL_VERSION_V0_2,
+  HOST_PROTOCOL_VERSION_V0_3,
+  buildPayloadHostRegistry,
   hostPayloadSchemaId,
+  hostPayloadSchemaIdV03,
   isHostPayloadCapability,
   validateHostContract,
   validateHostPayload,
@@ -59,6 +61,34 @@ export function createBrowserHost(options?: BrowserHostOptions): BrowserHost {
       "project.backup.create": "supported",
       "project.backup.restore": "supported",
     },
+    // ADR-0029 §1-c: the real file picker lives only in the L3 electron
+    // shell; the browser host structurally cannot run the L2 import
+    // pipeline, so file.import.select is honestly declared unsupported
+    // (fallback points at the desktop shell; no dialog loop). Without this
+    // explicit override the registry builder would default to "supported".
+    additionalDeclarations: [
+      {
+        name: "file.import.select",
+        capability_version: HOST_PROTOCOL_VERSION_V0_3,
+        support_status: "unsupported",
+        permission_status: "not_applicable",
+        input_schema: hostPayloadSchemaIdV03("file.import.select", "input"),
+        output_schema: hostPayloadSchemaIdV03("file.import.select", "output"),
+        limits: {
+          max_concurrent_requests: 1,
+          timeout_ms: 300000,
+          max_payload_bytes: 0,
+        },
+        lifecycle: "request",
+        cancellation: "none",
+        progress: "none",
+        error_codes: ["HOST_UNSUPPORTED"],
+        fallback: {
+          strategy: "manual_file_picker",
+          reason_code: "BROWSER_HOST_NO_IMPORT_PIPELINE",
+        },
+      },
+    ],
   });
   const declarations = new Map(
     registry.capabilities.map((declaration) => [declaration.name, declaration]),
@@ -209,10 +239,13 @@ export function createBrowserHost(options?: BrowserHostOptions): BrowserHost {
 
   async function invokeSerialized(request: unknown): Promise<unknown> {
     const parsed = validateHostContract(request);
+    const requestedProtocol = rawString(request, "protocol_version");
     const protocolVersion =
-      rawString(request, "protocol_version") === "0.1.0"
+      requestedProtocol === "0.1.0"
         ? "0.1.0"
-        : HOST_PROTOCOL_VERSION_V0_2;
+        : requestedProtocol === HOST_PROTOCOL_VERSION_V0_3
+          ? HOST_PROTOCOL_VERSION_V0_3
+          : HOST_PROTOCOL_VERSION_V0_2;
     const requestId = rawString(request, "request_id");
     if (!parsed.ok || parsed.value.kind !== "request" || requestId === undefined) {
       throw new Error("BROWSER_HOST_PROTOCOL_ERROR");

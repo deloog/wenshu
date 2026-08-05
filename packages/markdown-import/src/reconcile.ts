@@ -44,10 +44,17 @@ function contentCharsOfBlocks(blocks: readonly unknown[]): number {
   return total;
 }
 
+/** 逐资源失败收集（A-02 additive）中被排除的 figure：行在源中真实存在并被记帐，
+ *  但其 alt 字符不再进入文档内容，对账时按本集合扣减，帐目保持真实闭合。 */
+export interface ExcludedFigure {
+  readonly alt: string;
+}
+
 /** 全文逐字归账：每个源字符要么进入文档内容，要么是记录在案的语法消费。 */
 export function buildReconciliation(
   parsed: ParsedSource,
   document: WenshuDocument,
+  excludedFigures: readonly ExcludedFigure[] = [],
 ): ImportReconciliation {
   const contentChars = parsed.consumed.reduce(
     (sum, line) => sum + line.contentChars,
@@ -66,8 +73,13 @@ export function buildReconciliation(
     .reduce((sum, line) => sum + line.contentChars, 0);
   const documentContentChars =
     titleLength + contentCharsOfBlocks(document.blocks as unknown[]);
+  // 被排除 figure 的 alt 字符已按源行消费记帐，但不进入文档内容，此处如实扣回。
+  const excludedChars = excludedFigures.reduce(
+    (sum, figure) => sum + figure.alt.length,
+    0,
+  );
   // 段落/引用跨行合并产生的块内换行来自源换行符，不属于行内容字符。
-  if (documentContentChars - parsed.embeddedBreaks !== contentChars) {
+  if (documentContentChars - parsed.embeddedBreaks + excludedChars !== contentChars) {
     throw new MarkdownImportError(
       "IMPORT_RECONCILE_FAILED",
       "document content does not match the consumed source content",

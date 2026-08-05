@@ -1,5 +1,9 @@
-import type { UxState } from "@wenshu/ux-state";
-import { getUxState, listUxStates } from "@wenshu/ux-state";
+import type { UxState } from "@wenshu/ux-state/data";
+import {
+  UX_STATES_DATA,
+  getUxStateFrom,
+  listUxStatesFrom,
+} from "@wenshu/ux-state/data";
 
 /** Display-ready rendering of one frozen contract state (A-01 gallery). */
 export interface StateScreenViewModel {
@@ -71,7 +75,7 @@ export function buildScreen(state: UxState): StateScreenViewModel {
     textEquivalent: state.a11y.textEquivalent,
     focusEntry: state.a11y.focusEntry,
     transitions: state.transitions.map((id) =>
-      Object.freeze({ id, label: getUxState(id)?.label ?? id }),
+      Object.freeze({ id, label: getUxStateFrom(UX_STATES_DATA, id)?.label ?? id }),
     ),
     extensions: extensionEntries(state),
   });
@@ -79,10 +83,12 @@ export function buildScreen(state: UxState): StateScreenViewModel {
 
 /** One screen per frozen contract state, in ux-spec §4 table order. */
 export function buildStateScreens(): readonly StateScreenViewModel[] {
-  return Object.freeze(listUxStates().map((state) => buildScreen(state)));
+  return Object.freeze(
+    listUxStatesFrom(UX_STATES_DATA).map((state) => buildScreen(state)),
+  );
 }
 
 export function buildScreenFor(stateId: string): StateScreenViewModel | undefined {
-  const state = getUxState(stateId);
+  const state = getUxStateFrom(UX_STATES_DATA, stateId);
   return state === undefined ? undefined : buildScreen(state);
 }

@@ -15,7 +15,8 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const { Buffer } = require("node:buffer");
 const { createHash } = require("node:crypto");
 const { appendFile, mkdir, readFile, rm, writeFile } = require("node:fs/promises");
-const { dirname, join, resolve } = require("node:path");
+const { dirname, isAbsolute, join, resolve } = require("node:path");
+const { registerProjectChannels } = require("./project-channels.cjs");
 
 const appDir = dirname(require.resolve("./e2e-main.cjs"));
 const instanceId = "host_e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0";
@@ -58,12 +59,50 @@ async function loadHostModules() {
   return { storage, contract };
 }
 
+/**
+ * A-02: scripted project.directory.select override. E2E_SELECT_DIRECTORY is a
+ * JSON array of directory selectors (flat names relative to the workdir, or
+ * absolute paths kept as-is), consumed one per call in order; the last entry
+ * repeats when the queue is exhausted. Unset keeps the PB-12 behavior (every
+ * call selects the workdir itself).
+ */
+const selectDirectoryQueue = (() => {
+  const raw = globalThis.process.env["E2E_SELECT_DIRECTORY"];
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  return JSON.parse(raw);
+})();
+
 function scriptedSelectDirectory() {
+  let name = ".";
+  if (selectDirectoryQueue !== undefined) {
+    name =
+      selectDirectoryQueue.length > 1
+        ? selectDirectoryQueue.shift()
+        : selectDirectoryQueue[0];
+  }
+  const root = isAbsolute(name) ? name : resolve(workdir, name);
   return Promise.resolve({
     status: "selected",
-    root: workdir,
+    root,
     displayName: "e2e-workdir",
   });
+}
+
+/**
+ * A-02: scripted file.import.select. E2E_SELECT_FILES is a JSON array of flat
+ * file names relative to the workdir (joined here) or absolute paths (kept
+ * as-is); the env unset means the scripted user cancelled the dialog.
+ */
+function scriptedSelectFiles() {
+  const raw = globalThis.process.env["E2E_SELECT_FILES"];
+  if (raw === undefined || raw === "") {
+    return Promise.resolve({ status: "cancelled" });
+  }
+  const names = JSON.parse(raw);
+  const files = names.map((name) => (isAbsolute(name) ? name : join(workdir, name)));
+  return Promise.resolve({ status: "selected", files });
 }
 
 function sha256(bytes) {
@@ -207,11 +246,16 @@ app
   .then(async () => {
     await mkdir(reportDir, { recursive: true });
     const { storage, contract } = await loadHostModules();
+    // A-02 (ADR-0029 §4): one shared grant table for the protocol handlers
+    // (directory.select / file.import.select) and the orchestration channels.
+    const grants = storage.createGrantTable();
     const fileHost = storage.createFileHost({
       hostKind: "electron",
       hostVersion: app.getVersion(),
       instanceId,
       selectDirectory: scriptedSelectDirectory,
+      selectFiles: scriptedSelectFiles,
+      grants,
     });
     const registryValidation = contract.validateHostContract(fileHost.registry);
     if (!registryValidation.ok) {
@@ -245,6 +289,9 @@ app
       query.source = requiredEnv("E2E_IMPORT_SOURCE");
       query.target = requiredEnv("E2E_IMPORT_TARGET");
       query.expected = globalThis.process.env["E2E_IMPORT_EXPECTED_DOC_SHA256"] ?? "";
+    } else if (scenarioMode === "project-import") {
+      // A-02: real-file project import sub-scenarios; E2E_SUB picks which one.
+      query.sub = globalThis.process.env["E2E_SUB"] ?? "happy";
     } else if (scenarioMode === "e2e") {
       // W3 chain 5: deterministic bulk material so import takes long enough
       // for a mid-import SIGKILL window.
@@ -265,6 +312,7 @@ app
       finish(3);
     });
     await window.loadFile(resolve(appDir, "../dist-scenario/index.html"), { query });
+    registerProjectChannels(ipcMain, window, { grants });
   })
   .catch((error) => {
     globalThis.process.stderr.write(`Electron e2e host failed: ${String(error)}\n`);

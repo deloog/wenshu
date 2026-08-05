@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { IA_EXCLUSIONS, buildShellNav } from "./shell.ts";
 import type { StateScreenViewModel } from "./state-gallery.ts";
 import { buildStateScreens } from "./state-gallery.ts";
@@ -11,6 +12,23 @@ import { buildStateScreens } from "./state-gallery.ts";
 export function mountPrototype(root: HTMLElement): void {
   const screens = buildStateScreens();
   let currentIndex = 0;
+
+  // A-02 real flow area (new/open project, Markdown import) backed by the
+  // in-memory browser Host. That Host is explicitly "non-persistent, dev
+  // wiring only" (PB-10 #5 / A-01-followups #3), and it drags host-contract's
+  // Ajv validators into any bundle that statically imports it — so it is
+  // mounted only in dev mode via dynamic import (dropped from production
+  // builds entirely); production renders an honest pointer instead.
+  const flowSection = document.createElement("section");
+  root.append(flowSection);
+  if (import.meta.env.DEV) {
+    void mountBrowserFlow(flowSection);
+  } else {
+    const note = document.createElement("p");
+    note.textContent =
+      "项目与导入流程（A-02）：浏览器产物不含内存 Host（仅开发联调），请用 pnpm dev 或桌面壳体验真实流程。";
+    flowSection.append(note);
+  }
 
   const title = document.createElement("h1");
   title.textContent = "文枢 Alpha UX 冻结原型（A-01）";
@@ -73,6 +91,21 @@ export function mountPrototype(root: HTMLElement): void {
   });
 
   show(0);
+}
+
+async function mountBrowserFlow(section: HTMLElement): Promise<void> {
+  const [
+    { mountFlow },
+    { createBrowserFlowBridge },
+    { createProjectFlow },
+    { createBrowserHost },
+  ] = await Promise.all([
+    import("../flow/mount.ts"),
+    import("../flow/bridge.ts"),
+    import("../flow/session.ts"),
+    import("../host.ts"),
+  ]);
+  mountFlow(section, createProjectFlow(createBrowserFlowBridge(createBrowserHost())));
 }
 
 function appendList(

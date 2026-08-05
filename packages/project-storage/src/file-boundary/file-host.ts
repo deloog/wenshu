@@ -1,12 +1,16 @@
 import {
   buildPayloadHostRegistry,
   HOST_PROTOCOL_VERSION_V0_2,
+  HOST_PROTOCOL_VERSION_V0_3,
   hostPayloadSchemaId,
+  hostPayloadSchemaIdV03,
   isHostPayloadCapability,
+  isHostPayloadCapabilityV03,
   validateHostContract,
   validateHostPayload,
   validateHostSession,
   type HostPayloadCapability,
+  type HostPayloadCapabilityV03,
   type PayloadSupportStatus,
 } from "@wenshu/host-contract";
 
@@ -16,11 +20,14 @@ import {
   handleDirectoryAuthorize,
   handleDirectorySelect,
   handleExportWrite,
+  handleFileImportSelect,
   handleSaveAs,
   handleSaveAtomic,
   type CapabilityOutcome,
   type DirectorySelection,
   type FileHostContext,
+  type FileSelection,
+  type FileSelectRequest,
 } from "./handlers.ts";
 import { FileBoundaryError, type FileBoundaryCode } from "./errors.ts";
 import { createGrantTable, type GrantTable } from "./grants.ts";
@@ -42,13 +49,23 @@ export interface FileHostOptions {
   readonly hostVersion: string;
   readonly instanceId: string;
   readonly selectDirectory: (purpose?: string) => Promise<DirectorySelection>;
+  /** Shell file dialog for file.import.select (ADR-0029); without it the capability fails closed. */
+  readonly selectFiles?: (request: FileSelectRequest) => Promise<FileSelection>;
   readonly capabilitySupport?: Partial<
-    Readonly<Record<HostPayloadCapability, PayloadSupportStatus>>
+    Readonly<
+      Record<HostPayloadCapability | HostPayloadCapabilityV03, PayloadSupportStatus>
+    >
   >;
   readonly additionalDeclarations?: readonly Record<string, unknown>[];
-  readonly timeoutMs?: Partial<Readonly<Record<HostPayloadCapability, number>>>;
+  readonly timeoutMs?: Partial<
+    Readonly<Record<HostPayloadCapability | HostPayloadCapabilityV03, number>>
+  >;
   readonly now?: () => Date;
-  /** Test injection only. Production callers must let the host create the table. */
+  /**
+   * Shared grant table injection: the shell product path (A-02) shares one
+   * table with the import executor so file grants handed out here can be
+   * consumed via readGrantedFile. Also used by tests.
+   */
   readonly grants?: GrantTable;
 }
 
@@ -71,6 +88,31 @@ interface RequestState {
 
 const REQUEST_ID_PATTERN = /^req_[0-9a-f]{32}$/u;
 
+/**
+ * Terminal messages echo the request's own protocol version; anything that is
+ * not a known legacy version is answered at the latest protocol (0.3.0).
+ */
+function echoProtocolVersion(request: unknown): string {
+  const raw = rawField(request, "protocol_version");
+  if (raw === "0.1.0") {
+    return "0.1.0";
+  }
+  if (raw === HOST_PROTOCOL_VERSION_V0_2) {
+    return HOST_PROTOCOL_VERSION_V0_2;
+  }
+  return HOST_PROTOCOL_VERSION_V0_3;
+}
+
+function payloadOutputSchemaId(capability: string): string | undefined {
+  if (isHostPayloadCapability(capability)) {
+    return hostPayloadSchemaId(capability, "output");
+  }
+  if (isHostPayloadCapabilityV03(capability)) {
+    return hostPayloadSchemaIdV03(capability, "output");
+  }
+  return undefined;
+}
+
 export function createFileHost(options: FileHostOptions): FileHost {
   const registry = buildPayloadHostRegistry({
     hostKind: options.hostKind,
@@ -91,6 +133,7 @@ export function createFileHost(options: FileHostOptions): FileHost {
   const context: FileHostContext = {
     grants,
     selectDirectory: options.selectDirectory,
+    ...(options.selectFiles === undefined ? {} : { selectFiles: options.selectFiles }),
     now: options.now ?? (() => new Date()),
   };
   const requests = new Map<string, RequestState>();
@@ -133,9 +176,10 @@ export function createFileHost(options: FileHostOptions): FileHost {
         reason: outcome.reason,
       };
     }
+    const outputSchemaId = payloadOutputSchemaId(capability);
     if (
-      isHostPayloadCapability(capability) &&
-      !validateHostPayload(hostPayloadSchemaId(capability, "output"), outcome.output).ok
+      outputSchemaId !== undefined &&
+      !validateHostPayload(outputSchemaId, outcome.output).ok
     ) {
       return failureMessage(protocolVersion, requestId, capability, "INTERNAL");
     }
@@ -168,6 +212,8 @@ export function createFileHost(options: FileHostOptions): FileHost {
         return handleBackupRestore(context, input);
       case "file.export.write":
         return handleExportWrite(context, input, signal);
+      case "file.import.select":
+        return handleFileImportSelect(context, input, signal);
       default:
         throw new FileBoundaryError("INVALID");
     }
@@ -188,10 +234,7 @@ export function createFileHost(options: FileHostOptions): FileHost {
       if (error instanceof FileHostProtocolError) {
         throw error;
       }
-      const protocolVersion =
-        rawField(request, "protocol_version") === "0.1.0"
-          ? "0.1.0"
-          : HOST_PROTOCOL_VERSION_V0_2;
+      const protocolVersion = echoProtocolVersion(request);
       const requestId = rawField(request, "request_id");
       const capability = knownCapability(request);
       if (
@@ -214,10 +257,7 @@ export function createFileHost(options: FileHostOptions): FileHost {
 
   async function invokeSerializedInner(request: unknown): Promise<unknown> {
     const parsed = validateHostContract(request);
-    const protocolVersion =
-      rawField(request, "protocol_version") === "0.1.0"
-        ? "0.1.0"
-        : HOST_PROTOCOL_VERSION_V0_2;
+    const protocolVersion = echoProtocolVersion(request);
     const requestId = rawField(request, "request_id");
     const capability = knownCapability(request);
     if (!parsed.ok || parsed.value.kind !== "request") {

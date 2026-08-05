@@ -1,0 +1,12 @@
+{
+  "protocol_version": "0.3.0",
+  "kind": "request",
+  "request_id": "req_03030303030303030303030303030303",
+  "capability": "file.import.select",
+  "capability_version": "0.3.0",
+  "input": {
+    "purpose": "import_markdown",
+    "multiple": true,
+    "extensions": ["md", "markdown"]
+  }
+}

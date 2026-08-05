@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { resolve } from "node:path";
 
 import { resolveRuntimeConfig } from "@wenshu/config";

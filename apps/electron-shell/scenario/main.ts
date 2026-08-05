@@ -1,6 +1,7 @@
 import { runEditChain } from "./chain-edit.ts";
 import { runPersistChain } from "./chain-persist.ts";
 import { runImportScenario } from "./import.ts";
+import { runProjectImportScenario } from "./project-import.ts";
 import { runRecoverScenario } from "./recover.ts";
 import { runSaveLoopScenario } from "./save-loop.ts";
 import { ChainFailed, reportAll, reportSummary, type ChainResult } from "./report.ts";
@@ -62,6 +63,10 @@ async function main(): Promise<void> {
   }
   if (mode === "import") {
     await runImportScenario();
+    return;
+  }
+  if (mode === "project-import") {
+    await runProjectImportScenario();
     return;
   }
   await reportSummary({

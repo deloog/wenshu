@@ -195,6 +195,14 @@ test("all generated files identify their sources and avoid forbidden types", asy
       "../src/generated/payloads.ts",
       /Generated from schema\/host-payloads-0\.2\.0\.schema\.json/u,
     ],
+    [
+      "../src/generated/host-0.3.0.ts",
+      /Generated from schema\/host-0\.3\.0\.schema\.json/u,
+    ],
+    [
+      "../src/generated/payloads-0.3.0.ts",
+      /Generated from schema\/host-payloads-0\.3\.0\.schema\.json/u,
+    ],
   ];
   const forbiddenTypePattern = new RegExp(`\\b${"a" + "ny"}\\b`, "u");
   for (const [path, banner] of generated) {

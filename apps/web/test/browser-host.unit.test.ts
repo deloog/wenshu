@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -39,12 +40,14 @@ async function selectGrant(
   return String((response["output"] as Record<string, unknown>)["grant_id"]);
 }
 
-test("browser host registry is self-valid and exposes all 7 payload capabilities", async () => {
+test("browser host registry is self-valid and exposes all 7 supported payload capabilities", async () => {
   const host = createBrowserHost();
   assert.equal(validateHostContract(host.registry).ok, true);
   const registry = host.registry as {
+    protocol_version: string;
     capabilities: readonly Record<string, unknown>[];
   };
+  assert.equal(registry.protocol_version, "0.3.0");
   const supported = registry.capabilities
     .filter((entry) => entry["support_status"] === "supported")
     .map((entry) => entry["name"]);
@@ -57,6 +60,49 @@ test("browser host registry is self-valid and exposes all 7 payload capabilities
     "project.save.as",
     "project.save.atomic",
   ]);
+});
+
+test("file.import.select is honestly declared unsupported (ADR-0029 ①-c)", async () => {
+  const host = createBrowserHost();
+  const registry = host.registry as {
+    capabilities: readonly Record<string, unknown>[];
+  };
+  const declaration = registry.capabilities.find(
+    (entry) => entry["name"] === "file.import.select",
+  );
+  assert.ok(declaration);
+  assert.equal(declaration["capability_version"], "0.3.0");
+  assert.equal(declaration["support_status"], "unsupported");
+  assert.equal(declaration["permission_status"], "not_applicable");
+  assert.deepEqual(declaration["error_codes"], ["HOST_UNSUPPORTED"]);
+  assert.deepEqual(declaration["fallback"], {
+    strategy: "manual_file_picker",
+    reason_code: "BROWSER_HOST_NO_IMPORT_PIPELINE",
+  });
+});
+
+test("invoking file.import.select degrades with the declared fallback, no transcript entry", async () => {
+  const host = createBrowserHost();
+  const response = (await host.invoke({
+    protocol_version: "0.3.0",
+    kind: "request",
+    request_id: nextId(),
+    capability: "file.import.select",
+    capability_version: "0.3.0",
+    input: { purpose: "import_markdown", multiple: false, extensions: ["md"] },
+  })) as Record<string, unknown>;
+  assert.equal(response["protocol_version"], "0.3.0");
+  assert.equal(response["kind"], "failure");
+  assert.equal(
+    (response["error"] as Record<string, unknown>)["code"],
+    "HOST_UNSUPPORTED",
+  );
+  assert.deepEqual(response["fallback"], {
+    strategy: "manual_file_picker",
+    reason_code: "BROWSER_HOST_NO_IMPORT_PIPELINE",
+  });
+  assert.equal(validateHostContract(response).ok, true);
+  assert.equal(host.transcript().length, 0);
 });
 
 test("virtual save/export round-trip", async () => {

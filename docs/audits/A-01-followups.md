@@ -10,6 +10,8 @@
 - **要求**：A-02 接真实 UI 时评估瘦身（拆纯数据入口或构建期校验），不
   得默认接受该体积。
 
+> **处置（2026-08-05，A-02）：已消费，关闭。** ux-state `./data` 纯数据子路径（零 Ajv）+ apps/web 全量改道；bundle 145,462 B → 12,351 B（gzip 5.09 kB），`ajv` 命中 0——Claude 复审独立重跑生产构建逐位一致，且冻结义务字符串确在包内（真改道非剪数据）；parity 守卫防漂移。
+
 ## 2. `types:["node"]` 残余 → A-02/后续
 
 - **内容**：ADR-0028 §5 的 eslint 收口是文本闸非类型闸；类型层面
@@ -23,8 +25,25 @@
 - **内容**：PB-10 #5 本棒取文档明示路径，7 项 `supported` 登记未改。
 - **要求**：A-02 接真实 UI 时评估改 `degraded` 或接持久化实现。
 
+> **处置（2026-08-05，A-02）：已消费，关闭。** 评估结论：维持「文档明示」路径（浏览器 Host 非持久、仅开发联调），7 项 `supported` 登记不改；新增能力 `file.import.select` 如实登记 `unsupported` + `BROWSER_HOST_NO_IMPORT_PIPELINE` fallback（apps/web/src/host.ts:71-88，Claude 复审抽验一致），UI 呈现诚实降级不循环弹窗。
+
 ## 4. 状态机 additive 升级纪律 → 12 个消费者
 
 - **内容**：`stateVersion 1.0.0` 冻结；演进须新 schema 文件 + 双版本
   reader（document-model / ADR-0010 纪律）。
 - **要求**：任何消费者不得静默改 1.0.0 语义；升级走 ADR + 独立审计。
+
+## 5. 冻结 1.0.0 的内容锚定不完整（A-02 复审 MINOR-3 登记）→ 业主裁定（A-01 契约加固 / A-13）
+
+- **内容**：A-01 复审已把 `forbiddenSemantics` 12 态逐字钉死，但相邻字段
+  未钉：四态 `requiredPresentation`（除 empty-project）、`a11y.textEquivalent`、
+  `a11y.focusEntry`、`label` 均无内容锚定。A-02 复审逐条变异实测：把
+  `importing.requiredPresentation` 的「原文件只读」（A-02 红线的用户可见
+  表述）改为「原文件只读×」后，unit 327/327、contract 254/254、A-02 E2E
+  5 pass 全绿，全仓无一处变红。单一真源逐字对账对同一真源恒真，防静默
+  改写只能靠内容钉定测试。
+- **要求**：按 A-01 处理 `forbiddenSemantics` 的同款做法补钉（纯增测试，
+  不动冻结数据），把 12 态全部用户可见字段逐字锚定。**归口待业主裁定**
+  （A-01 契约加固 / A-13），未裁定前任何文档不得宣称 1.0.0 防静默改写
+  已机械化全覆盖。
+- **来源**：[A-02-claude-audit-report §7.5 MINOR-3](A-02-claude-audit-report.md)（2026-08-05 签署 PASS，不阻断 A-02 合并）。

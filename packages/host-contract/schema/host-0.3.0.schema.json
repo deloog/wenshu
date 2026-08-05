@@ -1,0 +1,456 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wenshu.local/schemas/host/0.3.0/host.schema.json",
+  "title": "HostContractMessageV03",
+  "description": "Additive protocol 0.3.0: identical message shapes to the frozen 0.1.0 envelope, but protocol_version is 0.3.0 and capability_version/schema IDs may be 0.1.0 (legacy placeholder declarations), 0.2.0 (PB-10 frozen concrete payload declarations), or 0.3.0 (A-02 frozen file.import.select payload declarations, ADR-0029). Leaf definitions are reused from the frozen 0.1.0 schema by reference.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/HostRegistry"
+    },
+    {
+      "$ref": "#/$defs/HostRequest"
+    },
+    {
+      "$ref": "#/$defs/HostCancelRequest"
+    },
+    {
+      "$ref": "#/$defs/HostProgressEvent"
+    },
+    {
+      "$ref": "#/$defs/HostSuccessResult"
+    },
+    {
+      "$ref": "#/$defs/HostFailureResult"
+    },
+    {
+      "$ref": "#/$defs/HostCancelledResult"
+    }
+  ],
+  "$defs": {
+    "ProtocolVersion": {
+      "const": "0.3.0"
+    },
+    "CapabilityVersion": {
+      "type": "string",
+      "enum": ["0.1.0", "0.2.0", "0.3.0"]
+    },
+    "InputSchemaId": {
+      "type": "string",
+      "pattern": "^wenshu\\.host\\.input\\.[a-z.]+/0\\.[123]\\.0$"
+    },
+    "OutputSchemaId": {
+      "type": "string",
+      "pattern": "^wenshu\\.host\\.output\\.[a-z.]+/0\\.[123]\\.0$"
+    },
+    "RequestId": {
+      "type": "string",
+      "pattern": "^req_[0-9a-f]{32}$"
+    },
+    "HostInstanceId": {
+      "type": "string",
+      "pattern": "^host_[0-9a-f]{32}$"
+    },
+    "CapabilityName": {
+      "type": "string",
+      "enum": [
+        "project.directory.select",
+        "project.directory.authorize",
+        "project.save.atomic",
+        "project.save.as",
+        "project.backup.create",
+        "project.backup.restore",
+        "file.import.select",
+        "file.export.write",
+        "print.pdf.export",
+        "font.catalog.list",
+        "font.catalog.check",
+        "window.control",
+        "clipboard.text.write",
+        "share.invoke",
+        "link.open.external",
+        "secret.credential.manage",
+        "secret.credential.status",
+        "platform.info.read"
+      ]
+    },
+    "ErrorCode": {
+      "type": "string",
+      "enum": [
+        "HOST_UNSUPPORTED",
+        "HOST_PERMISSION_REQUIRED",
+        "HOST_PERMISSION_DENIED",
+        "HOST_CANCELLED",
+        "HOST_TIMEOUT",
+        "HOST_INVALID_REQUEST",
+        "HOST_CONFLICT",
+        "HOST_NOT_FOUND",
+        "HOST_QUOTA_EXCEEDED",
+        "HOST_IO_FAILURE",
+        "HOST_INTEGRITY_FAILURE",
+        "HOST_BUSY",
+        "HOST_INTERNAL"
+      ]
+    },
+    "Fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "reason_code"],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "none",
+            "browser_download",
+            "manual_file_picker",
+            "manual_copy",
+            "manual_share",
+            "system_print",
+            "read_only"
+          ]
+        },
+        "reason_code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{2,79}$"
+        }
+      }
+    },
+    "JsonObject": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"
+      },
+      "additionalProperties": true
+    },
+    "CapabilityLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_concurrent_requests", "timeout_ms", "max_payload_bytes"],
+      "properties": {
+        "max_concurrent_requests": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 300000
+        },
+        "max_payload_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 104857600
+        }
+      }
+    },
+    "HostError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "retryable", "detail_key"],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "detail_key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.]{2,79}$"
+        }
+      }
+    },
+    "HostRegistry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "kind",
+        "host_kind",
+        "host_version",
+        "instance_id",
+        "capabilities"
+      ],
+      "properties": {
+        "protocol_version": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "kind": {
+          "const": "registry"
+        },
+        "host_kind": {
+          "type": "string",
+          "enum": ["browser", "electron", "arkweb"]
+        },
+        "host_version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/HostInstanceId"
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/CapabilityDeclaration"
+          }
+        }
+      }
+    },
+    "CapabilityDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "capability_version",
+        "support_status",
+        "permission_status",
+        "input_schema",
+        "output_schema",
+        "limits",
+        "lifecycle",
+        "cancellation",
+        "progress",
+        "error_codes",
+        "fallback"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/CapabilityName"
+        },
+        "capability_version": {
+          "$ref": "#/$defs/CapabilityVersion"
+        },
+        "support_status": {
+          "type": "string",
+          "enum": ["supported", "degraded", "unsupported"]
+        },
+        "permission_status": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "unknown",
+            "prompt",
+            "granted",
+            "denied",
+            "restricted"
+          ]
+        },
+        "input_schema": {
+          "$ref": "#/$defs/InputSchemaId"
+        },
+        "output_schema": {
+          "$ref": "#/$defs/OutputSchemaId"
+        },
+        "limits": {
+          "$ref": "#/$defs/CapabilityLimits"
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["request", "session", "application"]
+        },
+        "cancellation": {
+          "type": "string",
+          "enum": ["none", "cooperative"]
+        },
+        "progress": {
+          "type": "string",
+          "enum": ["none", "discrete", "continuous"]
+        },
+        "error_codes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/ErrorCode"
+          }
+        },
+        "fallback": {
+          "$ref": "#/$defs/Fallback"
+        }
+      }
+    },
+    "HostRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "kind",
+        "request_id",
+        "capability",
+        "capability_version",
+        "input"
+      ],
+      "properties": {
+        "protocol_version": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "kind": {
+          "const": "request"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "capability": {
+          "$ref": "#/$defs/CapabilityName"
+        },
+        "capability_version": {
+          "$ref": "#/$defs/CapabilityVersion"
+        },
+        "input": {
+          "$ref": "#/$defs/JsonObject"
+        }
+      }
+    },
+    "HostCancelRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol_version", "kind", "request_id", "reason"],
+      "properties": {
+        "protocol_version": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "kind": {
+          "const": "cancel"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "reason": {
+          "type": "string",
+          "enum": ["user", "superseded", "shutdown", "deadline"]
+        }
+      }
+    },
+    "HostProgressEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "kind",
+        "request_id",
+        "capability",
+        "sequence",
+        "phase",
+        "completed",
+        "total",
+        "message_key"
+      ],
+      "properties": {
+        "protocol_version": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "kind": {
+          "const": "progress"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "capability": {
+          "$ref": "#/$defs/CapabilityName"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["queued", "awaiting_permission", "running", "finalizing"]
+        },
+        "completed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "message_key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.]{2,79}$"
+        }
+      }
+    },
+    "HostSuccessResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol_version", "kind", "request_id", "capability", "output"],
+      "properties": {
+        "protocol_version": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "kind": {
+          "const": "success"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "capability": {
+          "$ref": "#/$defs/CapabilityName"
+        },
+        "output": {
+          "$ref": "#/$defs/JsonObject"
+        }
+      }
+    },
+    "HostFailureResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "kind",
+        "request_id",
+        "capability",
+        "error",
+        "fallback"
+      ],
+      "properties": {
+        "protocol_version": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "kind": {
+          "const": "failure"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "capability": {
+          "$ref": "#/$defs/CapabilityName"
+        },
+        "error": {
+          "$ref": "#/$defs/HostError"
+        },
+        "fallback": {
+          "$ref": "#/$defs/Fallback"
+        }
+      }
+    },
+    "HostCancelledResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol_version", "kind", "request_id", "capability", "reason"],
+      "properties": {
+        "protocol_version": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "kind": {
+          "const": "cancelled"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "capability": {
+          "$ref": "#/$defs/CapabilityName"
+        },
+        "reason": {
+          "type": "string",
+          "enum": ["user", "superseded", "shutdown", "deadline"]
+        }
+      }
+    }
+  }
+}

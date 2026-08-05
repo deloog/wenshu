@@ -4,6 +4,7 @@ import type { ValidateFunction } from "ajv";
 import { inspectData } from "@wenshu/contract-runtime";
 
 import payloadsSchema from "../schema/host-payloads-0.2.0.schema.json" with { type: "json" };
+import payloadsSchemaV03 from "../schema/host-payloads-0.3.0.schema.json" with { type: "json" };
 import type { HostContractIssue, HostContractIssueCode } from "./contract.ts";
 import { isForbiddenPlatformKey, isUnsafePathValue } from "./security.ts";
 
@@ -21,6 +22,39 @@ export const HOST_PAYLOAD_CAPABILITIES = [
 
 export type HostPayloadCapability = (typeof HOST_PAYLOAD_CAPABILITIES)[number];
 export type HostPayloadKind = "input" | "output";
+
+/**
+ * A-02 additive protocol 0.3.0 (ADR-0029): file.import.select graduates from
+ * the PB-10 placeholder to a frozen concrete payload. The 0.2.0 frozen set
+ * and schema ids above are untouched.
+ */
+export const HOST_PAYLOAD_PROTOCOL_VERSION_V0_3 = "0.3.0" as const;
+
+export const HOST_PAYLOAD_V0_3_CAPABILITIES = ["file.import.select"] as const;
+
+export type HostPayloadCapabilityV03 = (typeof HOST_PAYLOAD_V0_3_CAPABILITIES)[number];
+
+const PAYLOAD_DEFINITION_NAMES_V0_3: Readonly<
+  Record<HostPayloadCapabilityV03, Readonly<Record<HostPayloadKind, string>>>
+> = Object.freeze({
+  "file.import.select": Object.freeze({
+    input: "FileImportSelectInput",
+    output: "FileImportSelectOutput",
+  }),
+});
+
+export function isHostPayloadCapabilityV03(
+  name: string,
+): name is HostPayloadCapabilityV03 {
+  return (HOST_PAYLOAD_V0_3_CAPABILITIES as readonly string[]).includes(name);
+}
+
+export function hostPayloadSchemaIdV03(
+  capability: HostPayloadCapabilityV03,
+  kind: HostPayloadKind,
+): string {
+  return `wenshu.host.${kind}.${capability}/${HOST_PAYLOAD_PROTOCOL_VERSION_V0_3}`;
+}
 
 const PAYLOAD_DEFINITION_NAMES: Readonly<
   Record<HostPayloadCapability, Readonly<Record<HostPayloadKind, string>>>
@@ -108,22 +142,46 @@ export function isContentBase64(value: string): boolean {
 }
 
 const payloadsSchemaId = payloadsSchema.$id;
+const payloadsSchemaV03Id = payloadsSchemaV03.$id;
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 ajv.addFormat("content-base64", { type: "string", validate: isContentBase64 });
 ajv.addSchema(payloadsSchema);
+ajv.addSchema(payloadsSchemaV03);
 
 const validators = new Map<string, ValidateFunction>();
-for (const capability of HOST_PAYLOAD_CAPABILITIES) {
-  const names = PAYLOAD_DEFINITION_NAMES[capability];
-  for (const kind of ["input", "output"] as const) {
-    const schemaId = hostPayloadSchemaId(capability, kind);
-    const validator = ajv.getSchema(`${payloadsSchemaId}#/$defs/${names[kind]}`);
-    if (validator === undefined) {
-      throw new Error(`Host payload schema is missing: ${schemaId}`);
+function registerValidators(
+  schemaId: string,
+  capabilities: readonly string[],
+  names: Readonly<Record<string, Readonly<Record<HostPayloadKind, string>>>>,
+  schemaIdFor: (capability: never, kind: HostPayloadKind) => string,
+): void {
+  for (const capability of capabilities) {
+    for (const kind of ["input", "output"] as const) {
+      const payloadSchemaId = schemaIdFor(capability as never, kind);
+      const definitionName = names[capability]?.[kind];
+      const validator =
+        definitionName === undefined
+          ? undefined
+          : ajv.getSchema(`${schemaId}#/$defs/${definitionName}`);
+      if (validator === undefined) {
+        throw new Error(`Host payload schema is missing: ${payloadSchemaId}`);
+      }
+      validators.set(payloadSchemaId, validator);
     }
-    validators.set(schemaId, validator);
   }
 }
+registerValidators(
+  payloadsSchemaId,
+  HOST_PAYLOAD_CAPABILITIES,
+  PAYLOAD_DEFINITION_NAMES,
+  hostPayloadSchemaId,
+);
+registerValidators(
+  payloadsSchemaV03Id,
+  HOST_PAYLOAD_V0_3_CAPABILITIES,
+  PAYLOAD_DEFINITION_NAMES_V0_3,
+  hostPayloadSchemaIdV03,
+);
 
 export type HostPayloadValidationResult =
   | { readonly ok: true; readonly value: unknown }

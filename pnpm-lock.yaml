@@ -119,6 +119,9 @@ importers:
       '@wenshu/template-model':
         specifier: workspace:*
         version: link:../../packages/template-model
+      '@wenshu/ux-state':
+        specifier: workspace:*
+        version: link:../../packages/ux-state
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -280,6 +283,9 @@ importers:
       '@wenshu/document-model':
         specifier: workspace:*
         version: link:../document-model
+      '@wenshu/project-storage':
+        specifier: workspace:*
+        version: link:../project-storage
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
