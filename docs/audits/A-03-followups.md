@@ -41,3 +41,11 @@
 - **内容**：MAJOR-2 修复后 `packages/editor-transactions/src/transactions.ts`
   距生产 400 硬闸仅剩 2 行余量。任何后续改动先量行数；需要扩逻辑时应提取
   辅助模块而非继续加行（审计者复审提醒，非发现）。
+
+## 5. A-02 happy 路径 wireProgress 潜在竞态（本棒 CI 轮暴露）→ 已就地登记 A-02-followups #5
+
+- **内容**：MINOR-1 修复推送后 CI run `31056153886` 首次 e2e 红一例
+  （a-02 happy+open，`empty-project --import-progress` 迟到事件），重跑 9/9 绿；
+  机理与本棒改动无因果（终态后迟到的进度事件，设计期已知现象）。
+- **处置**：按惯例就地登记到 [A-02-followups #5](A-02-followups.md)（含失败/
+  重跑两轮证据与机理）；归口 A-02 场景接线，本棒不改 A-02 已签署接线语义。

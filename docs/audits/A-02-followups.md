@@ -44,3 +44,26 @@
 - **本机 Node v24.13.0 ≠ 参考机器 24.17.0**：审计复跑全在 24.13.0；
   `environment:check` 校验已提交证据与冻结锚点、不校验活动解释器，照样通过。
   归口 G1-14（参考机器复跑成色），已登记。
+
+## 5. 潜在竞态：happy 路径 wireProgress 遇「终态后迟到进度事件」即红（2026-08-06，A-03 CI 轮暴露）
+
+- **内容**：CI run `31056153886` 首次 e2e 作业红一例——
+  `a-02 happy+open` 链 `happy-state-trajectory` 报
+  `progress dispatch errors: IMPORT_FLOW_ILLEGAL_TRANSITION: empty-project --import-progress`。
+  机理（代码实证）：`import-flow.ts` `currentAnchor()` 在 project-view 位置返回
+  `"empty-project"`，`requireImporting` 对 project-view 抛错即冠此名——即一条
+  import-progress 事件在 `import-succeeded` 终态 dispatch 之后才送达渲染端。
+  main 侧全部 onProgress 都在 return 之前同步发出（markdown-import
+  project-import.ts 146/154/185/229/249 行），属 Electron IPC
+  send/invoke-response 送达序边界情形；`wiringHelper` 注释（
+  「A late event after the terminal dispatch is ignored」）证明该现象设计期已知，
+  但 happy 路径 `wireProgress` 将其记为 dispatchErrors 并断言为空。
+- **分类**：重跑一次同 commit e2e 9/9 绿（非确定性复现）→ 偶发竞态；
+  重跑前已留存失败日志取证，非蒙混。暴露面与 A-03 注册前移无因果
+  （注册时机不影响 import 收尾的消息在飞窗口）。
+- **归口**：A-02 场景接线（wireProgress 严格性 vs 迟到事件）。处置选项留给
+  A-02 后续维护或 A-12 贯通前裁定：happy 路径是否对「终态后迟到事件」与
+  wiringHelper 同口径豁免（涉及已签署证据语义，须登记）；在裁定前，CI 若
+  复发按本条取证，不得静默重跑。
+- **证据**：失败日志 run `31056153886` 首次 attempt（e2e 作业），重跑 attempt
+  9/9 success；机理分析见本条。
