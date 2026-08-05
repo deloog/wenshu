@@ -172,6 +172,115 @@ test("forbiddenSemantics pinned verbatim for all 12 states (red lines cannot be 
   }
 });
 
+test("pinned content: all 12 states' user-visible fields verbatim (A-01 MINOR-3)", () => {
+  // A-01 MINOR-3 remediation (owner ruling 2026-08-05): every user-visible
+  // field of the frozen 1.0.0 document is pinned to a hardcoded literal here,
+  // in the contract test layer only — no copies in apps/web or scenario tests
+  // (a consumer-side copy would become a second source of truth, the drift
+  // A-01-followups #4 exists to prevent). empty-project and crash-recovery
+  // requiredPresentation were already pinned above; they are repeated so each
+  // of the 12 x 5 cells lives in exactly one literal table. Mutating any cell
+  // in src/states-1.0.0.json turns this test red (60-cell mutation matrix:
+  // docs/audits/A-01-minor3-remediation.md).
+  type Pin = { l: string; rp: readonly string[]; te: string; fe: string; c: boolean };
+  const pinned: Readonly<Record<string, Pin>> = Object.freeze({
+    "empty-project": {
+      l: "初次/空项目",
+      rp: ["支持的输入", "示例", "下一步"],
+      te: "空项目引导以文字列出支持的输入、示例与下一步",
+      fe: "焦点落在「下一步」主操作",
+      c: false,
+    },
+    importing: {
+      l: "导入中",
+      rp: ["文件名", "阶段", "进度", "取消", "原文件只读"],
+      te: "导入进度以文字百分比与阶段名表达，不靠进度条颜色",
+      fe: "焦点落在「取消」按钮",
+      c: true,
+    },
+    "import-partial": {
+      l: "导入部分成功",
+      rp: ["成功内容", "失败附件", "原因", "可重试项"],
+      te: "成功与失败条目均以文字清单列出，失败原因可读",
+      fe: "焦点落在第一个可重试项",
+      c: false,
+    },
+    "ai-processing": {
+      l: "AI 处理中",
+      rp: ["使用的模型/材料范围", "可取消", "预计费用或 BYOK 状态"],
+      te: "处理阶段以文字说明当前动作与所用材料范围",
+      fe: "焦点落在「取消」按钮",
+      c: true,
+    },
+    "ai-result": {
+      l: "AI 结果",
+      rp: ["变更范围", "diff", "出处", "accept/reject"],
+      te: "diff 增删以文字标记（新增/删除）而非仅红绿着色",
+      fe: "焦点落在第一处 diff 裁决控件",
+      c: false,
+    },
+    pagination: {
+      l: "分页中",
+      rp: ["当前阶段", "可取消", "旧预览保留到新结果可用"],
+      te: "分页阶段与进度以文字表达，旧预览保留时有文字提示",
+      fe: "焦点落在「取消」按钮",
+      c: true,
+    },
+    "page-issues": {
+      l: "页面有问题",
+      rp: ["类型", "严重度", "页码", "定位", "建议", "允许的人工豁免"],
+      te: "问题严重度以文字分级（阻断交付/建议修复/信息），不仅靠颜色",
+      fe: "焦点落在第一条阻断项的定位链接",
+      c: false,
+    },
+    "save-result": {
+      l: "保存成功/失败",
+      rp: ["明确保存位置和版本"],
+      te: "保存结果以文字明确成功或失败及保存位置与版本",
+      fe: "失败时焦点落在重试/诊断入口",
+      c: false,
+    },
+    "pre-export": {
+      l: "导出前",
+      rp: ["格式承诺", "字体/引用/页面检查结果", "目标路径和覆盖风险"],
+      te: "各格式质量承诺与检查结果以文字列出",
+      fe: "焦点落在格式选择控件",
+      c: false,
+    },
+    "offline-degraded": {
+      l: "离线/模型不可用",
+      rp: ["本地编辑、排版、检查和导出继续可用", "AI 功能解释降级"],
+      te: "降级状态以文字说明哪些能力可用、AI 如何降级",
+      fe: "焦点落在降级说明文本",
+      c: false,
+    },
+    "permission-denied": {
+      l: "权限拒绝",
+      rp: ["为什么需要", "当前可做什么", "如何重新授权"],
+      te: "权限需求原因与可降级路径以文字说明",
+      fe: "焦点落在「如何重新授权」说明（不自动重弹授权框）",
+      c: false,
+    },
+    "crash-recovery": {
+      l: "崩溃恢复",
+      rp: ["恢复到哪个检查点", "可能丢失什么", "是否另存恢复副本"],
+      te: "恢复检查点与丢失范围以文字明确说明",
+      fe: "焦点落在「恢复/另存副本」选择控件",
+      c: false,
+    },
+  });
+  assert.equal(Object.keys(pinned).length, 12);
+  for (const state of listUxStates()) {
+    const pin = pinned[state.id];
+    assert.ok(pin !== undefined, state.id);
+    assert.equal(state.label, pin.l, state.id);
+    assert.deepEqual(state.requiredPresentation, pin.rp, state.id);
+    assert.equal(state.a11y.textEquivalent, pin.te, state.id);
+    assert.equal(state.a11y.focusEntry, pin.fe, state.id);
+    assert.equal(state.cancelable, pin.c, state.id);
+  }
+});
+
 test("transition graph: closed, no self-loops, all states reachable from empty-project", () => {
   for (const state of listUxStates()) {
     for (const target of state.transitions) {
