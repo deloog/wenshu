@@ -191,3 +191,35 @@ project-storage 41/41、web 30/30 零回潮；`pnpm verify` 全绿。
 followups #2 表态、承接项归属、决策 #15↔ADR-0029 互引、CI 侧 permission-denied
 实证（现成证据：run `30918444973` e2e 日志 `permission-denied reconciled
 (linux: chmod 0o555)`；MINOR-1 修复轮新 run 出来后以新 run 为准）。
+
+## 9. 第二次复审（2026-08-05）：签署 `PASS`
+
+Claude 第二次复审补齐首审 §4 全部六项，**签署 `PASS`**（无 BLOCKER/MAJOR，
+[A-02-claude-audit-report §7](A-02-claude-audit-report.md)）：
+
+- **原件哈希不变坐实**：五条路径字节级比对 + 四道断言变异自证（M1 写路径指向
+  源→三例红 INTERNAL，证 `assertWithinTemp` 结构性承重；M2′ 布局正确+覆盖源→
+  红在 `:124 source file mutated in place` 且晚于全部布局断言；M3 断言改恒真→
+  5 pass 证该断言是全套件唯一探测者；M4 逐子场景改坏一字节→五例全红）。
+- **取消终态如实坐实**：审计者自建编排器直读原始对象——键恰为
+  `["import_id","status"]` 无 digest 无 code；变异 C2（给 cancelled 附 code）
+  诚实性断言立刻红。
+- MINOR-1 值轴**关闭**；A-01 四态消费成立（非另写）；承接项三类分法无越权；
+  CI 侧 permission-denied 如实标注为能力边界（§7.7，见下）。
+- **§2 通过项零回潮**：①-a 走私攻击重跑与首审表逐格一致。
+
+复审新增三条 MINOR（均不阻断），处置见 [A-02-followups](A-02-followups.md)：
+MINOR-2（原型链未知键）本棒随手收口（`for...in` + 决定性测试，变异⑩红）**已关闭**；
+MINOR-3（冻结 1.0.0 内容锚定不完整）已就地登记 [A-01-followups #5](A-01-followups.md)，
+**归口待业主裁定**（A-01 契约加固 / A-13）；MINOR-4（4 项承接项就地标注）已按先例
+补注记（PB-11 §4/§6、A-01 #1/#3）**已关闭**。
+
+**业主合并前须知悉的两条边界**（审计者如实登记，非发现）：
+
+1. permission-denied 路径的原件字节不变**只有 ubuntu CI 证据**（本机特权令牌绕过
+   ACL deny 属实、诚实 skip 正确；本机等价 read_only grant 路径已经变异 P1 实证，
+   但非同一代码路径）——合并判断由业主承担（审计报告 §7.7/§7.9）。
+2. 本机 Node v24.13.0 ≠ 参考机器登记 24.17.0，全部复跑在 24.13.0；归口 G1-14。
+
+**变异自证补充**（均红后回退）：⑦ 删 0.3.0 版本守卫 → 红×2；⑧ 删未知键拒绝 → 红；
+⑨ 删值轴守卫 → 红；⑩ 回退 `for...in` 为 `Object.keys` → MINOR-2 测试红。
