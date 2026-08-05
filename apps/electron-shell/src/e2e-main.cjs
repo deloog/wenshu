@@ -138,7 +138,12 @@ async function replayWorkspaceKeys(contents) {
     const script = JSON.parse(requiredEnv("E2E_KEY_SCRIPT"));
     // sendInputEvent keyCode uses Chromium's legacy names for arrows; every
     // other DOM KeyboardEvent.key value in the A-03 map passes through as-is.
-    const keyCodeNames = { ArrowUp: "Up", ArrowDown: "Down", ArrowLeft: "Left", ArrowRight: "Right" };
+    const keyCodeNames = {
+      ArrowUp: "Up",
+      ArrowDown: "Down",
+      ArrowLeft: "Left",
+      ArrowRight: "Right",
+    };
     for (const step of script) {
       const modifiers = [];
       if (step.ctrl === true) modifiers.push("control");
@@ -152,11 +157,19 @@ async function replayWorkspaceKeys(contents) {
         await new Promise((resolve) => globalThis.setTimeout(resolve, 25));
       }
     }
+    // Settle margin after the last key before pulling the snapshot: the
+    // renderer finishes each key's transaction in microtasks, but under CI
+    // load the final key's dispatch task itself may land late; this window
+    // keeps the read honest without masking a real stall (watchdog bounds it).
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 200));
     const result = await contents.executeJavaScript(
       "window.__wenshuWorkspaceReport()",
       true,
     );
-    await appendFile(reportPath, `${JSON.stringify({ type: "workspace-result", ...result })}\n`);
+    await appendFile(
+      reportPath,
+      `${JSON.stringify({ type: "workspace-result", ...result })}\n`,
+    );
     finish(0);
   } catch (error) {
     globalThis.process.stderr.write(`workspace key replay failed: ${String(error)}\n`);
@@ -248,7 +261,10 @@ function registerE2EChannels(storage) {
     await appendFile(reportPath, `${line}\n`);
     if (payload?.type === "summary") {
       finish(payload.status === "pass" ? 0 : 1);
-    } else if (payload?.type === "workspace-ready" && workspaceWindowContents !== undefined) {
+    } else if (
+      payload?.type === "workspace-ready" &&
+      workspaceWindowContents !== undefined
+    ) {
       // A-03: renderer mounted the workspace; start the trusted key replay.
       void replayWorkspaceKeys(workspaceWindowContents);
     } else if (payload?.type === "workspace-error") {

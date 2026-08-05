@@ -8,6 +8,7 @@ export default tseslint.config(
       "**/oh_modules/**",
       "**/dist/**",
       "**/dist-scenario/**",
+      "**/dist-workspace/**",
       "**/build/**",
       "**/out/**",
       "**/coverage/**",
