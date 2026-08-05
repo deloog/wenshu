@@ -1,4 +1,4 @@
-import type { Block } from "@wenshu/document-model";
+import type { Block, SupportedDocument } from "@wenshu/document-model";
 
 export type EditorActor = "human" | "ai";
 
@@ -65,3 +65,100 @@ export type EditorCommand =
       readonly text: string;
     }
   | { readonly kind: "delete-list-item"; readonly itemId: string };
+
+/* --------------------------------------------------------------------------
+ * A-03 MAJOR-2 remediation: INDEPENDENT removal accounting for the guard.
+ *
+ * The PB-03 stable-ID guard judges removals from the command plus the
+ * pre-command document — never from the operation's own `removedNodeIds`
+ * self-declaration: an operation that listed its collateral deletions in its
+ * own report would be licensing itself (audit probe: merge-lists dropping an
+ * extra sibling item and declaring it COMMITTED). computeExpectedRemovals is
+ * the session-side source of truth; the raw ops' removedNodeIds remains an
+ * informational return value only. Unknown targets yield [] — the raw
+ * operation then fails closed on its own.
+ * ------------------------------------------------------------------------ */
+
+function collectSubtreeIds(block: Block): string[] {
+  const ids = [block.id];
+  if (block.type === "section") {
+    block.children.forEach((child) => ids.push(...collectSubtreeIds(child)));
+  } else if (block.type === "list") {
+    block.items.forEach((entry) => ids.push(entry.id));
+  } else if (block.type === "table") {
+    block.columns.forEach((column) => ids.push(column.id));
+    block.rows.forEach((tableRow) => {
+      ids.push(tableRow.id);
+      tableRow.cells.forEach((tableCell) => ids.push(tableCell.id));
+    });
+  }
+  return ids;
+}
+
+function findBlock(
+  blocks: readonly Block[],
+  predicate: (block: Block) => boolean,
+): Block | undefined {
+  for (const block of blocks) {
+    if (predicate(block)) return block;
+    if (block.type === "section") {
+      const nested = findBlock(block.children, predicate);
+      if (nested !== undefined) return nested;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Identities the command is ALLOWED to remove, computed from the command and
+ * the pre-command document (session side). All other kinds remove nothing.
+ */
+export function computeExpectedRemovals(
+  command: EditorCommand,
+  document: SupportedDocument,
+): readonly string[] {
+  switch (command.kind) {
+    case "delete": {
+      const target = findBlock(document.blocks, (block) => block.id === command.id);
+      return target === undefined ? [] : collectSubtreeIds(target);
+    }
+    case "delete-table-row": {
+      const table = findBlock(
+        document.blocks,
+        (block) =>
+          block.type === "table" &&
+          block.rows.some((entry) => entry.id === command.rowId),
+      );
+      if (table?.type !== "table") return [];
+      const target = table.rows.find((entry) => entry.id === command.rowId);
+      return target === undefined
+        ? []
+        : [target.id, ...target.cells.map((tableCell) => tableCell.id)];
+    }
+    case "delete-table-column": {
+      const table = findBlock(
+        document.blocks,
+        (block) =>
+          block.type === "table" &&
+          block.columns.some((column) => column.id === command.columnId),
+      );
+      if (table?.type !== "table") return [];
+      return [
+        command.columnId,
+        ...table.rows.flatMap((entry) =>
+          entry.cells
+            .filter((tableCell) => tableCell.columnId === command.columnId)
+            .map((tableCell) => tableCell.id),
+        ),
+      ];
+    }
+    case "delete-list-item":
+      return [command.itemId];
+    case "demote-section":
+      return [command.sectionId];
+    case "merge-lists":
+      return [command.sourceId];
+    default:
+      return [];
+  }
+}

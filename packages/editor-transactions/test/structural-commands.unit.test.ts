@@ -8,6 +8,7 @@ import {
   type IdAllocator,
   type IdPrefix,
 } from "@wenshu/semantic-editor";
+import { computeExpectedRemovals, type EditorCommand } from "../src/commands.ts";
 import { TransactionManager } from "../src/index.ts";
 
 class SequenceAllocator implements IdAllocator {
@@ -241,4 +242,145 @@ test("new command kinds stay inside the /internal boundary (no raw export leak)"
   assert.equal("mergeLists" in semanticEditor, false);
   assert.equal("promoteParagraph" in semanticEditor, false);
   assert.equal("demoteSection" in semanticEditor, false);
+});
+
+/* ---------------------------------------------------------- MAJOR-2 tests */
+
+const ROW_2 = "row_00000000000000000000000000000042";
+const COL_2 = "col_00000000000000000000000000000032";
+
+test("computeExpectedRemovals pins the allowed-removal set per kind (session-side)", () => {
+  const doc = fixture();
+  const cases: readonly [EditorCommand, readonly string[]][] = [
+    [
+      { kind: "delete", id: SECTION },
+      [SECTION, "node_00000000000000000000000000000016"],
+    ],
+    [
+      { kind: "delete-table-row", rowId: ROW_2 },
+      [
+        ROW_2,
+        "cell_00000000000000000000000000000053",
+        "cell_00000000000000000000000000000054",
+      ],
+    ],
+    [
+      { kind: "delete-table-column", columnId: COL_2 },
+      [
+        COL_2,
+        "cell_00000000000000000000000000000052",
+        "cell_00000000000000000000000000000054",
+      ],
+    ],
+    [
+      { kind: "delete-list-item", itemId: "item_00000000000000000000000000000021" },
+      ["item_00000000000000000000000000000021"],
+    ],
+    [{ kind: "demote-section", sectionId: SECTION }, [SECTION]],
+    [{ kind: "merge-lists", sourceId: LIST_B, destinationId: LIST_A }, [LIST_B]],
+    [
+      {
+        kind: "split-list",
+        listId: LIST_A,
+        beforeItemId: "item_00000000000000000000000000000022",
+      },
+      [],
+    ],
+    [
+      {
+        kind: "promote-paragraph",
+        paragraphId: "node_00000000000000000000000000000011",
+        level: 1,
+      },
+      [],
+    ],
+    [{ kind: "insert-table-row", tableId: TABLE }, []],
+    [{ kind: "insert-table-column", tableId: TABLE, header: "h", align: "start" }, []],
+    [{ kind: "insert-list-item", listId: LIST_A, itemIndex: 1, text: "x" }, []],
+    [{ kind: "move", id: LIST_A, destinationParentId: doc.documentId }, []],
+    [
+      {
+        kind: "rewrite",
+        id: "node_00000000000000000000000000000011",
+        replacement: {
+          id: "node_00000000000000000000000000000011",
+          type: "paragraph",
+          text: "y",
+        },
+      },
+      [],
+    ],
+    // Unknown targets: no allowance; the raw operation fails closed instead.
+    [{ kind: "delete", id: "node_ffffffffffffffffffffffffffffffff" }, []],
+    [{ kind: "delete-table-row", rowId: "row_ffffffffffffffffffffffffffffffff" }, []],
+    [
+      { kind: "delete-table-column", columnId: "col_ffffffffffffffffffffffffffffffff" },
+      [],
+    ],
+  ];
+  for (const [command, expected] of cases) {
+    assert.deepEqual(
+      [...computeExpectedRemovals(command, doc)].sort(),
+      [...expected].sort(),
+      `${command.kind} allowance`,
+    );
+  }
+});
+
+/** 3+2 item lists: the multi-item branch the audit found zero-covered. */
+function longListFixture(): SupportedDocument {
+  const doc = fixture();
+  const listA = doc.blocks[1];
+  const listB = doc.blocks[2];
+  if (listA?.type !== "list" || listB?.type !== "list") {
+    throw new Error("test fixture invalid");
+  }
+  listA.items.push({ id: "item_00000000000000000000000000000024", text: "a3" });
+  listB.items.push({ id: "item_00000000000000000000000000000025", text: "c2" });
+  return doc;
+}
+
+test("merge-lists over 3+2 item lists commits; only the source list identity is removed", async () => {
+  const m = new TransactionManager(
+    toProseMirrorDocument(longListFixture()),
+    new SequenceAllocator(),
+  );
+  const outcome = await m.execute("human", (session) => {
+    session.apply({ kind: "merge-lists", sourceId: LIST_B, destinationId: LIST_A });
+  });
+  assert.equal(outcome.status, "committed");
+  const doc = canonical(outcome.document);
+  const merged = doc.blocks.find((block) => block.id === LIST_A);
+  assert.ok(merged?.type === "list");
+  assert.equal(merged.items.length, 5);
+  assert.deepEqual(
+    merged.items.map((entry) => entry.text),
+    ["a", "b", "a3", "c", "c2"],
+    "every item preserved in order",
+  );
+  assert.equal(
+    doc.blocks.some((block) => block.id === LIST_B),
+    false,
+  );
+});
+
+test("delete-list-item from a 3-item list commits leaving exactly the other two items", async () => {
+  const m = new TransactionManager(
+    toProseMirrorDocument(longListFixture()),
+    new SequenceAllocator(),
+  );
+  const outcome = await m.execute("human", (session) => {
+    session.apply({
+      kind: "delete-list-item",
+      itemId: "item_00000000000000000000000000000022",
+    });
+  });
+  assert.equal(outcome.status, "committed");
+  const doc = canonical(outcome.document);
+  const list = doc.blocks.find((block) => block.id === LIST_A);
+  assert.ok(list?.type === "list");
+  assert.deepEqual(
+    list.items.map((entry) => entry.id),
+    ["item_00000000000000000000000000000021", "item_00000000000000000000000000000024"],
+  );
 });
