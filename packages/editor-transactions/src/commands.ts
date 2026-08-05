@@ -9,7 +9,12 @@ export type EditorActor = "human" | "ai";
  * preserve every identity they do not explicitly remove.
  */
 export type EditorCommand =
-  | { readonly kind: "insert"; readonly parentId: string; readonly block: Block }
+  | {
+      readonly kind: "insert";
+      readonly parentId: string;
+      readonly block: Block;
+      readonly insertIndex?: number;
+    }
   | { readonly kind: "delete"; readonly id: string }
   | {
       readonly kind: "move";

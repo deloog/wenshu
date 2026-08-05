@@ -229,3 +229,45 @@ test("operations reject schema-breaking deletion, cyclic move, and rewrite ident
     /PB02_OPERATION_ID_GUARD/u,
   );
 });
+
+test("insertIndex places the block at the final container index; out-of-range fails closed", () => {
+  const source = sampleDocument();
+  const pm = toProseMirrorDocument(source);
+  const allocator = new SequenceAllocator();
+  const fresh: Block = {
+    id: "node_ffffffffffffffffffffffffffffffff",
+    type: "paragraph",
+    text: "indexed",
+  };
+  const middle = insertBlock(pm, source.documentId, fresh, allocator, 1);
+  const afterMiddle = fromProseMirrorDocument(middle.document);
+  assert.equal(afterMiddle.blocks.length, source.blocks.length + 1);
+  assert.equal(
+    afterMiddle.blocks[1]?.type === "paragraph" ? afterMiddle.blocks[1].text : "",
+    "indexed",
+    "insertIndex 1 lands between the first two root blocks",
+  );
+  assertUnchangedIdsRemain(source, afterMiddle);
+  assertSchemaAndUnique(afterMiddle);
+  // Boundary: index === length is the legal append-equivalent end position.
+  const atEnd = insertBlock(
+    pm,
+    source.documentId,
+    fresh,
+    allocator,
+    source.blocks.length,
+  );
+  const afterEnd = fromProseMirrorDocument(atEnd.document);
+  assert.equal(
+    afterEnd.blocks[afterEnd.blocks.length - 1]?.type === "paragraph"
+      ? (afterEnd.blocks[afterEnd.blocks.length - 1] as { text: string }).text
+      : "",
+    "indexed",
+  );
+  for (const bad of [-1, source.blocks.length + 1, 1.5]) {
+    assert.throws(
+      () => insertBlock(pm, source.documentId, fresh, allocator, bad),
+      /PB02_OPERATION_INVALID/u,
+    );
+  }
+});

@@ -189,6 +189,7 @@ export function insertBlock(
   parentId: string,
   block: Block,
   allocator: IdAllocator,
+  insertIndex?: number,
 ): EditResult {
   const document = cloneDocument(fromProseMirrorDocument(input));
   const parent = findContainer(document, parentId);
@@ -198,7 +199,19 @@ export function insertBlock(
     allocator,
     new Set(collectDocumentIds(document)),
   );
-  parent.push(inserted);
+  if (insertIndex === undefined) {
+    parent.push(inserted);
+  } else {
+    // Final index in the container; default keeps the legacy append behavior.
+    if (
+      !Number.isInteger(insertIndex) ||
+      insertIndex < 0 ||
+      insertIndex > parent.length
+    ) {
+      throw new Error("PB02_OPERATION_INVALID");
+    }
+    parent.splice(insertIndex, 0, inserted);
+  }
   return checkedResult(document, [parentId, ...collectIds(inserted)]);
 }
 

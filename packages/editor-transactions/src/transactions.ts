@@ -206,6 +206,7 @@ export class TransactionSession {
           command.parentId,
           command.block,
           this.allocator,
+          command.insertIndex,
         );
       case "delete":
         return deleteBlock(this.#document, command.id);
