@@ -381,6 +381,10 @@ app
       );
       finish(3);
     });
+    // Register channels BEFORE loading any UI: the workspace reads the
+    // document as soon as it loads, so registering after loadFile leaves a
+    // startup race window (A-03 MINOR-1: "No handler registered" flake).
+    registerProjectChannels(ipcMain, window, { grants });
     if (scenarioMode === "workspace") {
       // A-03: the workspace UI is a PRODUCT of apps/web (IIFE bundle), loaded
       // as a file — never imported — so the L3→web layering ban stays intact.
@@ -391,7 +395,6 @@ app
     } else {
       await window.loadFile(resolve(appDir, "../dist-scenario/index.html"), { query });
     }
-    registerProjectChannels(ipcMain, window, { grants });
   })
   .catch((error) => {
     globalThis.process.stderr.write(`Electron e2e host failed: ${String(error)}\n`);

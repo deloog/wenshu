@@ -63,4 +63,4 @@
 4. **生产 web 构建不含工作区**：prototype 内 DEV 动态 import（flow 同款先例），生产构建 12.58kB 给诚实指引；真实文档经桌面壳通道进入。
 5. **importMeta 在 E2E confirm 用例为合成终态元数据**（形状 === A-02 通道载荷），真实 import → 工作区接力归后续任务串联。
 6. A-03 不关闭任何既有 followups（全仓无归口 A-03 者）；A-01-followups #6 未触碰。
-7. **E2E 层内并发出过一次负载相关 flake 并已处置**：editing 用例在 5 次全层运行中失败 1 次（与 verify 构建高负载并发，5.6s vs 正常 2–3s；未捕获到断言详情），随后连续 2 次全层复跑 + 1 次隔离复跑全绿；处置为 replay 尾加 200ms 落定窗（末键 dispatch 任务在高负载下可能迟到），watchdog 仍封顶。CI 首轮若复发须按缺陷流程取证再修，不得重跑蒙混。
+7. **E2E flake 归因已更正（2026-08-06，复审 MINOR-1）**：本记录原把一次 editing 用例偶发失败归因为「高负载下末键 dispatch 迟到」并以 replay 尾 200ms 落定窗处置——**该归因错误**。审计者复审复跑两轮各红一例（editing / schema-invalid），错误均为 `No handler registered for 'wenshu.project.document.read'`：根因在 `e2e-main.cjs` 先 `await loadFile` 后 `registerProjectChannels`，工作区一加载即读文档，撞上未注册窗口。真正的窗口在启动端，末尾落定窗治不到。**修复**：注册移到 loadFile 之前（审计者已实测：移动后两轮 6/6，还原即复现红；实施者落码后另行多轮复验）。末尾 200ms 落定窗保留为通用输入 dispatch 余量（watchdog 封顶），不再作为 flake 处置。严重性评 MINOR 的根据（审计者实证）：该竞态只产生假红不产生假绿——corrupt/schema-invalid 断言具体错误码，未注册错误使其变红而非蒙混，已交付绿证据仍有效。原 flake 发生时的失败输出未保留，无法回溯确认同一根因，如实登记。

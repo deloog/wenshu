@@ -124,3 +124,88 @@ ensureStableIds(beforeCommand, result.document, this.#permittedDeletion);
 ---
 
 *本报告由独立审计角色出具；任务书亦由我起草（只归集权威来源、标出待裁定点，不构成实施），故仍可担任本棒审计。审计期间仅新增本文件；全部变异均已还原，`git status` 干净。*
+
+---
+
+# 7. 复审记录（2026-08-06）· MAJOR-1 / MAJOR-2 关闭
+
+> 复审对象：修复轮提交 `702d684`。方法不变：自述一律不采信，关键结论先变异或重放探针再采信。
+
+## 7.1 结论
+
+**两项 MAJOR 全部关闭，签署 `PASS`。** 新增一条 **MINOR-1**（E2E 编排器竞态，我已定位根因并验证修法），不阻断签署；另有一条同形态**存量**问题归口在 A-03 之外，登记备案。
+
+## 7.2 MAJOR-1 —— 关闭
+
+| 核验 | 结果 |
+|---|---|
+| `artifacts/reference-machine/environment.json` | `git diff main` **为空**；`recorded_at 2026-08-01`、`node v24.17.0` 已回到签署基线 |
+| 批次证据归位 | `artifacts/perf/2026-08-05-A-03/environment.json` 存在，`node v24.13.0`、`recorded_at 2026-08-05T16:18`，与 6 份采样同目录 |
+| 协议陷阱登记 | 已落 `A-03-major-remediation.md` §MAJOR-1.3，归口 G1-14 |
+
+实施者主动声明「批次环境证据的重录发生在采样**之后**，顺序偏差不复读为合规」——这条自曝对他不利、我核过属实（批次证据 16:18 晚于采样），**登记为如实披露**。G1-14 那条协议改进（`env:record` 默认落点即签署基线、`--out` 只改文件名）仍待关闭。
+
+## 7.3 MAJOR-2 —— 关闭（我原样重放了自己的探针）
+
+守卫改法正确：`apply()` 里 `result.removedNodeIds.forEach(...)` **已删除**，许可集改由 `computeExpectedRemovals(command, beforeDocument)` 在**会话侧**从命令 + 命令前文档独立计算（[transactions.ts:136-152](../../packages/editor-transactions/src/transactions.ts#L136-L152)）。
+
+**我用首审那支探针原样重放**（自建 3 项列表，直打真实 `TransactionManager`）：
+
+| 变异 `deleteListItem` | 首审 | 复审 |
+|---|---|---|
+| 多删一项 + **如实申报** | `COMMITTED`，静默丢节点 | **`THREW PB03_STABLE_ID_GUARD`**，回滚，3 项完好 |
+| 多删一项 + **不申报** | `THREW`（但当时全套件测不到） | `THREW`，回滚，3 项完好 |
+| 未变异基线 | `COMMITTED`，2 项 | `COMMITTED`，2 项（未误杀） |
+
+**自我申报绕过已不可能。** 另核许可集**不过宽**：`delete` 取目标子树、`delete-table-row/column` 取该行/列及其单元格、`delete-list-item`/`demote-section`/`merge-lists` 各取单个目标 ID，其余命令一律 `default: []`（insert/promote/split/move 零删除许可）——最小且默认 fail-closed。
+
+覆盖缺口也补上了：`editor-transactions` 14 → **17/17**（含 3 项列表删中间项、3+2 项列表 merge），`semantic-editor` 21/21、`apps/web` 56/56，均我自己复跑。
+
+## 7.4 §2 零回潮
+
+唯一写边界（UI 对 `/internal` 零命中）、冻结数据零改动，复跑仍成立。`transactions.ts` 398 行、`commands.ts` 164 行——生产 400 行硬闸只剩 **2 行余量**，下次动它前先量行数。
+
+## 7.5 流程合规 —— 属实
+
+台账 §3.1 已补 `A-03` 行，状态 **🔧 已实现，待独立复审（MAJOR 修复轮）**（不是 ✅，不触单调性检查）；`pnpm quality:check` **退出码 0**——首审时我实测它因 `roadmap-audit-report-without-ledger` 硬失败，现已消除。审计报告与台账行同提交落地。
+
+## 7.6 MINOR-1（新增）：E2E 编排器「先加载渲染进程、后注册 IPC」竞态
+
+**我复跑 A-03 E2E 两轮各红一例，且两轮红的用例不同**（第一轮 `editing`，第二轮 `schema-invalid`），错误同为：
+
+```text
+Error invoking remote method 'wenshu.project.document.read':
+  No handler registered for 'wenshu.project.document.read'
+```
+
+根因在 [e2e-main.cjs:384-394](../../apps/electron-shell/src/e2e-main.cjs#L384-L394)：**先 `await window.loadFile(...)` 让渲染进程跑起来，之后才 `registerProjectChannels(...)`**。工作区 bundle 一加载就读文档，于是撞上未注册窗口。
+
+**我不停在推断，验证了根因**：把 `registerProjectChannels` 移到 `loadFile` 之前（一行位置调整），**连跑两轮 6/6**；还原后再跑即复现红。
+
+这条同时修正实施记录 §6.7 的归因：那里把观察到的 flake 记为「高负载」并在 **replay 末尾**加了 200 ms 落定窗——真正的窗口在**开头**（注册晚于加载），末尾的落定窗治不到它。
+
+**影响评级为 MINOR 而非更高**，理由是它只产生**假红不产生假绿**：`corrupt` / `schema-invalid` 两个"预期失败"用例断言的是具体错误码，未注册错误会让它们变红而不是蒙混通过——这一点我在第二轮实测中确认（`schema-invalid` 是红的）。因此已交付的绿证据仍然有效。
+
+**建议合并前修**（一行，我已验证修法有效），但不作为签署条件。
+
+## 7.7 存量登记（不归 A-03）
+
+**产品壳 `main.cjs` 有同一形态且窗口更宽**：`await Promise.all([loadHostModules(), createWindow()])` 完成时渲染进程已加载，其后还有 `await createFileHost(...)`，最后才注册 `wenshu.host.*` 与 `registerProjectChannels`（[main.cjs:101-135](../../apps/electron-shell/src/main.cjs#L101-L135)）。
+
+**A-03 未触碰 `main.cjs`（diff 为空），故不归本棒。** 但 A-03 的工作区是第一个"加载即读文档"的 UI 形态，这个存量竞态迟早会在产品侧显形，请登记为承接项由业主定归口（建议 A-12 贯通或壳侧专项）。
+
+## 7.8 未由我复核（边界不变）
+
+- 远程 CI run `31026491954`：只转述不背书。
+- **Win11 参考机器复跑仍未发生**：30k 响应预算目前仍只有 Win10 / Node v24.13.0 证据。MAJOR-1 关闭后"参考机器"一词已重新指向 24.17.0 的登记机器，因此这条**从"证据被污染"降级为"证据待补"**——签署轮补跑的承诺仍然有效且必须兑现。
+- 44 键 `isTrusted` 逐键计数、undo/redo 独立分叉探针：未自建，沿用 E2E 用例。
+
+## 7.9 签署
+
+**`PASS`。** MAJOR-1、MAJOR-2 均已关闭并经我独立复现；无 BLOCKER、无未关闭 MAJOR。
+
+交接：① MINOR-1 建议合并前修（一行）；② 产品壳同形态竞态登记为承接项，归口待业主裁定；③ G1-14 的 `env:record` 协议陷阱待关闭；④ 签署轮 Win11 参考机器性能复跑仍是未兑现承诺；⑤ 合并后用 `main` squash SHA + 最终 run 同轮补台账与 AGENTS.md 承接条目。
+
+---
+
+*复审同样只新增/追加本文件；全部探针（X1 重放、注册顺序重排）均已还原，`git status` 干净。*
