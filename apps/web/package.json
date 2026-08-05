@@ -13,7 +13,10 @@
   },
   "dependencies": {
     "@wenshu/config": "workspace:*",
+    "@wenshu/document-model": "workspace:*",
+    "@wenshu/editor-transactions": "workspace:*",
     "@wenshu/host-contract": "workspace:*",
+    "@wenshu/semantic-editor": "workspace:*",
     "@wenshu/ux-state": "workspace:*"
   },
   "devDependencies": {

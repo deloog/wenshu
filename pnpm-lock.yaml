@@ -141,9 +141,18 @@ importers:
       '@wenshu/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@wenshu/document-model':
+        specifier: workspace:*
+        version: link:../../packages/document-model
+      '@wenshu/editor-transactions':
+        specifier: workspace:*
+        version: link:../../packages/editor-transactions
       '@wenshu/host-contract':
         specifier: workspace:*
         version: link:../../packages/host-contract
+      '@wenshu/semantic-editor':
+        specifier: workspace:*
+        version: link:../../packages/semantic-editor
       '@wenshu/ux-state':
         specifier: workspace:*
         version: link:../../packages/ux-state
