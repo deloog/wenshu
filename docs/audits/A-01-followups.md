@@ -50,3 +50,5 @@
   apps/web 或场景层（内容钉进消费者即成第二份真源，踩本文件 #4 要防的
   漂移）。未加固前任何文档不得宣称 1.0.0 防静默改写已机械化全覆盖。
 - **来源**：[A-02-claude-audit-report §7.5 MINOR-3](A-02-claude-audit-report.md)（2026-08-05 签署 PASS，不阻断 A-02 合并）。
+
+> **处置（2026-08-05，A-01 契约加固）：已实施，待独立审计。** 12 态 × 5 字段（`label` / `requiredPresentation` 逐条按序 / `a11y.textEquivalent` / `a11y.focusEntry` / `cancelable`）以测试内写死字面量逐字钉定，纯增落于 `packages/ux-state/test/ux-states.contract.test.ts`（478 行，file-size 门禁 500 硬顶内），冻结数据 `states-1.0.0.json` 零字节改动，消费者层无钉定复制；60 格变异矩阵（含「原文件只读」复刻变异）+ 顺序钉定补格 + 恒真反向证据见 [A-01-minor3-remediation](A-01-minor3-remediation.md)。**上述限制句本棒不撤**：按任务书 §5 须待独立审计签署后方可解除，解除时须注明覆盖范围 = 12 态 × 5 字段。
