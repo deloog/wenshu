@@ -15,6 +15,7 @@ const channels = new Set([
   "wenshu.project.open",
   "wenshu.project.import",
   "wenshu.project.import.cancel",
+  "wenshu.project.document.read",
   ...(e2eMode ? ["e2e.knowledge.export", "e2e.knowledge.import", "e2e.report"] : []),
 ]);
 
@@ -57,6 +58,7 @@ contextBridge.exposeInMainWorld(
     openProject: (input) => invoke("wenshu.project.open", input),
     importProject: (input) => invoke("wenshu.project.import", input),
     cancelImport: (input) => invoke("wenshu.project.import.cancel", input),
+    readDocument: (input) => invoke("wenshu.project.document.read", input),
     onImportProgress,
     offImportProgress,
   }),

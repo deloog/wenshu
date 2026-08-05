@@ -8,6 +8,9 @@
     "build": "vite build --mode production",
     "build:staging": "vite build --mode staging",
     "build:test": "vite build --mode test",
+    "build:workspace": "vite build --config scenario/vite.config.ts",
+    "fixture:30k": "node scripts/build-30k-fixture.ts",
+    "perf:workspace": "node scripts/perf-workspace.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },

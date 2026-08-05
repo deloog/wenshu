@@ -2,7 +2,8 @@
  * A-02 orchestration channels (ADR-0029 §4), shared by main.cjs (product
  * shell) and e2e-main.cjs (scripted shell):
  *   wenshu.project.new / wenshu.project.open /
- *   wenshu.project.import / wenshu.project.import.cancel
+ *   wenshu.project.import / wenshu.project.import.cancel /
+ *   wenshu.project.document.read (A-03 read-only, ADR-0030)
  * plus the progress event stream "wenshu.project.import.progress".
  *
  * Every payload in either direction carries only grant ids, flat directory
@@ -150,6 +151,48 @@ function registerProjectChannels(ipcMain, window, context) {
     }
     controller.abort();
     return { status: "cancel_requested" };
+  });
+
+  // A-03 (ADR-0030): read-only document channel for the workspace. Returns the
+  // validated document CONTENT (no paths, no handles); the main process
+  // re-validates against the frozen schema and fails closed — a corrupt or
+  // schema-breaking document.json never reaches the renderer as "editable".
+  ipcMain.handle("wenshu.project.document.read", async (_event, input) => {
+    const grant = grants.resolve(input?.grant_id);
+    if (grant === undefined) {
+      return errorResult("NOT_FOUND");
+    }
+    const rootStat = await stat(grant.root).catch(() => undefined);
+    if (rootStat === undefined || !rootStat.isDirectory()) {
+      return errorResult("NOT_FOUND");
+    }
+    let raw;
+    try {
+      raw = await readFile(join(grant.root, "document.json"));
+    } catch (error) {
+      if (typeof error === "object" && error !== null && error.code === "ENOENT") {
+        return { status: "empty" };
+      }
+      return errorResult("IO_FAILURE");
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.toString("utf8"));
+    } catch {
+      return { status: "corrupt" };
+    }
+    const { validateDocument } = await import("@wenshu/document-model");
+    const validation = validateDocument(parsed);
+    if (!validation.ok) {
+      return errorResult("DOCUMENT_INVALID", {
+        issue_code: validation.issues[0]?.code ?? "DOCUMENT_SCHEMA",
+      });
+    }
+    return {
+      status: "ok",
+      document: validation.value,
+      document_sha256: sha256(raw),
+    };
   });
 }
 

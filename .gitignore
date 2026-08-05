@@ -17,6 +17,7 @@ node_modules/
 # Build, coverage, test, and generated output
 dist/
 dist-scenario/
+dist-workspace/
 build/
 out/
 coverage/
