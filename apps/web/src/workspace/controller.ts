@@ -1,4 +1,8 @@
-import { validateDocument, type Block, type SupportedDocument } from "@wenshu/document-model";
+import {
+  validateDocument,
+  type Block,
+  type SupportedDocument,
+} from "@wenshu/document-model";
 import {
   RandomIdAllocator,
   fromProseMirrorDocument,
@@ -144,6 +148,15 @@ export class WorkspaceController {
     this.#focusRow = next;
     const row = this.#flat.rows[next];
     this.#offset = isTextRow(row) ? Math.min(this.#offset, row.text.length) : 0;
+  }
+
+  /** Absolute focus placement (tests/perf samplers; not a keyboard action). */
+  public setFocus(rowIndex: number, offset: number): void {
+    const clamped = Math.min(Math.max(rowIndex, 0), this.#flat.rows.length - 1);
+    this.#focusRow = clamped;
+    const row = this.#flat.rows[clamped];
+    this.#offset = isTextRow(row) ? Math.min(Math.max(offset, 0), row.text.length) : 0;
+    this.#tableMode = undefined;
   }
 
   public moveCaret(delta: number): boolean {
