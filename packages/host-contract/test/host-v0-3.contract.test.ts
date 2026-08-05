@@ -163,7 +163,6 @@ test("decisive dual-version: a frozen 0.2.0 registry still validates unchanged",
     fixture["capabilities"] as readonly Record<string, unknown>[]
   ).find((entry) => entry["name"] === "file.import.select");
   assert.deepEqual(legacyImport, fixtureImport);
-  // The 0.2.0 build carries no 0.3.0 schema id anywhere.
   assert.equal(
     JSON.stringify(legacy).includes("/0.3.0"),
     false,
@@ -173,9 +172,8 @@ test("decisive dual-version: a frozen 0.2.0 registry still validates unchanged",
 });
 
 test("fail-closed: unknown builder option keys throw (MAJOR-1 remediation)", () => {
-  // The audit probe that reported MAJOR-1 passed `protocolVersion` (a
-  // nonexistent option) and silently received the default 0.3.0 registry.
-  // Unknown keys must now be an explicit error, never a silent fallback.
+  // The MAJOR-1 audit probe passed `protocolVersion` (a nonexistent option)
+  // and silently received the default 0.3.0 registry; unknown keys must throw.
   for (const bogus of ["protocolVersion", "payloadregistryVersion", "version"]) {
     assert.throws(
       () =>
@@ -191,10 +189,22 @@ test("fail-closed: unknown builder option keys throw (MAJOR-1 remediation)", () 
   }
 });
 
+test("fail-closed: prototype-chain unknown option keys throw (MINOR-2)", () => {
+  // Unknown keys on the prototype chain must throw too (Object.keys misses them).
+  const inherited = Object.assign(Object.create({ protocolVersion: "0.2.0" }), {
+    hostKind: "electron",
+    hostVersion: "test-proto-1.0",
+    instanceId: "host_06060606060606060606060606060606",
+  }) as Parameters<typeof buildPayloadHostRegistry>[0];
+  assert.throws(
+    () => buildPayloadHostRegistry(inherited),
+    /Unknown payload registry option: protocolVersion/u,
+  );
+});
+
 test("fail-closed: illegal payloadRegistryVersion values throw (MINOR-1)", () => {
-  // A legal key with an illegal value must not silently upgrade to the
-  // latest registry (JS callers, JSON config, `as` assertions bypass the
-  // type-level literal). Value axis closed symmetrically with the key axis.
+  // Illegal values must not silently upgrade to the latest registry (JS
+  // callers/JSON/`as` bypass the type-level literal); value axis = key axis.
   for (const bogus of ["0.1.0", "0.3.0", "2.0.0", ""]) {
     assert.throws(
       () =>

@@ -268,7 +268,9 @@ export function buildPayloadHostRegistry(
   // caller intending the legacy 0.2.0 shape who mistypes the option name
   // (e.g. protocolVersion) must get an explicit error, never a silent
   // latest-version registry advertising capabilities it did not ask about.
-  for (const key of Object.keys(options)) {
+  // `for...in` (not Object.keys): keys on the prototype chain are equally
+  // capable of silently carrying a misspelled option (audit MINOR-2).
+  for (const key in options) {
     if (!KNOWN_OPTION_KEYS.has(key)) {
       throw new Error(`Unknown payload registry option: ${key}`);
     }
