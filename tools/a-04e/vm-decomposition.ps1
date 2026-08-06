@@ -53,7 +53,7 @@ Copy-Item "$r\artifacts\reference-machine\environment.win11.json" "$out\environm
 S 'env-record' { pnpm env:record --label wenshu-poc-a-win11 --out environment.a-04e.json }
 if (-not (Test-Path "$r\artifacts\reference-machine\environment.a-04e.json")) { Fail-Stop 'FAILED: env:record produced no output' }
 Move-Item "$r\artifacts\reference-machine\environment.a-04e.json" "$out\environment.a-04e.json" -ErrorAction Stop
-S 'env-record-clean' { $st = git status --short artifacts/reference-machine/; $st; if ($st) { $global:LASTEXITCODE = 1 } }
+S 'env-record-clean' { $st = git -c safe.directory=C:/wenshu-payload/wenshu status --short artifacts/reference-machine/; $st; if ($st) { $global:LASTEXITCODE = 1 } }
 S 'environment-check-2' { pnpm environment:check }
 
 S 'build-input' { node packages/report-checks/scripts/build-pa13-performance-input.ts --out "$out\input" --repetitions 280 }
@@ -100,6 +100,6 @@ $cal2 = (Get-Content "$out\calibrate-post\evidence.json" -Raw | ConvertFrom-Json
 if ($cal2 -lt $calMinMs -or $cal2 -gt $calMaxMs) { Fail-Stop "CALIBRATION_DIVERGED_POST: renderMs=$cal2 outside [$calMinMs,$calMaxMs]; batch quantitative results invalid, raw evidence retained" }
 
 if (-not $script:failed) { S 'independent-replay' { node packages/report-checks/scripts/audit-pa13-batch.ts --batch $out } }
-S 'anchor' { git rev-parse HEAD | Tee-Object "$out\anchor.txt" }
+S 'anchor' { git -c safe.directory=C:/wenshu-payload/wenshu rev-parse HEAD | Tee-Object "$out\anchor.txt" }
 if (-not $script:failed) { New-Item -ItemType File "$out\DONE" -Force | Out-Null } else { 'FAILED (raw logs retained; no DONE marker)' | Out-File "$out\STATUS.txt" -Encoding utf8 }
 shutdown /s /t 60 /f
