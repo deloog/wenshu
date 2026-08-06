@@ -30,6 +30,20 @@ export function mountPrototype(root: HTMLElement): void {
     flowSection.append(note);
   }
 
+  // A-03 键盘优先工作区：与 flow 同款 DEV 动态 import 挂载（样例文档 + 样例
+  // 导入终态走 D1 结构确认分支）；生产构建剔除并给诚实指引，真实文档经
+  // 桌面壳 wenshu.project.document.read 通道进入（M3 接线）。
+  const workspaceSection = document.createElement("section");
+  root.append(workspaceSection);
+  if (import.meta.env.DEV) {
+    void mountDevWorkspace(workspaceSection);
+  } else {
+    const note = document.createElement("p");
+    note.textContent =
+      "编辑工作区（A-03）：浏览器产物不含工作区（仅开发联调），请用 pnpm dev 或桌面壳体验。";
+    workspaceSection.append(note);
+  }
+
   const title = document.createElement("h1");
   title.textContent = "文枢 Alpha UX 冻结原型（A-01）";
   root.append(title);
@@ -106,6 +120,22 @@ async function mountBrowserFlow(section: HTMLElement): Promise<void> {
     import("../host.ts"),
   ]);
   mountFlow(section, createProjectFlow(createBrowserFlowBridge(createBrowserHost())));
+}
+
+async function mountDevWorkspace(section: HTMLElement): Promise<void> {
+  const [
+    { mountWorkspace },
+    { WorkspaceController },
+    { buildSampleDocument, buildSampleImportMeta },
+  ] = await Promise.all([
+    import("../workspace/mount.ts"),
+    import("../workspace/controller.ts"),
+    import("../workspace/sample-document.ts"),
+  ]);
+  mountWorkspace(
+    section,
+    new WorkspaceController(buildSampleDocument(), buildSampleImportMeta()),
+  );
 }
 
 function appendList(

@@ -125,6 +125,60 @@ function finish(code) {
   app.exit(code);
 }
 
+/**
+ * A-03 (E2E_SCENARIO_MODE=workspace): after the renderer reports
+ * "workspace-ready", replay E2E_KEY_SCRIPT through Chromium's trusted input
+ * pipeline (sendInputEvent — the same path real keyboards take), then pull the
+ * final workspace snapshot back with executeJavaScript and append it to the
+ * scenario report as a "workspace-result" line. Each step is
+ * { key, ctrl?, shift?, times? } where key is a DOM KeyboardEvent.key value.
+ */
+async function replayWorkspaceKeys(contents) {
+  try {
+    const script = JSON.parse(requiredEnv("E2E_KEY_SCRIPT"));
+    // sendInputEvent keyCode uses Chromium's legacy names for arrows; every
+    // other DOM KeyboardEvent.key value in the A-03 map passes through as-is.
+    const keyCodeNames = {
+      ArrowUp: "Up",
+      ArrowDown: "Down",
+      ArrowLeft: "Left",
+      ArrowRight: "Right",
+    };
+    for (const step of script) {
+      const modifiers = [];
+      if (step.ctrl === true) modifiers.push("control");
+      if (step.shift === true) modifiers.push("shift");
+      const keyCode = keyCodeNames[step.key] ?? step.key;
+      const times = Number.isInteger(step.times) && step.times > 0 ? step.times : 1;
+      for (let index = 0; index < times; index += 1) {
+        contents.sendInputEvent({ type: "keyDown", keyCode, modifiers });
+        contents.sendInputEvent({ type: "keyUp", keyCode, modifiers });
+        // Let the renderer's async per-key transaction settle before the next key.
+        await new Promise((resolve) => globalThis.setTimeout(resolve, 25));
+      }
+    }
+    // Settle margin after the last key before pulling the snapshot: the
+    // renderer finishes each key's transaction in microtasks, but under CI
+    // load the final key's dispatch task itself may land late; this window
+    // keeps the read honest without masking a real stall (watchdog bounds it).
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 200));
+    const result = await contents.executeJavaScript(
+      "window.__wenshuWorkspaceReport()",
+      true,
+    );
+    await appendFile(
+      reportPath,
+      `${JSON.stringify({ type: "workspace-result", ...result })}\n`,
+    );
+    finish(0);
+  } catch (error) {
+    globalThis.process.stderr.write(`workspace key replay failed: ${String(error)}\n`);
+    finish(1);
+  }
+}
+
+let workspaceWindowContents;
+
 /** Flat file/dir names only: no separators, no traversal, no trailing dot. */
 const FLAT_NAME = /^(?!.*\.$)[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 
@@ -207,6 +261,17 @@ function registerE2EChannels(storage) {
     await appendFile(reportPath, `${line}\n`);
     if (payload?.type === "summary") {
       finish(payload.status === "pass" ? 0 : 1);
+    } else if (
+      payload?.type === "workspace-ready" &&
+      workspaceWindowContents !== undefined
+    ) {
+      // A-03: renderer mounted the workspace; start the trusted key replay.
+      void replayWorkspaceKeys(workspaceWindowContents);
+    } else if (payload?.type === "workspace-error") {
+      // A-03: renderer-side fail-closed (corrupt / DOCUMENT_INVALID / channel
+      // error). The error line carries the evidence; exit so orchestrators
+      // asserting on it are not held by the watchdog.
+      finish(0);
     }
     return null;
   });
@@ -299,6 +364,11 @@ app
       if (bulkMiB !== undefined && bulkMiB !== "") {
         query.bulkMaterialMiB = bulkMiB;
       }
+    } else if (scenarioMode === "workspace") {
+      // A-03: mount point hands off to apps/web/dist-workspace below.
+      if (globalThis.process.env["E2E_WORKSPACE_IMPORT_META"] === "1") {
+        query.importMeta = "1";
+      }
     }
 
     const window = new BrowserWindow({ show: false, webPreferences: preferences });
@@ -311,8 +381,20 @@ app
       );
       finish(3);
     });
-    await window.loadFile(resolve(appDir, "../dist-scenario/index.html"), { query });
+    // Register channels BEFORE loading any UI: the workspace reads the
+    // document as soon as it loads, so registering after loadFile leaves a
+    // startup race window (A-03 MINOR-1: "No handler registered" flake).
     registerProjectChannels(ipcMain, window, { grants });
+    if (scenarioMode === "workspace") {
+      // A-03: the workspace UI is a PRODUCT of apps/web (IIFE bundle), loaded
+      // as a file — never imported — so the L3→web layering ban stays intact.
+      await window.loadFile(resolve(appDir, "../../web/dist-workspace/index.html"), {
+        query,
+      });
+      workspaceWindowContents = window.webContents;
+    } else {
+      await window.loadFile(resolve(appDir, "../dist-scenario/index.html"), { query });
+    }
   })
   .catch((error) => {
     globalThis.process.stderr.write(`Electron e2e host failed: ${String(error)}\n`);

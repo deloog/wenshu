@@ -2,26 +2,31 @@ import type { Block, SupportedDocument } from "@wenshu/document-model";
 import {
   copyBlock,
   deleteBlock,
+  deleteTableColumn,
+  deleteTableRow,
+  demoteSection,
+  deleteListItem,
+  insertListItem,
   fromProseMirrorDocument,
   insertBlock,
+  insertTableColumn,
+  insertTableRow,
+  mergeLists,
   moveBlock,
+  promoteParagraph,
   rewriteBlock,
+  splitList,
   type IdAllocator,
   type ProseMirrorDocument,
 } from "@wenshu/semantic-editor/internal";
 
-export type EditorActor = "human" | "ai";
+import {
+  computeExpectedRemovals,
+  type EditorActor,
+  type EditorCommand,
+} from "./commands.ts";
 
-export type EditorCommand =
-  | { readonly kind: "insert"; readonly parentId: string; readonly block: Block }
-  | { readonly kind: "delete"; readonly id: string }
-  | { readonly kind: "move"; readonly id: string; readonly destinationParentId: string }
-  | { readonly kind: "rewrite"; readonly id: string; readonly replacement: Block }
-  | {
-      readonly kind: "copy";
-      readonly id: string;
-      readonly destinationParentId: string;
-    };
+export type { EditorActor, EditorCommand } from "./commands.ts";
 
 export type TransactionOutcome =
   | {
@@ -132,13 +137,18 @@ export class TransactionSession {
     if (!this.open) throw new Error("PB03_TRANSACTION_TERMINAL");
     const beforeCommand = this.#document;
     try {
+      const beforeDocument = fromProseMirrorDocument(beforeCommand);
       if (command.kind === "delete") {
-        const targetIds = findBlockIds(
-          fromProseMirrorDocument(beforeCommand).blocks,
-          command.id,
-        );
+        const targetIds = findBlockIds(beforeDocument.blocks, command.id);
         if (targetIds === undefined) throw new Error("PB03_TRANSACTION_TARGET_MISSING");
         targetIds.forEach((id) => this.#permittedDeletion.add(id));
+      } else {
+        // A-03 MAJOR-2: expected removals are computed session-side from the
+        // command + pre-command document; the operation's own removedNodeIds
+        // self-declaration is never consulted by the guard.
+        computeExpectedRemovals(command, beforeDocument).forEach((id) =>
+          this.#permittedDeletion.add(id),
+        );
       }
       const result = this.applyCommand(command);
       ensureStableIds(beforeCommand, result.document, this.#permittedDeletion);
@@ -204,11 +214,17 @@ export class TransactionSession {
           command.parentId,
           command.block,
           this.allocator,
+          command.insertIndex,
         );
       case "delete":
         return deleteBlock(this.#document, command.id);
       case "move":
-        return moveBlock(this.#document, command.id, command.destinationParentId);
+        return moveBlock(
+          this.#document,
+          command.id,
+          command.destinationParentId,
+          command.destinationIndex,
+        );
       case "rewrite":
         return rewriteBlock(this.#document, command.id, () => command.replacement);
       case "copy":
@@ -218,6 +234,54 @@ export class TransactionSession {
           command.destinationParentId,
           this.allocator,
         );
+      case "insert-table-row":
+        return insertTableRow(
+          this.#document,
+          command.tableId,
+          this.allocator,
+          command.rowIndex,
+        );
+      case "delete-table-row":
+        return deleteTableRow(this.#document, command.rowId);
+      case "insert-table-column":
+        return insertTableColumn(
+          this.#document,
+          command.tableId,
+          command.header,
+          command.align,
+          this.allocator,
+          command.columnIndex,
+        );
+      case "delete-table-column":
+        return deleteTableColumn(this.#document, command.columnId);
+      case "merge-lists":
+        return mergeLists(this.#document, command.sourceId, command.destinationId);
+      case "split-list":
+        return splitList(
+          this.#document,
+          command.listId,
+          command.beforeItemId,
+          this.allocator,
+        );
+      case "promote-paragraph":
+        return promoteParagraph(
+          this.#document,
+          command.paragraphId,
+          command.level,
+          this.allocator,
+        );
+      case "demote-section":
+        return demoteSection(this.#document, command.sectionId, this.allocator);
+      case "insert-list-item":
+        return insertListItem(
+          this.#document,
+          command.listId,
+          command.itemIndex,
+          command.text,
+          this.allocator,
+        );
+      case "delete-list-item":
+        return deleteListItem(this.#document, command.itemId);
     }
   }
 }
