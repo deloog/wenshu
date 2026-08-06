@@ -24,7 +24,7 @@ function Fail-Stop($msg) {
 if (-not (Test-Path "$p\INSIDE-VM.txt")) { throw 'refuse: INSIDE-VM marker missing (host safety guard)' }
 if (Test-Path $out) { throw "existing a-04e evidence: $out" }
 New-Item -ItemType Directory -Force $out | Out-Null
-$env:PATH = "$p\bin;$p\node;" + $env:PATH
+$env:PATH = "$p\bin;$p\node;$p\git\cmd;" + $env:PATH
 $env:COREPACK_HOME = "$p\corepack"
 $env:PNPM_STORE_DIR = "$p\store"
 # Offline VM: pnpm 11's default lockfile supply-chain verification needs registry metadata
@@ -40,6 +40,8 @@ function S($n, [scriptblock]$b) {
 
 S 'node-version' { node --version }
 if (-not (Get-Content "$out\node-version.log" -Raw).Contains('v24.17.0')) { Fail-Stop 'FAILED: node is not v24.17.0 (payload runtime anchor broken)' }
+S 'git-version' { git --version }
+if (-not (Get-Content "$out\git-version.log" -Raw).Contains('git version')) { Fail-Stop 'FAILED: git unavailable in VM (env-record-clean / anchor gates would silently no-op; owner MINOR-2 2026-08-06)' }
 S 'pnpm-version' { pnpm --version }
 S 'edge-version' { (Get-Item $e).VersionInfo.ProductVersion; $global:LASTEXITCODE = 0 }
 S 'install' { pnpm install --frozen-lockfile --store-dir "$p\store" }
@@ -71,8 +73,33 @@ $cal = (Get-Content "$out\calibrate\evidence.json" -Raw | ConvertFrom-Json).timi
 "calibrate-renderMs=$cal gate=[$calMinMs,$calMaxMs] (PA-13 final-v6 observed min/max)" | Out-File "$out\calibration.txt" -Encoding utf8
 if ($cal -lt $calMinMs -or $cal -gt $calMaxMs) { Fail-Stop "CALIBRATION_DIVERGED: renderMs=$cal outside [$calMinMs,$calMaxMs]; no decomposition runs issued" }
 
-1..10 | ForEach-Object { $i = $_; S "run-$i" { pnpm --filter @wenshu/pdf-export export:baseline --out "$out\runs\$i" --label wenshu-poc-a-win11 --browser $e --fixture $fixture --fixture-root "$out\input" --template $template } }
+1..10 | ForEach-Object {
+  $i = $_
+  # Drift instrumentation (owner MAJOR 2026-08-06): per-run Edge process residue + free memory,
+  # to localize the teardownMs accumulation source (browser handle reclamation vs disk growth).
+  $pre = @(Get-Process msedge -ErrorAction SilentlyContinue)
+  $preWs = [math]::Round((($pre | Measure-Object WorkingSet64 -Sum).Sum)/1MB)
+  $preFree = [math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1KB)
+  "pre-run-$i edgeProcs=$($pre.Count) edgeWS_MB=$preWs freeMemMB=$preFree" | Out-File "$out\drift.txt" -Append -Encoding utf8
+  S "run-$i" { pnpm --filter @wenshu/pdf-export export:baseline --out "$out\runs\$i" --label wenshu-poc-a-win11 --browser $e --fixture $fixture --fixture-root "$out\input" --template $template }
+  $post = @(Get-Process msedge -ErrorAction SilentlyContinue)
+  $postWs = [math]::Round((($post | Measure-Object WorkingSet64 -Sum).Sum)/1MB)
+  $postFree = [math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1KB)
+  "post-run-$i edgeProcs=$($post.Count) edgeWS_MB=$postWs freeMemMB=$postFree" | Out-File "$out\drift.txt" -Append -Encoding utf8
+}
+
+# Cold/warm experiment (owner 2026-08-06): same browser session prints the full document twice;
+# if pass2 print is a fraction of pass1, the cost structure is one-cold + one-warm, not two equal prints.
+S 'warm-probe' { node packages/pdf-export/scripts/warm-print-probe.ts --out "$out\warm-probe" --browser $e --fixture $fixture --fixture-root "$out\input" --template $template }
+
+# Post-batch calibration gate (owner MAJOR requirement 1): calibration must hold at t=0 AND at batch end;
+# intra-batch drift past the signed band invalidates the batch's quantitative results.
+S 'calibrate-post' { pnpm --filter @wenshu/pdf-export export:baseline --out "$out\calibrate-post" --label wenshu-poc-a-win11 --browser $e --fixture $fixture --fixture-root "$out\input" --template $template }
+$cal2 = (Get-Content "$out\calibrate-post\evidence.json" -Raw | ConvertFrom-Json).timings.renderMs
+"calibrate-post-renderMs=$cal2 gate=[$calMinMs,$calMaxMs]" | Out-File "$out\calibration.txt" -Append -Encoding utf8
+if ($cal2 -lt $calMinMs -or $cal2 -gt $calMaxMs) { Fail-Stop "CALIBRATION_DIVERGED_POST: renderMs=$cal2 outside [$calMinMs,$calMaxMs]; batch quantitative results invalid, raw evidence retained" }
+
 if (-not $script:failed) { S 'independent-replay' { node packages/report-checks/scripts/audit-pa13-batch.ts --batch $out } }
-git rev-parse HEAD | Out-File "$out\anchor.txt" -Encoding utf8
+S 'anchor' { git rev-parse HEAD | Tee-Object "$out\anchor.txt" }
 if (-not $script:failed) { New-Item -ItemType File "$out\DONE" -Force | Out-Null } else { 'FAILED (raw logs retained; no DONE marker)' | Out-File "$out\STATUS.txt" -Encoding utf8 }
 shutdown /s /t 60 /f
