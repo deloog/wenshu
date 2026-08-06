@@ -70,6 +70,21 @@ test("baseline export: A4, embedded fonts, metadata policy, verbatim reconciliat
     false,
     "cover page must be exempt from stamping",
   );
+  // A-04E：renderBreakdown 账目必须闭合——renderMs 窗口内不允许存在无归属
+  // 区段；将来有人在 render 路径加未计时区段时此断言变红（审计 MINOR 修复）。
+  const breakdown = output.timings.renderBreakdown;
+  const accountedMs =
+    breakdown.serverMs +
+    breakdown.browserMs +
+    breakdown.firstPassMs +
+    breakdown.stabilizationRoundMs.reduce((sum, roundMs) => sum + roundMs, 0) +
+    breakdown.finalPassMs +
+    breakdown.teardownMs;
+  const residualMs = output.timings.renderMs - accountedMs;
+  assert.ok(
+    Math.abs(residualMs) <= 5,
+    `render breakdown must close within 5ms, residual ${residualMs}ms`,
+  );
 });
 
 test("repeated export in the same environment is deterministic at content level", async () => {

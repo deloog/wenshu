@@ -54,6 +54,8 @@ export interface RenderBreakdown {
   readonly stabilizationRoundMs: readonly number[];
   /** 无目录时的唯一一遍 navigate+printToPDF；有目录时为 0（最后一遍见上）。 */
   readonly finalPassMs: number;
+  /** 渲染段收尾：finally 块内浏览器关闭+静态服务器关闭。 */
+  readonly teardownMs: number;
 }
 
 /** 管线分段耗时（PA-13 性能采样口径；毫秒，performance.now 单调钟）。 */
@@ -172,6 +174,7 @@ export async function produceBaselinePdf(
   let pdfBytes: Uint8Array;
   let browserProduct: string;
   let tocPages: ReadonlyMap<string, number> = new Map();
+  let teardownMs: number;
   try {
     const browserStart = performance.now();
     const session = await (input.createBrowser === undefined
@@ -216,8 +219,10 @@ export async function produceBaselinePdf(
     }
     throw error;
   } finally {
+    const teardownStart = performance.now();
     await browser?.close();
     await server.close();
+    teardownMs = performance.now() - teardownStart;
   }
   const renderMs = performance.now() - renderStart;
 
@@ -273,6 +278,7 @@ export async function produceBaselinePdf(
         firstPassMs,
         stabilizationRoundMs: Object.freeze([...stabilizationRoundMs]),
         finalPassMs,
+        teardownMs,
       }),
     }),
     extractedText: strippedText,
