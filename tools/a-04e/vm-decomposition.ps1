@@ -27,6 +27,10 @@ New-Item -ItemType Directory -Force $out | Out-Null
 $env:PATH = "$p\bin;$p\node;" + $env:PATH
 $env:COREPACK_HOME = "$p\corepack"
 $env:PNPM_STORE_DIR = "$p\store"
+# Offline VM: pnpm 11's default lockfile supply-chain verification needs registry metadata
+# (retries 1 min/entry -> 21-min storm -> install exit 1; run-4 finding). Skip only that
+# metadata pass; frozen lockfile + byte-verified store + tarball integrity still enforced.
+$env:PNPM_CONFIG_TRUST_LOCKFILE = 'true'
 Set-Location $r
 function S($n, [scriptblock]$b) {
   & $b *>&1 | Out-File "$out\$n.log" -Encoding utf8
