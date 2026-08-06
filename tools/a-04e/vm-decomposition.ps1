@@ -37,7 +37,7 @@ function S($n, [scriptblock]$b) {
 S 'node-version' { node --version }
 if (-not (Get-Content "$out\node-version.log" -Raw).Contains('v24.17.0')) { Fail-Stop 'FAILED: node is not v24.17.0 (payload runtime anchor broken)' }
 S 'pnpm-version' { pnpm --version }
-S 'edge-version' { & $e --version }
+S 'edge-version' { (Get-Item $e).VersionInfo.ProductVersion; $global:LASTEXITCODE = 0 }
 S 'install' { pnpm install --frozen-lockfile --store-dir "$p\store" }
 S 'environment-check' { pnpm environment:check }
 Copy-Item "$r\artifacts\reference-machine\environment.win11.json" "$out\environment.win11.json" -ErrorAction Stop
@@ -47,7 +47,7 @@ Copy-Item "$r\artifacts\reference-machine\environment.win11.json" "$out\environm
 S 'env-record' { pnpm env:record --label wenshu-poc-a-win11 --out environment.a-04e.json }
 if (-not (Test-Path "$r\artifacts\reference-machine\environment.a-04e.json")) { Fail-Stop 'FAILED: env:record produced no output' }
 Move-Item "$r\artifacts\reference-machine\environment.a-04e.json" "$out\environment.a-04e.json" -ErrorAction Stop
-S 'env-record-clean' { $st = git status --short artifacts/reference-machine/; $st; if ($st) { exit 1 } }
+S 'env-record-clean' { $st = git status --short artifacts/reference-machine/; $st; if ($st) { $global:LASTEXITCODE = 1 } }
 S 'environment-check-2' { pnpm environment:check }
 
 S 'build-input' { node packages/report-checks/scripts/build-pa13-performance-input.ts --out "$out\input" --repetitions 280 }
