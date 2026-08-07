@@ -63,10 +63,29 @@ test("GitHub workflow delegates every matrix job to the local runner", async () 
   const actionReferences = [...workflow.matchAll(/^\s+uses:\s+(\S+)/gmu)].map(
     (match) => match[1] ?? "",
   );
-  assert.equal(actionReferences.length, 3);
+  assert.equal(actionReferences.length, 5);
   actionReferences.forEach((reference) => {
     assert.match(reference, /^[^@\s]+@[0-9a-f]{40}$/u);
   });
+});
+
+test("workflow scope gating is fail-closed and pinned (CI-01)", async () => {
+  const workflowPath = fileURLToPath(
+    new URL("../../../.github/workflows/verify.yml", import.meta.url),
+  );
+  const workflow = await readFile(workflowPath, "utf8");
+  // Shallow-clone trap: the scope job must fetch full history for its diff baseline.
+  assert.match(workflow, /fetch-depth: 0/u);
+  // The matrix job must depend on scope and only skip when docs_only is exactly 'true';
+  // a missing/failed scope output evaluates to "not 'true'" => full run.
+  assert.match(workflow, /needs: scope/u);
+  assert.match(
+    workflow,
+    /if: \$\{\{ always\(\) && !cancelled\(\) && \(needs\.scope\.outputs\.docs_only != 'true' \|\| contains\('static unit-config security', matrix\.job\)\) \}\}/u,
+  );
+  // The scope job itself must not alter what jobs run, only whether: no new actions
+  // beyond the pinned pair, and the classifier runs the local fail-closed script.
+  assert.match(workflow, /node tools\/ci\/scripts\/scope\.ts/u);
 });
 
 test("local scheduling runs concurrently without exceeding its budget", async () => {

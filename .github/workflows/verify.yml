@@ -14,7 +14,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    name: scope
+    runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - name: Checkout (full history required for diff baseline)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.17.0
+          check-latest: false
+      - name: "Classify change scope (fail-closed: any doubt = full run)"
+        id: classify
+        env:
+          CI_SCOPE_EVENT: ${{ github.event_name }}
+          CI_SCOPE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          CI_SCOPE_HEAD: ${{ github.event.after || github.sha }}
+        run: node tools/ci/scripts/scope.ts
   verify:
+    needs: scope
+    # CI-01: documentation-only runs skip the six jobs proven docs-insensitive
+    # (task book D1). always()+missing/failed scope => docs_only != 'true' => full run.
+    if: ${{ always() && !cancelled() && (needs.scope.outputs.docs_only != 'true' || contains('static unit-config security', matrix.job)) }}
     name: ${{ matrix.job }}
     runs-on: ubuntu-24.04
     strategy:
