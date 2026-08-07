@@ -7,6 +7,9 @@
 **/test-results/**
 **/artifacts/**
 **/tmp/**
+# **/*.md —— 有意排除（业主 2026-08-07 裁定）：本仓台账行等为超长中文单行表格，prettier
+# 重排会破坏可读性；markdown 无格式门禁是有意决定，不是疏漏。移除本行前须业主裁定
+#（「prettier 干净」对 .md 为静默空转，不构成证据——见 AGENTS.md 承接记录长期踩坑）。
 **/*.md
 pnpm-lock.yaml
 sbom/
