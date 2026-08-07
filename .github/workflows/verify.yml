@@ -65,27 +65,27 @@ jobs:
           - e2e
     steps:
       - name: Checkout
-        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job) }}
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Set up Node.js
-        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job) }}
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24.17.0
           check-latest: false
       - name: Activate pnpm
-        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job) }}
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         run: |
           corepack enable
           corepack prepare pnpm@11.15.1 --activate
           pnpm --version
       - name: Resolve pnpm store
-        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job) }}
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         id: pnpm-store
         shell: bash
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
       - name: Restore pnpm store
-        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job) }}
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
@@ -93,16 +93,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-24.17.0-pnpm-11.15.1-
       - name: Install frozen dependencies
-        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job) }}
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         run: pnpm install --frozen-lockfile
       - name: Install Electron runtime libraries (e2e only)
-        if: ${{ matrix.job == 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job)) }}
+        if: ${{ matrix.job == 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job)) }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb libgtk-3-0 libnss3 libasound2t64 libgbm1
       - name: Run ${{ matrix.job }}
-        if: ${{ matrix.job != 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job)) }}
+        if: ${{ matrix.job != 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job)) }}
         run: pnpm ci:job ${{ matrix.job }}
       - name: Run e2e (headless Electron)
-        if: ${{ matrix.job == 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains('static unit-config security', matrix.job)) }}
+        if: ${{ matrix.job == 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job)) }}
         run: ELECTRON_DISABLE_SANDBOX=1 xvfb-run -a pnpm ci:job ${{ matrix.job }}

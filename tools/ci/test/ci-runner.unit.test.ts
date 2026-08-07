@@ -83,14 +83,17 @@ test("workflow scope gating is fail-closed and pinned (CI-01)", async () => {
   assert.match(workflow, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/u);
   const jobLevelIf = workflow.match(/\n {4}if: [^\r\n]+/gu) ?? [];
   assert.deepEqual(jobLevelIf, ["\n    if: ${{ always() && !cancelled() }}"]);
+  // MINOR-1: exact membership via fromJSON — substring matching would accept
+  // a hypothetical job named e.g. "static-analysis" as part of the run set.
   const stepGuard =
-    /if: \$\{\{ env\.CI_SCOPE_DOCS_ONLY != 'true' \|\| contains\('static unit-config security', matrix\.job\) \}\}/u;
+    /if: \$\{\{ env\.CI_SCOPE_DOCS_ONLY != 'true' \|\| contains\(fromJSON\('\["static","unit-config","security"\]'\), matrix\.job\) \}\}/u;
   const guardedSteps = workflow.match(new RegExp(stepGuard.source, "gu")) ?? [];
   assert.equal(guardedSteps.length, 6); // checkout/setup-node/pnpm/store/install ×6 shared steps
   assert.match(
     workflow,
-    /if: \$\{\{ matrix\.job == 'e2e' && \(env\.CI_SCOPE_DOCS_ONLY != 'true' \|\| contains\('static unit-config security', matrix\.job\)\) \}\}/u,
+    /if: \$\{\{ matrix\.job == 'e2e' && \(env\.CI_SCOPE_DOCS_ONLY != 'true' \|\| contains\(fromJSON\('\["static","unit-config","security"\]'\), matrix\.job\)\) \}\}/u,
   );
+  assert.doesNotMatch(workflow, /contains\('static unit-config security'/u);
   // The classifier runs the local fail-closed script; no new third-party action.
   assert.match(workflow, /node tools\/ci\/scripts\/scope\.ts/u);
 });

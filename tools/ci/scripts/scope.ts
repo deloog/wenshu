@@ -1,20 +1,12 @@
 import { appendFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 
-import { decideScope, type DiffResult } from "../src/scope.ts";
+import { decideScope, runGitDiff } from "../src/scope.ts";
 
 const eventName = process.env["CI_SCOPE_EVENT"] ?? "";
 const baseSha = process.env["CI_SCOPE_BASE"];
 const headSha = process.env["CI_SCOPE_HEAD"];
 
-function runDiff(base: string, head: string, event: string): DiffResult {
-  // pull_request: three-dot diff against the merge base; push: direct before..after.
-  const range = event === "pull_request" ? `${base}...${head}` : `${base}..${head}`;
-  const result = spawnSync("git", ["diff", "--name-only", range], { encoding: "utf8" });
-  return { status: result.status ?? 1, stdout: result.stdout ?? "" };
-}
-
-const decision = decideScope({ eventName, baseSha, headSha, runDiff });
+const decision = decideScope({ eventName, baseSha, headSha, runDiff: runGitDiff });
 
 console.log(
   `[ci:scope] event=${eventName || "∅"} base=${baseSha || "∅"} head=${headSha || "∅"}`,

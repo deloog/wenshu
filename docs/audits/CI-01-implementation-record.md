@@ -66,3 +66,22 @@
 - 本地 `pnpm verify` **REAL_EXIT=0 两次**（首次 format 失败暴露 YAML 步名冒号未引用 + 两处 prettier，修复后复跑；退出码经无管道直取——本记录作者曾因管道吞码虚报一次 EXIT，见下）。
 - 远程：PR #60 run `31156360384` 10/10（scope+9 满跑）与 run `31157232281` 10/10（反例 3 混合满跑）；PR #61 run `31156853610`（docs-only，3 真跑 6 步态 skipped）；首版工作流解析失败 run `31153055169`（§2）。
 - 过程缺陷如实登记：① 首版 job 级 if 引用 matrix（§2）；② 一次 verify 退出码被管道吞（`pnpm verify | tail; echo $?` 取到的是 tail 的码），首次 verify 的 format 失败即由此迟发现一轮——与 AGENTS.md「管道吞退出码」同款，本棒后续全部直取退出码。
+
+## 8. 独立审计修复轮（首审 BLOCKER-1/MAJOR-1，2026-08-07）
+
+审计报告：[CI-01-claude-audit.md](CI-01-claude-audit.md)（随本轮提交入档；刻意不用 `-claude-audit-report.md` 后缀——CI-01 无路线图任务行，避免 G2-04 检查 8a 硬失败）。
+
+**BLOCKER-1：重命名检测隐藏源路径 → 误判 docs-only（修复）**。审计者实证：`git mv packages/pdf-export/src/pipeline.ts docs/pipeline-moved.ts` 后 `git diff --name-only`（默认重命名检测）只报目标路径 → 分类器见纯 docs → 六腿全跳，而源文件已删、typecheck/build 必然失败，check run 却报 success。正犯任务书 §4.1「任何『算不出改了什么就跳过』的实现直接 BLOCKER」。修复：真实 git 调用从 `scripts/scope.ts` 提升为 `src/scope.ts` 导出 `runGitDiff`（命令行单一真源，script 复用），加 **`--no-renames`**——重命名报为删除+新增，两侧路径都进分类。
+
+**MAJOR-1：真实 git 调用零测试覆盖（修复）**。12 处 decideScope 单测全注入 mock，喂输入的那段代码无任何测试，BLOCKER-1 正长在这条缝上（本项目第三次同形态：A-03 守卫许可集自报、A-04E 门静默空转、本次判据来源未覆盖）。新增 `scope.git.unit.test.ts` 3 条，临时仓库 + 真 `git mv`：
+1. **跨面重命名（反例 7 单测形态）**：攻击前提断言先行成立（默认 diff 恰只报 `docs/pipeline-moved.ts`），修复后 `changedFiles` 含两侧路径、`docs_only=false`；
+2. 真 docs-only 仍判真（防过矫正）；
+3. PR 三点 range 对 merge base 真跑。
+
+**MINOR-1（采纳）**：step 守卫 9 处 `contains('static unit-config security', matrix.job)` 子串匹配 → `contains(fromJSON('["static","unit-config","security"]'), matrix.job)` 精确成员（防假想 job 名 `static-analysis` 混入必跑集）；`ci-runner.unit.test.ts` 钉定断言同步更新并加负向断言（旧子串形态不得出现）。
+
+**变异自证（修复轮）**：去掉 `--no-renames` → `node --test test/scope.git.unit.test.ts` **fail 1，红恰好落反例 7 断言**（`rename of source into docs/ must force a full run`，变异体 docsOnly 误判 true）；还原后 3/3 绿。
+
+**反例 7（CI 实证，新增）**：探针分支 `git mv tools/ci/src/jobs.ts docs/jobs-moved.ts` → run `<待取证>`：scope 日志须列两侧路径且 `docs_only=false`、9 腿全真跑（移动后 import 断裂，typecheck/build 如实红 = 真跑的直接证明）；探针 PR 取证后关闭不合并。
+
+**审计者要求入档的判读性警示（取舍后果写清）**：被跳腿以「全步 skipped 的 success」存在（§2，为兼容分支保护必需检查的取舍），check run 层面 10/10 全绿**不分辨**「真跑过」与「什么都没跑」——唯一事后分辨手段是 scope job 日志（§5.5，因此它不是锦上添花而是唯一手段）。整套机制的安全性完全押在 scope 判定上，BLOCKER-1 正是击穿点；`--no-renames` 与真 git 测试必须存在的原因即此。

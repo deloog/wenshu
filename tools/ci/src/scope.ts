@@ -9,6 +9,8 @@
  * outside the recognized documentation surface change?".
  */
 
+import { spawnSync } from "node:child_process";
+
 /**
  * A changed file counts as documentation iff it lives under docs/ or is a
  * root-level .md — with one exception: docs/poc-a/** is consumed by
@@ -24,6 +26,34 @@ export function isDocumentationPath(filePath: string): boolean {
 export interface DiffResult {
   readonly status: number;
   readonly stdout: string;
+}
+
+/**
+ * Runs the real git diff that feeds the classifier.
+ *
+ * `--no-renames` is load-bearing (BLOCKER-1): with git's default rename
+ * detection, a rename reports ONLY the destination path — moving
+ * packages/x/src/a.ts to docs/a.ts would surface solely as a docs path and
+ * misclassify as docs-only while source code was deleted. --no-renames
+ * reports rename as delete + add, so both sides are classified.
+ *
+ * Exported (with cwd) so the integration test can exercise the exact command
+ * line against a real temporary repository instead of a mock.
+ */
+export function runGitDiff(
+  baseSha: string,
+  headSha: string,
+  eventName: string,
+  cwd?: string,
+): DiffResult {
+  // pull_request: three-dot diff against the merge base; push: direct before..after.
+  const range =
+    eventName === "pull_request" ? `${baseSha}...${headSha}` : `${baseSha}..${headSha}`;
+  const result = spawnSync("git", ["diff", "--name-only", "--no-renames", range], {
+    encoding: "utf8",
+    cwd,
+  });
+  return { status: result.status ?? 1, stdout: result.stdout ?? "" };
 }
 
 export interface ScopeInput {
