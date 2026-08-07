@@ -111,3 +111,88 @@ contains(fromJSON('["static","unit-config","security"]'), matrix.job)
 ---
 
 *本报告由独立审计角色出具；任务书亦由我起草（只归集权威来源、标出待裁定点，不构成实施），故仍可担任本棒审计——本轮所审为 `verify.yml` 与 `tools/ci/**` 的机制实现，非我撰写的文本。审计期间仅新增本文件；全部探针（重命名 worktree 构造）均已清理。*
+
+---
+
+# 8. 复审记录（2026-08-07）· BLOCKER-1 / MAJOR-1 / MINOR-1 全部关闭
+
+> 复审对象：`b644276`（修复轮三提交）。方法不变：自述不采信，关键结论自己重放。
+
+## 8.1 结论
+
+**签署 `PASS`。** 三项发现全部关闭，无新增发现。
+
+## 8.2 BLOCKER-1 —— 关闭，且修得比要求更彻底
+
+我只要求加 `--no-renames`，实施侧同时把真实 git 调用**提升为 `src/scope.ts` 的导出 `runGitDiff`**，`scripts/scope.ts` 改为 import 复用：
+
+```js
+// scripts/scope.ts
+import { decideScope, runGitDiff } from "../src/scope.ts";
+const decision = decideScope({ eventName, baseSha, headSha, runDiff: runGitDiff });
+```
+
+**这一步顺带把 MAJOR-1 的结构成因也堵死了**——被测函数从此就是 CI 实跑的那个，mock 边界不再可能绕开真实命令。这比单加一个 flag 强，因为它防的是下一个同类缺陷，不只是这一个。
+
+`--no-renames` 已在位，且带了说明它承重的注释。
+
+## 8.3 MAJOR-1 —— 关闭，测试设计值得记一笔
+
+`tools/ci/test/scope.git.unit.test.ts` 3 条，临时仓库真 `git mv` 跨面。**关键在它先钉攻击前提**：
+
+```js
+const raw = git(dir, ["diff", "--name-only", `${baseSha}..${headSha}`]);
+assert.equal(raw, "docs/pipeline-moved.ts",
+  "attack precondition: rename hides the source path by default");
+```
+
+这不是"断言修好了"，是**钉住为什么需要修**——若将来 git 默认行为变化，这条会先响，告诉你这个测试已经不在测它以为在测的东西。这正是本项目"探针必带对照组"的正确形态，实施侧自己想到的，我没要求。
+
+另两条防过矫正（真 docs-only 仍判 true、PR 三点 range 可用）。
+
+## 8.4 我自己重放的变异（R1）
+
+去掉 `--no-renames`：
+
+```text
+✖ real git: cross-boundary rename does NOT hide the deleted source (BLOCKER-1, counterexample 7)
+  AssertionError: rename of source into docs/ must force a full run
+tests 3 / pass 2 / fail 1        ← 恰好一例，另两条不受影响（无过矫正）
+全套 tools/ci: 18 例中仅此 1 例红
+```
+
+还原后 **18/18 全绿**。**红落在正确断言上，红得不多不少。**
+
+## 8.5 MINOR-1 与回归
+
+| 项 | 我的核验 |
+|---|---|
+| `fromJSON` 精确成员 | 工作流 9 处全改；**旧子串形态残留 0 处**；`ci-runner.unit.test.ts` 用正则逐字钉定新形态（含 e2e 腿的复合条件） |
+| fail-closed 七形态 | 表驱动测试仍覆盖全部七种（不可分类事件 / 全零 base / undefined base / 非法 head / diff 非零 / 空 diff / 含非文档文件） |
+| 全套 `tools/ci` | **18/18** |
+| 入档报告完整性 | `2813fd0` 提交的 `CI-01-claude-audit.md` 与我本地原件 **diff 为空**，未被改写 |
+| 判读性警示 | 已按我要求写入实施记录 §8（10/10 不分辨"真跑过"与"什么都没跑"，scope 日志是唯一事后分辨手段） |
+
+## 8.6 反例 7 的 CI 端到端实证（我未独立复核，但值得记）
+
+探针 PR #62 用真实重命名（`tools/ci/src/jobs.ts` → `docs/jobs-moved.ts`）触发 run `31166471742`：scope 判 `docs_only=false`、**9 腿全真跑且全如实红**，`unit-config` 报 `ERR_MODULE_NOT_FOUND: …/tools/ci/src/jobs.ts`。
+
+这比单测强一层——它证明的不只是"分类器现在说要满跑"，而是**"满跑之后确实抓到了那个破坏"**。取证后关闭不合并、分支已删，处理干净。
+
+**远程 run 在我的独立核验能力之外，只转述不背书**（口径自 PB-12 起未变）。
+
+## 8.7 一处需要业主注意的累积信号
+
+修复轮中途 run `31167009713` 的 e2e 首 attempt 红一例，错误文本与 [A-02-followups #5](A-02-followups.md) 逐字相同——**这是那条存量竞态两天内第二次复发**，且两次都发生在与 A-02 完全无关的棒上。
+
+处置正确（取证 → 同 tree 本机不可复现 → rerun 转绿 → 复发回写 followups），但两次复发意味着它已经在**真实消耗 CI 配额与人的判读时间**，而 CI-01 这一棒的全部目的正是省这两样。建议把 A-02-followups #5 的排期提前，不要再等到 A-12。
+
+## 8.8 签署
+
+**`PASS`。** BLOCKER-1、MAJOR-1、MINOR-1 全部关闭并经我独立复现；无新增发现；既有安全属性零回潮。
+
+交接：① **PR #60 合并仍须业主裁定**；② 合并后按任务书 §8，CI-01 无台账行，用 `main` squash SHA 记于实施记录；③ 建议提前 A-02-followups #5 的排期（§8.7）。
+
+---
+
+*复审仅追加本节；变异 R1 已还原，`git status` 干净。*
