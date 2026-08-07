@@ -63,10 +63,42 @@ test("GitHub workflow delegates every matrix job to the local runner", async () 
   const actionReferences = [...workflow.matchAll(/^\s+uses:\s+(\S+)/gmu)].map(
     (match) => match[1] ?? "",
   );
-  assert.equal(actionReferences.length, 3);
+  assert.equal(actionReferences.length, 5);
   actionReferences.forEach((reference) => {
     assert.match(reference, /^[^@\s]+@[0-9a-f]{40}$/u);
   });
+});
+
+test("workflow scope gating is fail-closed and pinned (CI-01)", async () => {
+  const workflowPath = fileURLToPath(
+    new URL("../../../.github/workflows/verify.yml", import.meta.url),
+  );
+  const workflow = await readFile(workflowPath, "utf8");
+  // Shallow-clone trap: the scope job must fetch full history for its diff baseline.
+  assert.match(workflow, /fetch-depth: 0/u);
+  // jobs.<job_id>.if has no matrix context (GitHub contexts reference): the
+  // per-leg skip decision must live at step level, and the job-level if must
+  // keep every check run present even when scope fails (fail-closed).
+  assert.match(workflow, /needs: scope/u);
+  assert.match(workflow, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/u);
+  const jobLevelIf = workflow.match(/\n {4}if: [^\r\n]+/gu) ?? [];
+  assert.deepEqual(jobLevelIf, ["\n    if: ${{ always() && !cancelled() }}"]);
+  // MINOR-1: exact membership via fromJSON — substring matching would accept
+  // a hypothetical job named e.g. "static-analysis" as part of the run set.
+  const stepGuard =
+    /if: \$\{\{ env\.CI_SCOPE_DOCS_ONLY != 'true' \|\| contains\(fromJSON\('\["static","unit-config","security"\]'\), matrix\.job\) \}\}/u;
+  const guardedSteps = workflow.match(new RegExp(stepGuard.source, "gu")) ?? [];
+  assert.equal(guardedSteps.length, 6); // checkout/setup-node/pnpm/store/install ×6 shared steps
+  assert.match(
+    workflow,
+    /if: \$\{\{ matrix\.job == 'e2e' && \(env\.CI_SCOPE_DOCS_ONLY != 'true' \|\| contains\(fromJSON\('\["static","unit-config","security"\]'\), matrix\.job\)\) \}\}/u,
+  );
+  assert.doesNotMatch(workflow, /contains\('static unit-config security'/u);
+  // The classifier runs the local fail-closed script; no new third-party action.
+  assert.match(workflow, /node tools\/ci\/scripts\/scope\.ts/u);
+  // Weekly backstop (owner decision 2026-08-07): bounds the misclassification
+  // exposure window to one week; "schedule" is unclassifiable ⇒ full run.
+  assert.match(workflow, /schedule:\r?\n {4}- cron: "17 3 \* \* 1"/u);
 });
 
 test("local scheduling runs concurrently without exceeding its budget", async () => {

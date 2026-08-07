@@ -5,6 +5,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # CI-01 backstop (owner decision 2026-08-07): skipped legs report success,
+  # so a misclassification is invisible on the check-run panel and the only
+  # forensic source (scope job log) expires. A weekly full run bounds the
+  # exposure window to one week. No classifier change needed: "schedule" is
+  # not a classifiable event, so decideScope fails closed into a full run.
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Monday 03:17 UTC
 
 permissions:
   contents: read
@@ -14,9 +21,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    name: scope
+    runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - name: Checkout (full history required for diff baseline)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.17.0
+          check-latest: false
+      - name: "Classify change scope (fail-closed: any doubt = full run)"
+        id: classify
+        env:
+          CI_SCOPE_EVENT: ${{ github.event_name }}
+          CI_SCOPE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          CI_SCOPE_HEAD: ${{ github.event.after || github.sha }}
+        run: node tools/ci/scripts/scope.ts
   verify:
+    needs: scope
+    # CI-01: documentation-only runs skip the six jobs proven docs-insensitive
+    # (task book D1). jobs.<job_id>.if has NO matrix context (GitHub contexts
+    # reference), so the per-leg decision is made at step level; job-level
+    # always() keeps every check run present (required checks + readability).
+    # Skipped legs report success with all steps skipped; the scope job log is
+    # the machine-readable record of what actually executed (task book §5.5).
+    if: ${{ always() && !cancelled() }}
     name: ${{ matrix.job }}
     runs-on: ubuntu-24.04
+    env:
+      CI_SCOPE_DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
     strategy:
       fail-fast: false
       max-parallel: 9
@@ -33,22 +72,27 @@ jobs:
           - e2e
     steps:
       - name: Checkout
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Set up Node.js
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24.17.0
           check-latest: false
       - name: Activate pnpm
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         run: |
           corepack enable
           corepack prepare pnpm@11.15.1 --activate
           pnpm --version
       - name: Resolve pnpm store
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         id: pnpm-store
         shell: bash
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
       - name: Restore pnpm store
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
@@ -56,15 +100,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-24.17.0-pnpm-11.15.1-
       - name: Install frozen dependencies
+        if: ${{ env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job) }}
         run: pnpm install --frozen-lockfile
       - name: Install Electron runtime libraries (e2e only)
-        if: matrix.job == 'e2e'
+        if: ${{ matrix.job == 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job)) }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb libgtk-3-0 libnss3 libasound2t64 libgbm1
       - name: Run ${{ matrix.job }}
-        if: matrix.job != 'e2e'
+        if: ${{ matrix.job != 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job)) }}
         run: pnpm ci:job ${{ matrix.job }}
       - name: Run e2e (headless Electron)
-        if: matrix.job == 'e2e'
+        if: ${{ matrix.job == 'e2e' && (env.CI_SCOPE_DOCS_ONLY != 'true' || contains(fromJSON('["static","unit-config","security"]'), matrix.job)) }}
         run: ELECTRON_DISABLE_SANDBOX=1 xvfb-run -a pnpm ci:job ${{ matrix.job }}

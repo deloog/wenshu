@@ -67,3 +67,7 @@
   复发按本条取证，不得静默重跑。
 - **证据**：失败日志 run `31056153886` 首次 attempt（e2e 作业），重跑 attempt
   9/9 success；机理分析见本条。
+- **复发登记（2026-08-07，CI-01 修复轮）**：run `31167009713` 首次 attempt 同一
+  测试同一断言原文复发（`IMPORT_FLOW_ILLEGAL_TRANSITION: empty-project --import-progress`）；
+  同 tree 本机 `pnpm ci:job e2e` 全绿（E2E_EXIT=0，不可复现=非确定性）；失败日志已取证
+  后 `rerun --failed` 转绿。第二次出现，仍判存量偶发竞态，裁定前继续按本条取证。
