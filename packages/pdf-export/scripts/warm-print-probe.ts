@@ -28,21 +28,34 @@ function argValue(flag: string): string | undefined {
 }
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
-const outDir = resolve(argValue("--out") ?? resolve(repoRoot, "test-results/a-04e-warm-probe"));
+const outDir = resolve(
+  argValue("--out") ?? resolve(repoRoot, "test-results/a-04e-warm-probe"),
+);
 const browserPath = argValue("--browser");
-const fixtureRoot = resolve(argValue("--fixture-root") ?? resolve(repoRoot, "docs/poc-a/fixtures"));
-const fixture = resolve(argValue("--fixture") ?? resolve(fixtureRoot, "golden-report.md"));
-const templatePath = resolve(argValue("--template") ?? resolve(fixtureRoot, "formal-business.template.json"));
+const fixtureRoot = resolve(
+  argValue("--fixture-root") ?? resolve(repoRoot, "docs/poc-a/fixtures"),
+);
+const fixture = resolve(
+  argValue("--fixture") ?? resolve(fixtureRoot, "golden-report.md"),
+);
+const templatePath = resolve(
+  argValue("--template") ?? resolve(fixtureRoot, "formal-business.template.json"),
+);
 const fontDir = resolve(repoRoot, "assets/fonts/source-han-sans-cn/2.005R");
 
 // 与 pipeline.ts 导入/组装段同调用同传参（只组装不判定）。
 const imported = await importMarkdownDocument(fixture, fixtureRoot);
-const manifest = JSON.parse(await readFile(resolve(fontDir, "font-manifest.json"), "utf8"));
+const manifest = JSON.parse(
+  await readFile(resolve(fontDir, "font-manifest.json"), "utf8"),
+);
 const plan = parseFontPlan(manifest);
 await verifyFontFiles(fontDir, plan);
 const fontSet = parseApprovedFontSet(manifest);
 if (!fontSet.ok) throw new Error("font manifest must parse");
-const mapped = mapTemplate(JSON.parse(await readFile(templatePath, "utf8")), fontSet.value);
+const mapped = mapTemplate(
+  JSON.parse(await readFile(templatePath, "utf8")),
+  fontSet.value,
+);
 if (!mapped.ok) throw new Error(`template must map: ${JSON.stringify(mapped.issues)}`);
 const css = renderTemplateCss(
   mapped.value,
@@ -51,27 +64,47 @@ const css = renderTemplateCss(
 const svgCache = new Map<string, string>();
 for (const original of Object.keys(imported.renames)) {
   if (original.toLowerCase().endsWith(".svg")) {
-    svgCache.set(original, new TextDecoder().decode(await readFile(resolve(fixtureRoot, original))));
+    svgCache.set(
+      original,
+      new TextDecoder().decode(await readFile(resolve(fixtureRoot, original))),
+    );
   }
 }
-const basePrintHtml = composePrintDocument(renderDocumentHtml(imported.document), css, (assetPath) => {
-  const original = Object.entries(imported.renames).find(([, n]) => n === assetPath)?.[0];
-  return original === undefined ? undefined : svgCache.get(original);
-});
+const basePrintHtml = composePrintDocument(
+  renderDocumentHtml(imported.document),
+  css,
+  (assetPath) => {
+    const original = Object.entries(imported.renames).find(
+      ([, n]) => n === assetPath,
+    )?.[0];
+    return original === undefined ? undefined : svgCache.get(original);
+  },
+);
 const printParams = buildPrintParams(mapped.value);
 const documents: Record<string, string | Uint8Array> = { "/print.html": basePrintHtml };
 for (const [original, normalized] of Object.entries(imported.renames)) {
   documents[`/${normalized}`] = await readFile(resolve(fixtureRoot, original));
 }
 
-const server = await startStaticServer([{ mount: "/fonts/", directory: fontDir }], documents);
+interface PassTiming {
+  pass: number;
+  navigateMs: number;
+  printMs: number;
+  totalMs: number;
+  pdfBytes: number;
+}
+
+const server = await startStaticServer(
+  [{ mount: "/fonts/", directory: fontDir }],
+  documents,
+);
 let result: Record<string, unknown>;
 const browserStart = performance.now();
 const session = await launchBrowser(browserPath, {});
 try {
   const product = await session.productVersion();
   const browserMs = performance.now() - browserStart;
-  const passes: Record<string, number>[] = [];
+  const passes: PassTiming[] = [];
   for (const pass of [1, 2]) {
     const navStart = performance.now();
     await session.navigate(`${server.origin}/print.html`);
@@ -79,15 +112,23 @@ try {
     const printStart = performance.now();
     const pdf = await session.printToPdf({ ...printParams });
     const printMs = performance.now() - printStart;
-    passes.push({ pass, navigateMs, printMs, totalMs: navigateMs + printMs, pdfBytes: pdf.byteLength });
+    passes.push({
+      pass,
+      navigateMs,
+      printMs,
+      totalMs: navigateMs + printMs,
+      pdfBytes: pdf.byteLength,
+    });
   }
+  const [pass1, pass2] = passes;
+  if (!pass1 || !pass2) throw new Error("warm probe must produce two passes");
   result = {
     probe: "a-04e-warm-print",
     product,
     browserMs,
-    pass1: passes[0],
-    pass2: passes[1],
-    printRatio2over1: passes[1].printMs / passes[0].printMs,
+    pass1,
+    pass2,
+    printRatio2over1: pass2.printMs / pass1.printMs,
   };
 } finally {
   await session.close();
@@ -95,5 +136,9 @@ try {
 }
 
 await mkdir(outDir, { recursive: true });
-await writeFile(resolve(outDir, "warm-print-probe.json"), `${JSON.stringify(result, null, 1)}\n`, "utf8");
+await writeFile(
+  resolve(outDir, "warm-print-probe.json"),
+  `${JSON.stringify(result, null, 1)}\n`,
+  "utf8",
+);
 console.log(JSON.stringify(result));
