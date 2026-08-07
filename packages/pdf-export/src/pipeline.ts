@@ -42,6 +42,22 @@ export interface BaselineInput {
   readonly createBrowser?: (() => Promise<BrowserSession>) | undefined;
 }
 
+/** 渲染段子分段耗时（A-04E 评估测量，additive；只包计时，不改变任何调用序列）。 */
+export interface RenderBreakdown {
+  /** 静态服务器启动（含导出文档装配与读取），自渲染段起点起算。 */
+  readonly serverMs: number;
+  /** 浏览器会话接入（launchBrowser 或平台壳会话）与产品版本读取。 */
+  readonly browserMs: number;
+  /** 首遍 navigate+printToPDF+目录页码测量；无目录时为 0（唯一一遍计入 finalPassMs）。 */
+  readonly firstPassMs: number;
+  /** 稳定化轮逐轮耗时（fill+navigate+print+重测，按轮序）；收敛轮即最后一遍。 */
+  readonly stabilizationRoundMs: readonly number[];
+  /** 无目录时的唯一一遍 navigate+printToPDF；有目录时为 0（最后一遍见上）。 */
+  readonly finalPassMs: number;
+  /** 渲染段收尾：finally 块内浏览器关闭+静态服务器关闭。 */
+  readonly teardownMs: number;
+}
+
 /** 管线分段耗时（PA-13 性能采样口径；毫秒，performance.now 单调钟）。 */
 export interface PipelineTimings {
   /** 导入+字体/模板/CSS/compose+资源读取。 */
@@ -51,6 +67,8 @@ export interface PipelineTimings {
   /** 后处理：期望文本装配+文本层修复+压印+终检。 */
   readonly postprocessMs: number;
   readonly totalMs: number;
+  /** 渲染段子分段（additive 观测字段；renderMs 语义不变）。 */
+  readonly renderBreakdown: RenderBreakdown;
 }
 
 export interface BaselineOutput {
@@ -146,30 +164,45 @@ export async function produceBaselinePdf(
     [{ mount: "/fonts/", directory: input.fontDir }],
     documents,
   );
+  // A-04E 子分段计时：以下变量只观测，渲染调用序列与传参保持原样。
+  const serverMs = performance.now() - renderStart;
+  let browserMs: number;
+  let firstPassMs = 0;
+  const stabilizationRoundMs: number[] = [];
+  let finalPassMs = 0;
   let browser: Awaited<ReturnType<typeof launchBrowser>> | undefined;
   let pdfBytes: Uint8Array;
   let browserProduct: string;
   let tocPages: ReadonlyMap<string, number> = new Map();
+  let teardownMs: number;
   try {
+    const browserStart = performance.now();
     const session = await (input.createBrowser === undefined
       ? launchBrowser(input.browserPath, { signal: cancellation?.signal })
       : input.createBrowser());
     browser = session;
     browserProduct = await session.productVersion();
+    browserMs = performance.now() - browserStart;
     if (tocEntries.length === 0) {
+      const passStart = performance.now();
       await session.navigate(`${server.origin}/print.html`);
       pdfBytes = await session.printToPdf({ ...printParams });
+      finalPassMs = performance.now() - passStart;
     } else {
       // 第一遍：页码占位为空，测量各条目锚定章节的实测物理页码。
+      const passStart = performance.now();
       await session.navigate(`${server.origin}/print.html`);
       pdfBytes = await session.printToPdf({ ...printParams });
       tocPages = measureTocPageNumbers(pdfBytes, tocEntries);
+      firstPassMs = performance.now() - passStart;
       tocPages = await resolveStableTocPages(tocPages, async (pages) => {
+        const roundStart = performance.now();
         documents["/print.html"] = fillTocPageNumbers(basePrintHtml, tocEntries, pages);
         await session.navigate(`${server.origin}/print.html`);
         const candidate = await session.printToPdf({ ...printParams });
         const remeasured = measureTocPageNumbers(candidate, tocEntries);
         pdfBytes = candidate;
+        stabilizationRoundMs.push(performance.now() - roundStart);
         return remeasured;
       });
     }
@@ -186,8 +219,10 @@ export async function produceBaselinePdf(
     }
     throw error;
   } finally {
+    const teardownStart = performance.now();
     await browser?.close();
     await server.close();
+    teardownMs = performance.now() - teardownStart;
   }
   const renderMs = performance.now() - renderStart;
 
@@ -237,6 +272,14 @@ export async function produceBaselinePdf(
       renderMs,
       postprocessMs,
       totalMs: performance.now() - totalStart,
+      renderBreakdown: Object.freeze({
+        serverMs,
+        browserMs,
+        firstPassMs,
+        stabilizationRoundMs: Object.freeze([...stabilizationRoundMs]),
+        finalPassMs,
+        teardownMs,
+      }),
     }),
     extractedText: strippedText,
     expectedText: expected.text,
