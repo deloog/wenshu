@@ -76,15 +76,22 @@ test("workflow scope gating is fail-closed and pinned (CI-01)", async () => {
   const workflow = await readFile(workflowPath, "utf8");
   // Shallow-clone trap: the scope job must fetch full history for its diff baseline.
   assert.match(workflow, /fetch-depth: 0/u);
-  // The matrix job must depend on scope and only skip when docs_only is exactly 'true';
-  // a missing/failed scope output evaluates to "not 'true'" => full run.
+  // jobs.<job_id>.if has no matrix context (GitHub contexts reference): the
+  // per-leg skip decision must live at step level, and the job-level if must
+  // keep every check run present even when scope fails (fail-closed).
   assert.match(workflow, /needs: scope/u);
+  assert.match(workflow, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/u);
+  const jobLevelIf = workflow.match(/\n {4}if: [^\r\n]+/gu) ?? [];
+  assert.deepEqual(jobLevelIf, ["\n    if: ${{ always() && !cancelled() }}"]);
+  const stepGuard =
+    /if: \$\{\{ env\.CI_SCOPE_DOCS_ONLY != 'true' \|\| contains\('static unit-config security', matrix\.job\) \}\}/u;
+  const guardedSteps = workflow.match(new RegExp(stepGuard.source, "gu")) ?? [];
+  assert.equal(guardedSteps.length, 6); // checkout/setup-node/pnpm/store/install ×6 shared steps
   assert.match(
     workflow,
-    /if: \$\{\{ always\(\) && !cancelled\(\) && \(needs\.scope\.outputs\.docs_only != 'true' \|\| contains\('static unit-config security', matrix\.job\)\) \}\}/u,
+    /if: \$\{\{ matrix\.job == 'e2e' && \(env\.CI_SCOPE_DOCS_ONLY != 'true' \|\| contains\('static unit-config security', matrix\.job\)\) \}\}/u,
   );
-  // The scope job itself must not alter what jobs run, only whether: no new actions
-  // beyond the pinned pair, and the classifier runs the local fail-closed script.
+  // The classifier runs the local fail-closed script; no new third-party action.
   assert.match(workflow, /node tools\/ci\/scripts\/scope\.ts/u);
 });
 
