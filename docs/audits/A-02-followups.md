@@ -78,7 +78,8 @@
   静态钉定担待（凡用 `wireProgress` 的场景文件禁止直接 `flow.dispatch` 终态事件，未来
   第四个场景漏走 wiring 机械可检出）。验收为五条确定性注入反例（终态后注入不报错且
   照计数/终态前真实非法 dispatch 仍红/三路径无过矫正/漏调用动态可捕+静态钉定）+变异
-  自证（撤 `if (!forwarding) return;` → 反例 1 红在 dispatchErrors 断言、反例 3 不受影响），
+  自证（撤 `if (!forwarding) return;` → 红落反例 1 与反例 2（后者亦断言 dispatchErrors 为空，
+  同红为正确行为非误伤）、反例 3 不受影响），
   不靠「跑 N 次没红」。两次复发 run `31056153886`/`31167009713` 为背景。实施记录：
   [A02F5-implementation-record](A02F5-implementation-record.md)；`wiringHelper`
   既有语义与产品代码（import-flow.ts/project-channels.cjs）零改动。

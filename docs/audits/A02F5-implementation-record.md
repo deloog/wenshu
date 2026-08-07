@@ -38,9 +38,11 @@
 | 5d | 「忘记」经 wiring（直接 `flow.dispatch` 终态）后注入迟到事件 | ✅ 动态可捕：`dispatchErrors` 非空、断言红 |
 | 5s | 静态钉定：扫描 scenario 全部 .ts，凡用 `wireProgress` 者禁止直接终态 `flow.dispatch` | ✅ 当前零违规；未来第四个场景漏走 wiring 机械可检出 |
 
-**静态钉定初版失败如实登记**：首版钉定对全部场景文件一刀切，抓到 `project-import-guards.ts:166`（直接 `flow.dispatch({ type: "import-succeeded" })`）——核为**既有合法形态**：guards 路径用 `wiringHelper` 且在终态前已 `offImportProgress()`（:159 早于 :166），不在本棒范围（任务书 §4.3 wiringHelper 语义不动）。钉定按「凡用 `wireProgress` 者」精确化后绿。初版能抓到直写终态本身证明钉定有牙。
+**静态钉定初版失败如实登记**：首版钉定对全部场景文件一刀切，抓到 `project-import-guards.ts:166`（直接 `flow.dispatch({ type: "import-succeeded" })`）——核为**既有合法形态**：guards 路径用 `wiringHelper` 且在终态前已 `offImportProgress()`（:159 早于 :166），不在本棒范围（任务书 §4.3 wiringHelper 语义不动）。钉定按「凡用 `wireProgress` 者」精确化后绿。初版能抓到直写终态本身证明钉定有牙（审计者 M2 独立重放：happy 路径直写内联终态 → 恰 1 例红落静态钉定，收窄后仍有牙）。
 
-**变异自证**：撤掉 `if (!forwarding) return;` → fail 2：**反例 1 红在 `dispatchErrors` 断言**（任务书要求）、反例 2 同红（共享 dispatchErrors 断言，同一机理）、**反例 3 不受影响**（任务书要求）；还原后 7/7 绿。
+**静态钉定覆盖边界（审计者 MINOR-2，必须周知）**：钉定正则只认**内联字面量**形态。审计者 M3 实测：把事件先存变量再 `flow.dispatch(ev)`，7/7 全绿——那确实是一次绕过 wiring 的直写终态，钉定抓不到。判读（审计者口径）：钉定要防的是「将来第四个场景**忘记**走 wiring」，而忘记时几乎必然写成自然的内联形态（M2 已证抓得住）；变量形态不是忘记，是另一种写法恰好绕开。**故本钉定覆盖现实失效模式，但不是防规避的完整结构性保证**，下一个人不得把它当作完整保证。若要收紧，正确方向是**类型层**（场景侧拿到的控制器包装不接受终态事件），不是把正则写得更花。
+
+**变异自证**：撤掉 `if (!forwarding) return;` → fail 2：**红落反例 1 与反例 2**——反例 2 除断言事件被记录外亦断言 `dispatchErrors` 为空并调用 `assertProgressWiringClean`，跟着红是**正确行为非误伤**（审计者 M1 独立重放同两例红）；**反例 3 不受影响**（任务书要求，审计者判本棒最关键一条：修复没换来失明有实证非仅设计意图）；还原后 7/7 绿。
 
 ## 4. 回归与检查执行记录
 
