@@ -99,3 +99,5 @@
 **合并后观察项（业主批准执行）**：首个真实 docs-only 提交在 main 上应走 scope+3 形态（猎杀方向 7「省到没有」的兑现验证）；首个周一 backstop 应满跑 9 腿（scope 日志 docs_only=false、理由为 unclassifiable event）。
 
 **本增补检查执行记录**：本地 `pnpm verify` 两轮——首轮 VERIFY_EXIT=1（直取，未被管道吞）：`cancellation.render.test.ts:103` 延迟断言 flake（2617ms 超限 2000ms，同文件继孤儿 profile 目录后第二例计时敏感断言；与本 diff 无因果——本 diff 不触 pdf-export），单文件复跑 4/4 绿；复跑全量 **VERIFY_EXIT=0**。
+
+**合并指纹（任务书 §8，CI-01 无台账行）**：PR #60 复审 PASS 后经业主裁定（决策 #20 D1）squash 合入——main **`f1b2bb8`**，main 验证 run **`31173713713`** 10/10 成功。分支清理：ci-01-config/ci-01/a-04e-decomposition/docs-a-04-implementation-task（内容经核验已在 main，非祖先仅因 squash）与 worktree tmp/main-ledger、tmp/a04e-branch 已删。
