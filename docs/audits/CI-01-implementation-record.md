@@ -101,3 +101,5 @@
 **本增补检查执行记录**：本地 `pnpm verify` 两轮——首轮 VERIFY_EXIT=1（直取，未被管道吞）：`cancellation.render.test.ts:103` 延迟断言 flake（2617ms 超限 2000ms，同文件继孤儿 profile 目录后第二例计时敏感断言；与本 diff 无因果——本 diff 不触 pdf-export），单文件复跑 4/4 绿；复跑全量 **VERIFY_EXIT=0**。
 
 **合并指纹（任务书 §8，CI-01 无台账行）**：PR #60 复审 PASS 后经业主裁定（决策 #20 D1）squash 合入——main **`f1b2bb8`**，main 验证 run **`31173713713`** 10/10 成功。分支清理：ci-01-config/ci-01/a-04e-decomposition/docs-a-04-implementation-task（内容经核验已在 main，非祖先仅因 squash）与 worktree tmp/main-ledger、tmp/a04e-branch 已删。
+
+**合并后观察项兑现（首个真实 docs-only main 提交，猎杀方向 7）**：指纹提交 `61972ec`（仅改本文件）push 事件 run `31174499488`——scope 日志 `event=push base=f1b2bb8 head=61972ec changed files (1) docs_only=true`；6 被跳腿步态 2 completed/9 skipped（e2e 5s、contracts 6s、typecheck 4s、build×3 各 4s，对照满跑 6m+/4m+/2m+/25s），static 49s/unit-config 79s/security 36s 真跑（14 步中 2 skipped 为 e2e-only 步，非本机制）。净省当场兑现：全 run 墙上时间 ≈90s vs 满跑 ≈10min。首个周一 backstop（schedule 满跑）到期后补登。
