@@ -34,7 +34,7 @@
 |---|---|---|---|
 | 1 | docs-only 提交（新增 `docs/audits/CI-01-scope-counterexample-note.md` + roadmap 空白触碰，PR #61，base=ci-01-config） | run `31156853610`：scope 日志 `changed files (2): … docs_only=true`（job `92798115847` 日志原件）；**static 48s / unit-config 1m24s / security 36s 真实执行**；contracts 4s / typecheck 5s / build×3 4–5s / e2e 3s（对照满跑：contracts 4m12s、e2e 6m3s） | ✅ 恰 3 个真跑 |
 | 2 | 纯代码提交 | 本 PR #60 首跑 run `31156360384`（5 文件含 verify.yml 与 tools/ci 源码） | ✅ 满跑 9 |
-| 3 | 混合提交（代码 + docs） | 本实施记录提交后 PR #60 的总 diff = verify.yml + tools/ci 源码 + 本记录（docs）→ 触发 run（id 见 §7） | ✅ 满跑 9 |
+| 3 | 混合提交（代码 + docs） | run `31157232281`（本实施记录提交后 PR #60 总 diff = verify.yml + tools/ci 源码 + 本记录，scope 日志 `changed files (6) … docs_only=false`；e2e 6m6s、contracts 4m9s 真实执行） | ✅ 满跑 9 |
 | 4 | 判定失效七形态 | §4 单测 + 变异自证 | ✅ 全部满跑方向 |
 | 5 | 只改 roadmap（空白行触碰） | 同 #1 run：变更清单含 `docs/implementation-roadmap.md`，unit-config 1m24s 真跑（`roadmap-mirror.ts:15` 以真实路线图为种子，不能跳） | ✅ unit-config 执行 |
 | 6 | docs/audits 新增文件 | 同 #1 run：变更清单含 `docs/audits/CI-01-scope-counterexample-note.md`，static 48s 真跑（8a/8b/8c 列举该目录） | ✅ static 执行 |
@@ -64,5 +64,5 @@
 ## 7. 检查执行记录
 
 - 本地 `pnpm verify` **REAL_EXIT=0 两次**（首次 format 失败暴露 YAML 步名冒号未引用 + 两处 prettier，修复后复跑；退出码经无管道直取——本记录作者曾因管道吞码虚报一次 EXIT，见下）。
-- 远程：PR #60 run `31156360384` 10/10（scope+9 满跑）；PR #61 run `31156853610`（docs-only，3 真跑 6 步态 skipped）；首版工作流解析失败 run `31153055169`（§2）。
+- 远程：PR #60 run `31156360384` 10/10（scope+9 满跑）与 run `31157232281` 10/10（反例 3 混合满跑）；PR #61 run `31156853610`（docs-only，3 真跑 6 步态 skipped）；首版工作流解析失败 run `31153055169`（§2）。
 - 过程缺陷如实登记：① 首版 job 级 if 引用 matrix（§2）；② 一次 verify 退出码被管道吞（`pnpm verify | tail; echo $?` 取到的是 tail 的码），首次 verify 的 format 失败即由此迟发现一轮——与 AGENTS.md「管道吞退出码」同款，本棒后续全部直取退出码。
