@@ -84,6 +84,6 @@
 
 **反例 7（CI 实证，新增）**：探针 PR #62（分支 `ci-01-probe-rename`，base=ci-01-config 修复头 `2813fd0`）`git mv tools/ci/src/jobs.ts docs/jobs-moved.ts`（100% 重命名）→ run `31166471742`：scope job（`92828332139`）日志 `[ci:scope] changed files (2): docs/jobs-moved.ts + tools/ci/src/jobs.ts … docs_only=false`——**两侧路径都进分类，删除侧不再被隐藏**；9 腿全部真实执行（19s–43s，非 skipped 腿的 3–5s 形态）且全部如实失败——unit-config 腿（`92828409992`）日志原件：`pnpm ci:job unit-config` → `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '…/tools/ci/src/jobs.ts'`——重命名后果当场引爆，正是 BLOCKER-1 场景下「必须跑」的直接证明。探针 PR 取证后关闭不合并、分支已删。
 
-**修复轮检查执行记录**：本地 `pnpm verify` REAL_EXIT=0（直取，无管道；首轮 format 红两处 prettier 已修）；PR #60 修复头 `2813fd0` CI run `31166416142` **10/10 全真跑全绿**（e2e 6m9s、contracts 3m57s、typecheck 2m17s——代码+docs 混合 diff 走满跑，scope 日志 docs_only=false）。
+**修复轮检查执行记录**：本地 `pnpm verify` REAL_EXIT=0（直取，无管道；首轮 format 红两处 prettier 已修）；PR #60 修复头 `2813fd0` CI run `31166416142` **10/10 全真跑全绿**（e2e 6m9s、contracts 3m57s、typecheck 2m17s——代码+docs 混合 diff 走满跑，scope 日志 docs_only=false）；最终头 `f551c31` run `31167009713` 满跑 10/10 绿，其中 e2e 首 attempt 红一例=`a-02 happy+open` `IMPORT_FLOW_ILLEGAL_TRANSITION: empty-project --import-progress`——**A-02-followups #5 已登记存量竞态第二次复发**，同 tree 本机 e2e 全绿不可复现、取证后 `rerun --failed` 转绿（复发登记已回写该 followups 条）。
 
 **审计者要求入档的判读性警示（取舍后果写清）**：被跳腿以「全步 skipped 的 success」存在（§2，为兼容分支保护必需检查的取舍），check run 层面 10/10 全绿**不分辨**「真跑过」与「什么都没跑」——唯一事后分辨手段是 scope job 日志（§5.5，因此它不是锦上添花而是唯一手段）。整套机制的安全性完全押在 scope 判定上，BLOCKER-1 正是击穿点；`--no-renames` 与真 git 测试必须存在的原因即此。
