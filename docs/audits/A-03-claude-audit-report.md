@@ -69,6 +69,8 @@ package.json exports                           -> 只有 "." 与 "./internal"，
 
 **归因是分摊的，不全在实施者**：[reference-machine §3.1](../reference-machine.md) 确实写着"每个采样批次开始前运行 `pnpm env:record`"，实施者照做了。但同一条**同时**要求"把当批原始数据与对应机器证据放在**同一批次目录** `artifacts/perf/<date>-<task-id>/`"，而裸跑 `pnpm env:record` 的默认落点是**登记基线**。工具支持 `--out`（`tools/environment/src/record-args.ts:20`），协议却没提示这个陷阱。
 
+> **⚠ 勘误（2026-08-06，A-04 任务书起草轮）：上句末尾"工具支持 `--out`"暗示 `--out` 可作为本条的解法，该暗示已证伪——原文保留以存档。** `record-args.ts` 的 `OUTPUT_FILE_PATTERN` 拒绝任何含 `/` 的值，`record-environment.ts:9` 又把输出目录硬编码为 `artifacts/reference-machine/`，故 **`--out` 只能改基线目录内的文件名，写不进批次目录**；我当时只验证了该 flag 存在，未验证它能否指向别的目录。**本条 MAJOR-1 的发现与实施侧的修复均不受影响**（受影响的只是我提出的补救方向）。正确规程见 [A-04 任务书 §6「批次证据落盘规程」](A-04-implementation-task.md)，根因登记见 [A-03-major-remediation §MAJOR-1 第 3 条](A-03-major-remediation.md)（归口 G1-14）。
+
 **要求**：
 
 - **`artifacts/reference-machine/environment.json` 回退到 `main` 版本**（一行，docs/证据级，不动代码）；当批机器证据按协议原文放进 `artifacts/perf/2026-08-05-A-03/`；
