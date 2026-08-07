@@ -87,3 +87,15 @@
 **修复轮检查执行记录**：本地 `pnpm verify` REAL_EXIT=0（直取，无管道；首轮 format 红两处 prettier 已修）；PR #60 修复头 `2813fd0` CI run `31166416142` **10/10 全真跑全绿**（e2e 6m9s、contracts 3m57s、typecheck 2m17s——代码+docs 混合 diff 走满跑，scope 日志 docs_only=false）；最终头 `f551c31` run `31167009713` 满跑 10/10 绿，其中 e2e 首 attempt 红一例=`a-02 happy+open` `IMPORT_FLOW_ILLEGAL_TRANSITION: empty-project --import-progress`——**A-02-followups #5 已登记存量竞态第二次复发**，同 tree 本机 e2e 全绿不可复现、取证后 `rerun --failed` 转绿（复发登记已回写该 followups 条）。
 
 **审计者要求入档的判读性警示（取舍后果写清）**：被跳腿以「全步 skipped 的 success」存在（§2，为兼容分支保护必需检查的取舍），check run 层面 10/10 全绿**不分辨**「真跑过」与「什么都没跑」——唯一事后分辨手段是 scope job 日志（§5.5，因此它不是锦上添花而是唯一手段）。整套机制的安全性完全押在 scope 判定上，BLOCKER-1 正是击穿点；`--no-renames` 与真 git 测试必须存在的原因即此。
+
+## 9. 合并裁定与 backstop 增补（业主 2026-08-07，复审 PASS 后）
+
+**裁定**：PR #60 合并（squash），并同棒增补一条 backstop——复审签署针对 `d3de648`，本增补由业主预授权「可以并进这一棒」，性质为收紧而非放宽。
+
+**backstop 机理（业主论证，照录）**：被跳的腿报 success，误分类在 check run 面板上不可见，唯一取证手段是 scope job 日志——而日志有保留期，出问题时未必还查得到。行业标准做法：快路径优化、慢路径保完整——PR/push 走缩减，另加定期全量跑把「误分类不被发现」的暴露窗口从无限压到一个周期。**代价近乎为零且不改代码**：`schedule` 不是可分类事件，天然落入 decideScope fail-closed 分支 → 自动满跑。仅需 `on: schedule` 每周一次（`17 3 * * 1`，周一 03:17 UTC），约 25–30 runner-分钟/周，对照每 40 提交省 ~122 job 次可忽略。
+
+**落实三处**：① verify.yml `on.schedule`（注释写明机理与裁定日期）；② `scope.unit.test.ts` fail-closed 形态新增「unclassifiable event (schedule)」——backstop 的满跑行为由此钉定（现八形态）；③ `ci-runner.unit.test.ts` 钉定断言 cron 条目在位。
+
+**合并后观察项（业主批准执行）**：首个真实 docs-only 提交在 main 上应走 scope+3 形态（猎杀方向 7「省到没有」的兑现验证）；首个周一 backstop 应满跑 9 腿（scope 日志 docs_only=false、理由为 unclassifiable event）。
+
+**本增补检查执行记录**：本地 `pnpm verify` 两轮——首轮 VERIFY_EXIT=1（直取，未被管道吞）：`cancellation.render.test.ts:103` 延迟断言 flake（2617ms 超限 2000ms，同文件继孤儿 profile 目录后第二例计时敏感断言；与本 diff 无因果——本 diff 不触 pdf-export），单文件复跑 4/4 绿；复跑全量 **VERIFY_EXIT=0**。

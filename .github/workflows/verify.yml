@@ -5,6 +5,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # CI-01 backstop (owner decision 2026-08-07): skipped legs report success,
+  # so a misclassification is invisible on the check-run panel and the only
+  # forensic source (scope job log) expires. A weekly full run bounds the
+  # exposure window to one week. No classifier change needed: "schedule" is
+  # not a classifiable event, so decideScope fails closed into a full run.
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Monday 03:17 UTC
 
 permissions:
   contents: read

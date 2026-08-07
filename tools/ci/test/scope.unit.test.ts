@@ -125,6 +125,15 @@ test("fail-closed: every undetermined form yields a full run (counterexample 4)"
         runDiff: diffWith(["docs/x.md"]),
       },
     },
+    {
+      name: "unclassifiable event (schedule — the weekly backstop full run relies on this)",
+      input: {
+        eventName: "schedule",
+        baseSha: undefined,
+        headSha: HEAD,
+        runDiff: diffWith(["docs/x.md"]),
+      },
+    },
   ];
   for (const { name, input } of cases) {
     const decision = decideScope(input);

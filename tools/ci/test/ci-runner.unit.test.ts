@@ -96,6 +96,9 @@ test("workflow scope gating is fail-closed and pinned (CI-01)", async () => {
   assert.doesNotMatch(workflow, /contains\('static unit-config security'/u);
   // The classifier runs the local fail-closed script; no new third-party action.
   assert.match(workflow, /node tools\/ci\/scripts\/scope\.ts/u);
+  // Weekly backstop (owner decision 2026-08-07): bounds the misclassification
+  // exposure window to one week; "schedule" is unclassifiable ⇒ full run.
+  assert.match(workflow, /schedule:\r?\n {4}- cron: "17 3 \* \* 1"/u);
 });
 
 test("local scheduling runs concurrently without exceeding its budget", async () => {
