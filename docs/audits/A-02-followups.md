@@ -71,3 +71,14 @@
   测试同一断言原文复发（`IMPORT_FLOW_ILLEGAL_TRANSITION: empty-project --import-progress`）；
   同 tree 本机 `pnpm ci:job e2e` 全绿（E2E_EXIT=0，不可复现=非确定性）；失败日志已取证
   后 `rerun --failed` 转绿。第二次出现，仍判存量偶发竞态，裁定前继续按本条取证。
+- **处置（2026-08-07，A02F5）：已消费，关闭**。[决策 #20](../../决策记录.md) D2 提前为
+  独立小棒、D3 裁定消除方向、D3 增补定形态 (b′)——`wireProgress` 保留订阅、终态
+  dispatch 经 `wiring.dispatchTerminal` 走（内部先停投递再转交控制器），迟到事件照常
+  记录留痕但不再投递；三调用点（happy/partial/cancel）全部改经 wiring；结构性防漏由
+  静态钉定担待（凡用 `wireProgress` 的场景文件禁止直接 `flow.dispatch` 终态事件，未来
+  第四个场景漏走 wiring 机械可检出）。验收为五条确定性注入反例（终态后注入不报错且
+  照计数/终态前真实非法 dispatch 仍红/三路径无过矫正/漏调用动态可捕+静态钉定）+变异
+  自证（撤 `if (!forwarding) return;` → 反例 1 红在 dispatchErrors 断言、反例 3 不受影响），
+  不靠「跑 N 次没红」。两次复发 run `31056153886`/`31167009713` 为背景。实施记录：
+  [A02F5-implementation-record](A02F5-implementation-record.md)；`wiringHelper`
+  既有语义与产品代码（import-flow.ts/project-channels.cjs）零改动。
