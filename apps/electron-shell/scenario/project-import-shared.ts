@@ -7,6 +7,7 @@
 import { getUxStateFrom, UX_STATES_DATA } from "@wenshu/ux-state/data";
 import {
   type ImportFlowController,
+  type ImportFlowEvent,
   type ImportFlowStateId,
   type ImportFlowStateView,
   type ImportFlowView,
@@ -210,17 +211,67 @@ export async function selectProjectDirectory(): Promise<string> {
 export interface ProgressWiring {
   readonly events: ChannelProgress[];
   readonly dispatchErrors: string[];
+  /**
+   * The ONLY supported way to close the progress window (A02F5, decision
+   * #20 D3 as amended to (b′)): stops forwarding progress events to the
+   * controller first, then performs the terminal dispatch. Events keep
+   * being recorded afterwards (diagnosable), they are just no longer
+   * dispatched — the race is eliminated, not tolerated. Routing the
+   * terminal dispatch through the wiring makes "forgot to stop forwarding"
+   * structurally unnatural; a static pin (progress-wiring.unit.test.ts)
+   * rejects direct terminal flow.dispatch in scenario sources.
+   */
+  readonly dispatchTerminal: (event: TerminalImportFlowEvent) => ImportFlowView;
+}
+
+/** Events that leave the "importing" state and thus close the progress window. */
+export type TerminalImportFlowEvent = Extract<
+  ImportFlowEvent,
+  { readonly type: "import-succeeded" | "import-partial" | "import-cancelled" }
+>;
+
+/**
+ * Placeholder before wireProgress is installed. dispatchTerminal is
+ * fail-closed: using it before wiring exists is a programming error.
+ */
+export function emptyProgressWiring(): ProgressWiring {
+  return {
+    events: [],
+    dispatchErrors: [],
+    dispatchTerminal: () => {
+      throw new Error(
+        "progress wiring not installed: dispatchTerminal before wireProgress",
+      );
+    },
+  };
 }
 
 /**
  * Forwards real channel progress events into the flow controller. Dispatch
  * errors are recorded, never swallowed; callers assert the list is empty.
+ *
+ * A02F5 (b′): after dispatchTerminal, events keep being RECORDED but are no
+ * longer DISPATCHED — the renderer-side channel has no ordering guarantee
+ * against the invoke reply, so progress events may legitimately arrive after
+ * the terminal dispatch (main process sends all progress synchronously
+ * before returning; see A-02-followups #5). Forwarding stops at the exact
+ * moment the window closes: late events cannot produce spurious
+ * IMPORT_FLOW_ILLEGAL_TRANSITION entries, while real dispatch defects
+ * inside the open window are still recorded and still fail the assertion.
  */
 export function wireProgress(
   flow: ImportFlowController,
   onFirst?: (progress: ChannelProgress) => void,
 ): ProgressWiring {
-  const wiring: ProgressWiring = { events: [], dispatchErrors: [] };
+  let forwarding = true;
+  const wiring: ProgressWiring = {
+    events: [],
+    dispatchErrors: [],
+    dispatchTerminal: (event: TerminalImportFlowEvent): ImportFlowView => {
+      forwarding = false;
+      return flow.dispatch(event);
+    },
+  };
   let firstSeen = false;
   projectBridge().onImportProgress((progress) => {
     wiring.events.push(progress);
@@ -228,6 +279,7 @@ export function wireProgress(
       firstSeen = true;
       onFirst?.(progress);
     }
+    if (!forwarding) return;
     try {
       flow.dispatch({
         type: "import-progress",

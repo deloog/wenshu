@@ -14,6 +14,7 @@ import {
   selectProjectDirectory,
   splitSelection,
   Trajectory,
+  emptyProgressWiring,
   wireProgress,
   type ImportOutcome,
   type ProgressWiring,
@@ -29,7 +30,7 @@ export async function runHappy(): Promise<SubRun> {
   const importTarget = "report-b";
   let projectGrantId = "";
   let outcome: ImportOutcome | undefined;
-  let wiring: ProgressWiring = { events: [], dispatchErrors: [] };
+  let wiring: ProgressWiring = emptyProgressWiring();
 
   try {
     await assertRegistryDeclaresImportSelect(recorder, "happy-registry");
@@ -99,7 +100,7 @@ export async function runHappy(): Promise<SubRun> {
         );
       }
       outcome = result;
-      const terminal = flow.dispatch({ type: "import-succeeded" });
+      const terminal = wiring.dispatchTerminal({ type: "import-succeeded" });
       trajectory.note(terminal);
       assert(
         terminal.kind === "project-view" && terminal.cause === "import-succeeded",
@@ -180,7 +181,7 @@ export async function runPartial(): Promise<SubRun> {
   const target = "report-p";
   let projectGrantId = "";
   let outcome: ImportOutcome | undefined;
-  let wiring: ProgressWiring = { events: [], dispatchErrors: [] };
+  let wiring: ProgressWiring = emptyProgressWiring();
 
   try {
     await assertRegistryDeclaresImportSelect(recorder, "partial-registry");
@@ -236,7 +237,7 @@ export async function runPartial(): Promise<SubRun> {
         `expected 1 imported asset, got ${result.importedAssets.length}`,
       );
       outcome = result;
-      const partialView = flow.dispatch({
+      const partialView = wiring.dispatchTerminal({
         type: "import-partial",
         items: result.failedAssets,
       });

@@ -14,6 +14,7 @@ import {
   selectProjectDirectory,
   splitSelection,
   Trajectory,
+  emptyProgressWiring,
   wireProgress,
   type ProgressWiring,
   type SubRun,
@@ -28,7 +29,7 @@ export async function runCancel(): Promise<SubRun> {
   let projectGrantId = "";
   let finalStatus: ProjectImportResult["status"] | undefined;
   let cancelChannelStatus = "";
-  let wiring: ProgressWiring = { events: [], dispatchErrors: [] };
+  let wiring: ProgressWiring = emptyProgressWiring();
   let cancelSettled: Promise<void> = Promise.resolve();
 
   try {
@@ -80,7 +81,7 @@ export async function runCancel(): Promise<SubRun> {
         !("documentSha256" in result) && !("code" in result),
         "a cancelled import must carry neither a document digest nor an error code",
       );
-      const terminal = flow.dispatch({ type: "import-cancelled" });
+      const terminal = wiring.dispatchTerminal({ type: "import-cancelled" });
       trajectory.note(terminal);
       assert(
         terminal.kind === "project-view" && terminal.cause === "import-cancelled",
