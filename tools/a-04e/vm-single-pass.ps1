@@ -1,4 +1,4 @@
-# vm-single-pass.ps1 — A-04E-2a 正式批次：单遍+回填管线 ≤8s 复测（决策 #19/#21/#22）。
+﻿# vm-single-pass.ps1 — A-04E-2a 正式批次：单遍+回填管线 ≤8s 复测（决策 #19/#21/#22）。
 # 在 Win11 参考 VM（wenshu-poc-a-win11）内运行。NEVER run on the host：
 # INSIDE-VM.txt 守卫。批次不自动关机（便于就地查看失败证据）。
 #

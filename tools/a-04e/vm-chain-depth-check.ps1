@@ -1,4 +1,4 @@
-# vm-chain-depth-check.ps1 — A-04E-2a VM 批次前置（宿主机上运行，需管理员 + Hyper-V PS 模块）。
+﻿# vm-chain-depth-check.ps1 — A-04E-2a VM 批次前置（宿主机上运行，需管理员 + Hyper-V PS 模块）。
 # 用途：实测 wenshu-poc-a-win11 全部虚拟盘的差分链深度。2a 正式批次只在链深=1
 # （单一 VHDX、无父盘）时有效——7 层差分盘曾使批次结果与签署带不可比（阶段一实证）。
 # 用法（VM 关机状态）：
