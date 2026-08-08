@@ -14,12 +14,13 @@ import {
 import { renderTemplateCss } from "@wenshu/template-css";
 import { mapTemplate, parseApprovedFontSet } from "@wenshu/template-map";
 
-import { composePrintDocument, fillTocPageNumbers } from "./compose.ts";
+import { backfillTocPageNumbers } from "./backfill-toc.ts";
+import { composePrintDocument, fillTocPlaceholders } from "./compose.ts";
 import { assertNotCancelled, type PipelineCancellation } from "./cancellation.ts";
 import { repairPdfTextLayer } from "./cmap-repair.ts";
 import { PdfExportError } from "./errors.ts";
 import { inspectPdf, type PdfInspection } from "./inspect.ts";
-import { measureTocPageNumbers, resolveStableTocPages } from "./pagination.ts";
+import { measureTocPageNumbers } from "./pagination.ts";
 import {
   buildExpectedPdfText,
   extractSvgText,
@@ -155,7 +156,12 @@ export async function produceBaselinePdf(
   assertNotCancelled(cancellation, "compose");
   const renderStart = performance.now();
   const documents: Record<string, string | Uint8Array> = {
-    "/print.html": basePrintHtml,
+    // 决策 #21：带目录文档 compose 期即填入占位数字 888，整份只渲染一遍；
+    // 实测页码事后经 backfillTocPageNumbers 字节级原地回填（布局不重排）。
+    "/print.html":
+      tocEntries.length === 0
+        ? basePrintHtml
+        : fillTocPlaceholders(basePrintHtml, tocEntries),
   };
   for (const [original, normalized] of Object.entries(imported.renames)) {
     documents[`/${normalized}`] = await readFile(resolve(input.fixtureRoot, original));
@@ -171,6 +177,9 @@ export async function produceBaselinePdf(
   const stabilizationRoundMs: number[] = [];
   let finalPassMs = 0;
   let browser: Awaited<ReturnType<typeof launchBrowser>> | undefined;
+  // 会话所有权（决策 #19 出口 1 持久会话接缝）：createBrowser 提供的会话归
+  // 调用方所有（跨导出复用），管线绝不 close；自建会话才由管线关闭。
+  const ownsBrowser = input.createBrowser === undefined;
   let pdfBytes: Uint8Array;
   let browserProduct: string;
   let tocPages: ReadonlyMap<string, number> = new Map();
@@ -189,22 +198,14 @@ export async function produceBaselinePdf(
       pdfBytes = await session.printToPdf({ ...printParams });
       finalPassMs = performance.now() - passStart;
     } else {
-      // 第一遍：页码占位为空，测量各条目锚定章节的实测物理页码。
+      // 单遍（决策 #21）：占位数字已随 compose 填充，渲染一遍后大纲测量即终值
+      // （不回填 HTML、不重渲，布局不变，测量不存在不收敛形态）。插桩语义：
+      // firstPassMs = 唯一渲染遍；stabilizationRoundMs 退役为空数组；finalPassMs=0。
       const passStart = performance.now();
       await session.navigate(`${server.origin}/print.html`);
       pdfBytes = await session.printToPdf({ ...printParams });
       tocPages = measureTocPageNumbers(pdfBytes, tocEntries);
       firstPassMs = performance.now() - passStart;
-      tocPages = await resolveStableTocPages(tocPages, async (pages) => {
-        const roundStart = performance.now();
-        documents["/print.html"] = fillTocPageNumbers(basePrintHtml, tocEntries, pages);
-        await session.navigate(`${server.origin}/print.html`);
-        const candidate = await session.printToPdf({ ...printParams });
-        const remeasured = measureTocPageNumbers(candidate, tocEntries);
-        pdfBytes = candidate;
-        stabilizationRoundMs.push(performance.now() - roundStart);
-        return remeasured;
-      });
     }
   } catch (error) {
     // 统一取消终态码：渲染段任何来源的取消都以 PDF_EXPORT_CANCELLED 结案。
@@ -220,7 +221,9 @@ export async function produceBaselinePdf(
     throw error;
   } finally {
     const teardownStart = performance.now();
-    await browser?.close();
+    if (ownsBrowser) {
+      await browser?.close();
+    }
     await server.close();
     teardownMs = performance.now() - teardownStart;
   }
@@ -241,8 +244,13 @@ export async function produceBaselinePdf(
       : { heading: TOC_HEADING, entries: tocEntries, pages: tocPages },
   );
 
-  // 文本层修复（洞/错标）→ 页眉页脚压印 → 终稿逐项自核验。
-  const repair = repairPdfTextLayer(pdfBytes, expected.text, expected.repeatables);
+  // 目录页码字节级原地回填（决策 #21，对账前）→ 文本层修复 → 页眉页脚压印
+  // → 终稿逐项自核验。回填后提取文本即含实测页码，与期望文本同位。
+  const backfilled =
+    tocEntries.length === 0
+      ? pdfBytes
+      : backfillTocPageNumbers(pdfBytes, tocEntries, tocPages);
+  const repair = repairPdfTextLayer(backfilled, expected.text, expected.repeatables);
   const margins = model.page.margin_mm;
   const pageSize = inspectPdf(repair.pdfBytes).pageSizePt;
   const stampSpec: StampSpec = Object.freeze({
