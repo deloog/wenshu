@@ -3,7 +3,7 @@
 # INSIDE-VM.txt 守卫。批次不自动关机（便于就地查看失败证据）。
 #
 # 前置（强制顺序，缺一即拒跑）：
-#   1. 宿主塌链：tools\a-04e\vm-chain-depth-check.ps1 必须 PASS（链深=1）。
+#   1. 宿主层数核验：tools\a-04e\vm-chain-depth-check.ps1 必须 PASS（签署层配置=基盘+单一差分盘）。
 #   2. 同次引导 attest：C:\wenshu-payload\CHAIN-DEPTH-1.txt 存在且新于上次引导时间。
 #   3. 双检出就位（业主 2026-08-08 标定带裁定）：
 #      C:\wenshu-payload\wenshu        = a-04e-2a 分支（单遍管线，正式 10 跑）
@@ -40,7 +40,7 @@ function Fail-Stop($msg) {
 
 if (-not (Test-Path "$p\INSIDE-VM.txt")) { throw 'refuse: INSIDE-VM marker missing (host safety guard)' }
 if (Test-Path $out) { throw "existing a-04e evidence: $out" }
-# 塌链 attest 门：同次引导、先于批次人工书写（宿主 vm-chain-depth-check.ps1 已实测链深=1）。
+# 塌链 attest 门：同次引导、先于批次人工书写（宿主 vm-chain-depth-check.ps1 已实测签署层配置）。
 $attest = "$p\CHAIN-DEPTH-1.txt"
 if (-not (Test-Path $attest)) { throw 'refuse: CHAIN-DEPTH-1.txt missing — run host vm-chain-depth-check.ps1, then write the attest file this boot' }
 $boot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
