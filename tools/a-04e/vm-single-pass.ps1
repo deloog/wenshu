@@ -54,6 +54,12 @@ $env:COREPACK_HOME = "$p\corepack"
 $env:PNPM_STORE_DIR = "$p\store"
 # Offline VM: pnpm 11 lockfile 供应链核验需 registry 元数据（run-4 发现），只跳该元数据段。
 $env:PNPM_CONFIG_TRUST_LOCKFILE = 'true'
+# Offline VM: corepack resolves the packageManager pin from the package.json of the
+# CURRENT working directory (not from pnpm -C). With any other cwd it falls back to
+# 'latest' and tries the network -> ENOTFOUND offline (run-2a-1 evidence:
+# single-pass-v1-FAILED-corepack-cwd, all pnpm steps exit 1 before pnpm even runs).
+# Stage-one form (vm-decomposition.ps1:34) is Set-Location into the repo; keep it.
+Set-Location $branch
 function S($n, [scriptblock]$b) {
   & $b *>&1 | Out-File "$out\$n.log" -Encoding utf8
   "$n=$LASTEXITCODE" | Out-File "$out\results.txt" -Append -Encoding utf8
