@@ -41,11 +41,22 @@ if ($avhdx.Count -ne 1) { $ok = $false }
 $snapshots = @(Get-VMSnapshot -VMName $vmName)
 "snapshots=$($snapshots.Count): $($snapshots.Name -join ', ')"
 "vm-state=$($vm.State)"
+# 网络隔离硬检查（2026-09-06 事件回写）：该 VM 曾长期挂在 Default Switch（NAT 通外网），
+# 「VM 离线」是被当成事实的错误假设——结果 Windows Update 拉取 30 个更新、Edge 由签署
+# 身份 150.0.4078.83 被换装为 152.0.4191.62，签署环境身份失效，只能受控回滚。
+# 任何已连接的网卡 = 签署环境可能被远端改变 = 拒。处置：Disconnect-VMNetworkAdapter。
+$adapters = @(Get-VMNetworkAdapter -VMName $vmName)
+foreach ($nic in $adapters) {
+  $connected = $nic.Connected -eq $true
+  "nic: '$($nic.Name)' switch='$($nic.SwitchName)' connected=$connected"
+  if ($connected) { $ok = $false }
+}
 if (-not $ok) {
-  Write-Host 'FAIL: disk chain is not at the signed layer configuration (base + exactly one delta).'
+  Write-Host 'FAIL: disk chain is not at the signed layer configuration (base + exactly one delta), or a NIC is connected.'
   Write-Host 'Collapse extra checkpoints (Hyper-V Manager > Delete subtree, keep the pre-pa13 anchor),'
+  Write-Host 'disconnect all NICs (Disconnect-VMNetworkAdapter -VMName wenshu-ref-win11),'
   Write-Host 'wait for merge, then re-run this check before booting the VM.'
   exit 1
 }
-'PASS: signed layer configuration (base + exactly one delta). Inject payload, boot, attest this boot, then run the batch.'
+'PASS: signed layer configuration (base + exactly one delta), all NICs disconnected. Inject payload, boot, attest this boot, then run the batch.'
 exit 0
