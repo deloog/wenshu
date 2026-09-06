@@ -79,8 +79,11 @@ S 'git-version' { git --version }
 if (-not (Get-Content "$out\git-version.log" -Raw).Contains('git version')) { Fail-Stop 'FAILED: git unavailable in VM' }
 S 'pnpm-version' { pnpm --version }
 S 'edge-version' { (Get-Item $e).VersionInfo.ProductVersion; $global:LASTEXITCODE = 0 }
-S 'install-branch' { pnpm -C $branch install --frozen-lockfile --store-dir "$p\store" }
-S 'install-main' { pnpm -C $main install --frozen-lockfile --store-dir "$p\store" }
+# --offline: store 缺包立即失败（run-2a-4 实证：无此旗标时 pnpm 对每包 10s/60s 重试风暴，
+# 两 install 各拖 2 分钟后报 ENOTFOUND，故障信号延迟 75+ 分钟才可见）。store 完整性由
+# 宿主侧 fetchroot 离线复装验证背书。
+S 'install-branch' { pnpm -C $branch install --frozen-lockfile --offline --store-dir "$p\store" }
+S 'install-main' { pnpm -C $main install --frozen-lockfile --offline --store-dir "$p\store" }
 S 'environment-check' { pnpm -C $branch environment:check }
 Copy-Item "$branch\artifacts\reference-machine\environment.win11.json" "$out\environment.win11.json" -ErrorAction Stop
 
