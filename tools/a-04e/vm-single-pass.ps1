@@ -82,6 +82,13 @@ S 'edge-version' { (Get-Item $e).VersionInfo.ProductVersion; $global:LASTEXITCOD
 # --offline: store 缺包立即失败（run-2a-4 实证：无此旗标时 pnpm 对每包 10s/60s 重试风暴，
 # 两 install 各拖 2 分钟后报 ENOTFOUND，故障信号延迟 75+ 分钟才可见）。store 完整性由
 # 宿主侧 fetchroot 离线复装验证背书。
+# 沉降窗口（业主 2026-09-07 裁定，选项一）：run-2a-6 实证开机期负载使批前标定冲高
+# 31.7s 出带（CALIBRATION_DIVERGED），而系统稳定态 18.9s。install 之前静候 900s 让标定在
+# 稳定负载窗口执行。若仍出带（任一方向），如实登记回报业主，不循环重试赌带。
+'settle: waiting 900s for post-boot load to settle (owner 2026-09-07 ruling; run-2a-6 boot-phase calibrate renderMs=31736 diverged)' | Out-File "$out\settle.log" -Encoding utf8
+Start-Sleep -Seconds 900
+('settle: done at ' + (Get-Date -Format o)) | Out-File "$out\settle.log" -Append -Encoding utf8
+
 S 'install-branch' { pnpm -C $branch install --frozen-lockfile --offline --store-dir "$p\store" }
 S 'install-main' { pnpm -C $main install --frozen-lockfile --offline --store-dir "$p\store" }
 S 'environment-check' { pnpm -C $branch environment:check }
