@@ -145,7 +145,11 @@ $posts = 1..10 | ForEach-Object { [double](Get-Content "$out\runs\$_\evidence.js
 # 插桩语义留证（R7）：单遍下 firstPassMs=唯一渲染遍、stabilizationRoundMs=[]、finalPassMs=0。
 $bd = (Get-Content "$out\runs\1\evidence.json" -Raw | ConvertFrom-Json).timings.renderBreakdown
 "run-1 breakdown: firstPassMs=$($bd.firstPassMs) stabilizationRoundMs=[$($bd.stabilizationRoundMs -join ',')] finalPassMs=$($bd.finalPassMs)" | Out-File "$out\summary.txt" -Append -Encoding utf8
-if ($p95 -gt $budgetP95Ms) { Fail-Stop "BUDGET_NOT_MET: p95(totalMs)=$p95 > $budgetP95Ms (decision #18 D3: no DEGRADE, report as-is)" }
+# 预算判定按决策 #18 D3 为如实登记项（非截断判据）：run-2a-7 实证中途 Fail-Stop 会丢掉
+# 确定性/golden/批后标定三门证据（业主口径：批前批后两次标定都要在带内）。改为记录 flag，
+# 终局统一裁决——STATUS 仍写 BUDGET_NOT_MET、不发 DONE 标记，语义不变，证据链完整。
+$budgetMet = ($p95 -le $budgetP95Ms)
+"budget-met=$budgetMet (p95=$p95 vs $budgetP95Ms)" | Out-File "$out\summary.txt" -Append -Encoding utf8
 
 # 确定性门：10 跑 normalized sha256 全等（归一 Skia 墙钟时间戳后）。
 $hashes = 1..10 | ForEach-Object {
@@ -173,4 +177,5 @@ $cal2 = (Get-Content "$out\calibrate-post\evidence.json" -Raw | ConvertFrom-Json
 if ($cal2 -lt $calMinMs -or $cal2 -gt $calMaxMs) { Fail-Stop "CALIBRATION_DIVERGED_POST: renderMs=$cal2 outside signed band; batch quantitative results invalid, raw evidence retained" }
 
 S 'anchor' { "main=$mainHead`nbranch=$branchHead" | Tee-Object "$out\anchor.txt" }
+if (-not $budgetMet) { Fail-Stop "BUDGET_NOT_MET: p95(totalMs)=$p95 > $budgetP95Ms (decision #18 D3: no DEGRADE, report as-is; all other gates executed, see summary/determinism/calibration)" }
 if (-not $script:failed) { New-Item -ItemType File "$out\DONE" -Force | Out-Null } else { 'FAILED (raw logs retained; no DONE marker)' | Out-File "$out\STATUS.txt" -Encoding utf8 }
