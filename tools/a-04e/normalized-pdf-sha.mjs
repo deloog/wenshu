@@ -8,8 +8,11 @@
  * 用法：node tools/a-04e/normalized-pdf-sha.mjs <pdf> [<pdf> ...]
  * 输出：<SHA256>  <path>（每行一个）；文件不可读即非零退出（fail-closed）。
  */
+import { Buffer } from "node:buffer";
+import console from "node:console";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import process from "node:process";
 
 const files = process.argv.slice(2);
 if (files.length === 0) {

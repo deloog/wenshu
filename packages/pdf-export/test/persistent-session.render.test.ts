@@ -29,13 +29,9 @@ function spySession(session: BrowserSession): {
 } {
   let closeCalls = 0;
   return Object.freeze({
+    // 展开真实会话（箭头闭包无 this 依赖，签名逐一保留），只覆盖 close 计数。
     session: Object.freeze({
-      pid: session.pid,
-      navigate: (url) => session.navigate(url),
-      evaluate: (expression) => session.evaluate(expression),
-      screenshot: (filePath) => session.screenshot(filePath),
-      printToPdf: (params) => session.printToPdf(params),
-      productVersion: () => session.productVersion(),
+      ...session,
       close: async () => {
         closeCalls += 1;
         await session.close();
@@ -92,7 +88,11 @@ test("persistent session: cancellation ends as PDF_EXPORT_CANCELLED without clos
       (error: unknown) =>
         error instanceof PdfExportError && error.code === "PDF_EXPORT_CANCELLED",
     );
-    assert.equal(spy.closeCalls(), 0, "cancelled pipeline must not close a caller-owned session");
+    assert.equal(
+      spy.closeCalls(),
+      0,
+      "cancelled pipeline must not close a caller-owned session",
+    );
     // 资源清理完备：取消后同一会话立即可再次导出（server/页面状态无残留）。
     const recovered = await produceBaselinePdf({
       ...input,

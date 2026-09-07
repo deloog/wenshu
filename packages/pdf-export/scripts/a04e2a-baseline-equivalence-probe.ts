@@ -15,7 +15,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { collectTocEntries, type TocEntry } from "@wenshu/document-model";
+import { collectTocEntries } from "@wenshu/document-model";
 import { importMarkdownDocument } from "@wenshu/markdown-import";
 import {
   launchBrowser,
@@ -47,13 +47,17 @@ const imported = await importMarkdownDocument(
   resolve(fixtureRoot, "golden-report.md"),
   fixtureRoot,
 );
-const manifest = JSON.parse(await readFile(resolve(fontDir, "font-manifest.json"), "utf8"));
+const manifest = JSON.parse(
+  await readFile(resolve(fontDir, "font-manifest.json"), "utf8"),
+);
 const plan = parseFontPlan(manifest);
 await verifyFontFiles(fontDir, plan);
 const fontSet = parseApprovedFontSet(manifest);
 if (!fontSet.ok) throw new Error("font manifest must parse");
 const mapped = mapTemplate(
-  JSON.parse(await readFile(resolve(fixtureRoot, "formal-business.template.json"), "utf8")),
+  JSON.parse(
+    await readFile(resolve(fixtureRoot, "formal-business.template.json"), "utf8"),
+  ),
   fontSet.value,
 );
 if (!mapped.ok) throw new Error("template must map");
@@ -140,13 +144,6 @@ const e0Mismatches = entries.filter(
 const geometryA = extractGeometry(twoPassBytes);
 const geometryB = extractGeometry(singlePassBytes);
 
-interface RunKey {
-  readonly text: string;
-  readonly baselineY: number;
-  readonly x: number;
-  readonly fontSize: number;
-  readonly tag: string;
-}
 const keyOf = (run: GeometryTextRun): string =>
   JSON.stringify([
     normalizePdfText(run.text),
@@ -176,7 +173,10 @@ function tocPageIndices(geometry: typeof geometryA): readonly number[] {
 function stripTocDigitRuns(
   geometry: typeof geometryA,
   tocPages: readonly number[],
-): { readonly kept: readonly GeometryTextRun[]; readonly digitRuns: readonly GeometryTextRun[] } {
+): {
+  readonly kept: readonly GeometryTextRun[];
+  readonly digitRuns: readonly GeometryTextRun[];
+} {
   const tocSet = new Set(tocPages);
   const kept: GeometryTextRun[] = [];
   const digitRuns: GeometryTextRun[] = [];
@@ -187,10 +187,15 @@ function stripTocDigitRuns(
     for (const entry of entries) {
       const titleChars = [...normalizePdfText(entry.title)];
       let at = -1;
-      for (let index = cursor; index + titleChars.length <= pageRuns.length; index += 1) {
+      for (
+        let index = cursor;
+        index + titleChars.length <= pageRuns.length;
+        index += 1
+      ) {
         if (
           titleChars.every(
-            (char, offset) => normalizePdfText(pageRuns[index + offset]?.text ?? "") === char,
+            (char, offset) =>
+              normalizePdfText(pageRuns[index + offset]?.text ?? "") === char,
           )
         ) {
           at = index;
@@ -214,7 +219,10 @@ function stripTocDigitRuns(
       }
     });
   }
-  return Object.freeze({ kept: Object.freeze(kept), digitRuns: Object.freeze(digitRuns) });
+  return Object.freeze({
+    kept: Object.freeze(kept),
+    digitRuns: Object.freeze(digitRuns),
+  });
 }
 
 const tocA = tocPageIndices(geometryA);
@@ -246,7 +254,9 @@ for (const page of geometryA.pages) {
     continue;
   }
   for (let index = 0; index < runsA.length; index += 1) {
-    if (keyOf(runsA[index] as GeometryTextRun) !== keyOf(runsB[index] as GeometryTextRun)) {
+    if (
+      keyOf(runsA[index] as GeometryTextRun) !== keyOf(runsB[index] as GeometryTextRun)
+    ) {
       differences.push(
         `page ${page.index} run ${index}: ${keyOf(runsA[index] as GeometryTextRun)} vs ${keyOf(runsB[index] as GeometryTextRun)}`,
       );
@@ -269,7 +279,10 @@ const digitDeltas: unknown[] = [];
   const entryDigits = (
     runs: readonly GeometryTextRun[],
   ): { titleEndX: number; digits: { text: string; x: number; width: number }[] }[] => {
-    const out: { titleEndX: number; digits: { text: string; x: number; width: number }[] }[] = [];
+    const out: {
+      titleEndX: number;
+      digits: { text: string; x: number; width: number }[];
+    }[] = [];
     let cursor = 0;
     for (const entry of entries) {
       const titleChars = [...normalizePdfText(entry.title)];
@@ -277,7 +290,8 @@ const digitDeltas: unknown[] = [];
       for (let index = cursor; index + titleChars.length <= runs.length; index += 1) {
         if (
           titleChars.every(
-            (char, offset) => normalizePdfText(runs[index + offset]?.text ?? "") === char,
+            (char, offset) =>
+              normalizePdfText(runs[index + offset]?.text ?? "") === char,
           )
         ) {
           at = index;
@@ -312,11 +326,14 @@ const digitDeltas: unknown[] = [];
     }
     digitDeltas.push({
       entry: entry.id,
-      twoPass: a.digits.map((digit) => `${digit.text}@${digit.x.toFixed(2)}(w${digit.width.toFixed(2)})`),
-      singlePass: b.digits.map((digit) => `${digit.text}@${digit.x.toFixed(2)}(w${digit.width.toFixed(2)})`),
+      twoPass: a.digits.map(
+        (digit) => `${digit.text}@${digit.x.toFixed(2)}(w${digit.width.toFixed(2)})`,
+      ),
+      singlePass: b.digits.map(
+        (digit) => `${digit.text}@${digit.x.toFixed(2)}(w${digit.width.toFixed(2)})`,
+      ),
       titleEndDelta: b.titleEndX - a.titleEndX,
-      firstDigitXDelta:
-        (b.digits[0]?.x ?? Number.NaN) - (a.digits[0]?.x ?? Number.NaN),
+      firstDigitXDelta: (b.digits[0]?.x ?? Number.NaN) - (a.digits[0]?.x ?? Number.NaN),
     });
   });
 }
@@ -327,7 +344,10 @@ console.log(
       e0_measuredMapsIdentical: e0Mismatches.length === 0,
       e0_mismatches: e0Mismatches.map((entry) => entry.id),
       tocPages: { twoPass: tocA, singlePass: tocB },
-      e1_pageCount: { twoPass: geometryA.pages.length, singlePass: geometryB.pages.length },
+      e1_pageCount: {
+        twoPass: geometryA.pages.length,
+        singlePass: geometryB.pages.length,
+      },
       e2e3_differences: differences,
       e2e3_equivalent: differences.length === 0,
       e4_digitPositions: digitDeltas.slice(0, 8),

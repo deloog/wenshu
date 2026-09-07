@@ -78,15 +78,69 @@ interface PlaceholderGroup {
  * （未知算子在分派时 fail-closed）。词素间隙只允许空白，否则流形态未知。
  */
 const LEXEME =
-  /<<|>>|\[|\]|\/[^\s/<>\[\]()]+|<[0-9A-Fa-f]+>|\((?:[^()\\]|\\.)*\)|-?(?:\d+\.\d+|\.\d+|\d+)|[^\s/<>\[\]()]+/gu;
+  /<<|>>|\[|\]|\/[^\s/<>[\]()]+|<[0-9A-Fa-f]+>|\((?:[^()\\]|\\.)*\)|-?(?:\d+\.\d+|\.\d+|\d+)|[^\s/<>[\]()]+/gu;
 
 /** 图形与文本状态白名单算子：识别但不产生字符。其余算子一律 fail-closed。 */
 const PASSIVE_OPS: ReadonlySet<string> = new Set([
-  "BT", "ET", "Tm", "Td", "TD", "T*", "cm", "q", "Q", "MP", "BX", "EX",
-  "re", "m", "l", "c", "v", "y", "h", "f", "F", "f*", "S", "s", "B", "B*",
-  "b", "b*", "n", "W", "W*", "RG", "rg", "G", "g", "K", "k", "gs", "w", "J",
-  "j", "M", "d", "ri", "i", "cs", "CS", "sc", "SC", "scn", "SCN", "Do", "sh",
-  "Tr", "Ts", "Tc", "Tw", "Tz", "TL",
+  "BT",
+  "ET",
+  "Tm",
+  "Td",
+  "TD",
+  "T*",
+  "cm",
+  "q",
+  "Q",
+  "MP",
+  "BX",
+  "EX",
+  "re",
+  "m",
+  "l",
+  "c",
+  "v",
+  "y",
+  "h",
+  "f",
+  "F",
+  "f*",
+  "S",
+  "s",
+  "B",
+  "B*",
+  "b",
+  "b*",
+  "n",
+  "W",
+  "W*",
+  "RG",
+  "rg",
+  "G",
+  "g",
+  "K",
+  "k",
+  "gs",
+  "w",
+  "J",
+  "j",
+  "M",
+  "d",
+  "ri",
+  "i",
+  "cs",
+  "CS",
+  "sc",
+  "SC",
+  "scn",
+  "SCN",
+  "Do",
+  "sh",
+  "Tr",
+  "Ts",
+  "Tc",
+  "Tw",
+  "Tz",
+  "TL",
 ]);
 
 interface SpanContext {
@@ -163,7 +217,8 @@ function scanContentStream(
       operandStart ??= at;
       continue;
     }
-    const operandRaw = operandStart === undefined ? "" : content.slice(operandStart, at);
+    const operandRaw =
+      operandStart === undefined ? "" : content.slice(operandStart, at);
     const operator = raw;
     if (operator === "Tf") {
       const matched = /^\/([A-Za-z0-9]+)\s+(-?[\d.]+)$/u.exec(operandRaw.trim());
@@ -176,7 +231,9 @@ function scanContentStream(
       }
     } else if (operator === "BDC") {
       const trimmed = operandRaw.trim();
-      const span = /^\/Span\s*<<\s*\/ActualText\s*<([0-9A-Fa-f]+)>\s*>>$/u.exec(trimmed);
+      const span = /^\/Span\s*<<\s*\/ActualText\s*<([0-9A-Fa-f]+)>\s*>>$/u.exec(
+        trimmed,
+      );
       const mcid = /^\/[A-Za-z0-9]+\s*<<\s*\/MCID\s+\d+\s*>>$/u.exec(trimmed);
       if (span !== null) {
         // ActualText 内容去 FEFF（extract.ts 保留 BOM、归一化层剥离，这里直接取净）。
@@ -248,13 +305,16 @@ function scanContentStream(
             fail("Tj has an unrecognized operand form");
           }
         } else {
-          if (!/^\[[^\]\[]*\]$/u.test(operand)) {
+          if (!/^\[[^\][]*\]$/u.test(operand)) {
             fail("TJ has an unrecognized operand form");
           }
           const body = operand.slice(1, -1).trim();
           let rest = body;
           while (rest.length > 0) {
-            const piece = /^\s*(<([0-9A-Fa-f]+)>|\((?:[^()\\]|\\.)*\)|-?(?:\d+\.\d+|\.\d+|\d+))/u.exec(rest);
+            const piece =
+              /^\s*(<([0-9A-Fa-f]+)>|\((?:[^()\\]|\\.)*\)|-?(?:\d+\.\d+|\.\d+|\d+))/u.exec(
+                rest,
+              );
             if (piece === null) {
               fail("TJ array has an unrecognized element");
             }
@@ -325,7 +385,9 @@ function pageFontBindings(
       continue;
     }
     const fontObject = objects.get(refId);
-    const toUnicodeRef = /\/ToUnicode\s+(\d+)\s+0\s+R/.exec(fontObject?.dict ?? "")?.[1];
+    const toUnicodeRef = /\/ToUnicode\s+(\d+)\s+0\s+R/.exec(
+      fontObject?.dict ?? "",
+    )?.[1];
     const toUnicodeObject =
       toUnicodeRef === undefined ? undefined : objects.get(Number(toUnicodeRef));
     if (toUnicodeObject === undefined) {
@@ -602,8 +664,14 @@ export function backfillTocPageNumbers(
     }
     for (;;) {
       let at = -1;
-      for (let index = cursor; index + titleChars.length <= allChars.length; index += 1) {
-        if (titleChars.every((char, offset) => allChars[index + offset]?.char === char)) {
+      for (
+        let index = cursor;
+        index + titleChars.length <= allChars.length;
+        index += 1
+      ) {
+        if (
+          titleChars.every((char, offset) => allChars[index + offset]?.char === char)
+        ) {
           at = index;
           break;
         }
@@ -685,7 +753,10 @@ export function backfillTocPageNumbers(
     }
     return hex;
   };
-  const editsByObject = new Map<number, { start: number; end: number; text: string }[]>();
+  const editsByObject = new Map<
+    number,
+    { start: number; end: number; text: string }[]
+  >();
   for (const group of groups) {
     for (let slot = 0; slot < PLACEHOLDER_SLOTS; slot += 1) {
       const token = group.slots[slot];
@@ -730,7 +801,8 @@ export function backfillTocPageNumbers(
   const pageOfChar = (position: number): ScannedPage => {
     const page = scannedPages.find(
       (scanned) =>
-        position >= scanned.charStart && position < scanned.charStart + scanned.charCount,
+        position >= scanned.charStart &&
+        position < scanned.charStart + scanned.charCount,
     );
     if (page === undefined) {
       fail("placeholder char position has no scanned page");
