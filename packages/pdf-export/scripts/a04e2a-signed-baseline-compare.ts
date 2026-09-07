@@ -27,7 +27,9 @@ if (candidatePath === undefined) {
 }
 
 const signed = extractGeometry(new Uint8Array(await readFile(signedPath)));
-const candidate = extractGeometry(new Uint8Array(await readFile(resolve(candidatePath))));
+const candidate = extractGeometry(
+  new Uint8Array(await readFile(resolve(candidatePath))),
+);
 
 const keyOf = (run: GeometryTextRun): string =>
   JSON.stringify([
@@ -49,14 +51,18 @@ for (let page = 0; page < pageCount; page += 1) {
   const runsA = signed.textRuns.filter((run) => run.pageIndex === page);
   const runsB = candidate.textRuns.filter((run) => run.pageIndex === page);
   if (runsA.length !== runsB.length) {
-    differences.push(`page ${page}: run count signed ${runsA.length} vs candidate ${runsB.length}`);
+    differences.push(
+      `page ${page}: run count signed ${runsA.length} vs candidate ${runsB.length}`,
+    );
     continue;
   }
   for (let index = 0; index < runsA.length; index += 1) {
     const a = runsA[index] as GeometryTextRun;
     const b = runsB[index] as GeometryTextRun;
     if (keyOf(a) !== keyOf(b)) {
-      differences.push(`page ${page} run ${index}:\n  signed    ${keyOf(a)}\n  candidate ${keyOf(b)}`);
+      differences.push(
+        `page ${page} run ${index}:\n  signed    ${keyOf(a)}\n  candidate ${keyOf(b)}`,
+      );
       if (differences.length >= 50) break;
     }
   }

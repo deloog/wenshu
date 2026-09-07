@@ -19,9 +19,19 @@ import { normalizePdfText } from "../src/reconcile.ts";
 // 字符 → 单字节码（Type3 字体 codeLength=1）。标题首字走字面串 Tj、
 // 其余走十六进制 Tj——两种形态都在真实管线内容流中出现。
 const CODE: Readonly<Record<string, string>> = {
-  "8": "01", "5": "02", "2": "03", "3": "04", "1": "05", "7": "0D",
-  "目": "0B", "录": "0C", ".": "2E",
-  A: "41", B: "42", C: "43", D: "44",
+  "8": "01",
+  "5": "02",
+  "2": "03",
+  "3": "04",
+  "1": "05",
+  "7": "0D",
+  目: "0B",
+  录: "0C",
+  ".": "2E",
+  A: "41",
+  B: "42",
+  C: "43",
+  D: "44",
 };
 
 const TO_UNICODE = [
@@ -73,7 +83,13 @@ function showOps(text: string): string {
     .join("\n");
 }
 
-function textBlock(mcid: number, tag: "NonStruct" | "Lbl", x: number, y: number, ops: string): string {
+function textBlock(
+  mcid: number,
+  tag: "NonStruct" | "Lbl",
+  x: number,
+  y: number,
+  ops: string,
+): string {
   return [
     `/${tag} <</MCID ${mcid} >>BDC`,
     "BT /F1 10 Tf",
@@ -125,7 +141,10 @@ function tocContent(
 }
 
 /** 页对象 + 内容流对象 + 固定字体四件套（对象号按页数推导）。 */
-function fixturePdf(pageContents: readonly string[], toUnicode = TO_UNICODE): Uint8Array {
+function fixturePdf(
+  pageContents: readonly string[],
+  toUnicode = TO_UNICODE,
+): Uint8Array {
   const objects: string[] = [];
   const fontId = pageContents.length * 2 + 1;
   pageContents.forEach((content, index) => {
@@ -155,7 +174,8 @@ const BODY_DISTRACTION = [
   textBlock(1, "NonStruct", 10, 720, showOps("CD")),
 ].join("\n");
 
-const entry = (id: string, title: string): TocEntry => Object.freeze({ id, title, level: 1 });
+const entry = (id: string, title: string): TocEntry =>
+  Object.freeze({ id, title, level: 1 });
 
 function pageText(pdf: Uint8Array, pageIndex: number): string {
   const geometry = extractGeometry(pdf);
@@ -242,7 +262,11 @@ test("backfill: entries continue across toc pages (document order cursor)", () =
 });
 
 test("backfill: title containing the digit 8 pairs against its own trailing 8", () => {
-  const pdf = fixturePdf([COVER, tocContent([{ label: "1.", title: "A8" }]), BODY_DISTRACTION]);
+  const pdf = fixturePdf([
+    COVER,
+    tocContent([{ label: "1.", title: "A8" }]),
+    BODY_DISTRACTION,
+  ]);
   const result = backfillTocPageNumbers(pdf, [entry("a", "A8")], new Map([["a", 5]]));
   assert.equal(pageText(result, 1), "目录1.A85");
 });
@@ -269,7 +293,11 @@ test("fail-closed: a genuine non-placeholder digit triple after a title is rejec
   const pdf = fixturePdf([
     COVER,
     tocContent([
-      { label: "1.", title: "AB", placeholderOps: "<05> Tj\n5 0 Td <03> Tj\n5 0 Td <04> Tj" },
+      {
+        label: "1.",
+        title: "AB",
+        placeholderOps: "<05> Tj\n5 0 Td <03> Tj\n5 0 Td <04> Tj",
+      },
       { label: "2.", title: "CD" },
     ]),
     BODY_DISTRACTION,
@@ -291,7 +319,12 @@ test("fail-closed: a genuine non-placeholder digit triple after a title is rejec
 test("fail-closed: a missing measured page number is rejected upfront", () => {
   const pdf = fixturePdf([COVER, tocContent(TWO_ENTRIES), BODY_DISTRACTION]);
   assert.throws(
-    () => backfillTocPageNumbers(pdf, [entry("a", "AB"), entry("b", "CD")], new Map([["a", 5]])),
+    () =>
+      backfillTocPageNumbers(
+        pdf,
+        [entry("a", "AB"), entry("b", "CD")],
+        new Map([["a", 5]]),
+      ),
     hasBackfillCode,
   );
 });
@@ -343,10 +376,10 @@ test("fail-closed: a multi-char TJ placeholder is not three single-char shows", 
 });
 
 test("fail-closed: ambiguous reverse lookup (two codes for one digit)", () => {
-  const ambiguous = TO_UNICODE.replace(
-    "endbfchar",
-    "<0E> <0035>\nendbfchar",
-  ).replace(`${Object.keys(CODE).length} beginbfchar`, `${Object.keys(CODE).length + 1} beginbfchar`);
+  const ambiguous = TO_UNICODE.replace("endbfchar", "<0E> <0035>\nendbfchar").replace(
+    `${Object.keys(CODE).length} beginbfchar`,
+    `${Object.keys(CODE).length + 1} beginbfchar`,
+  );
   const pdf = fixturePdf([COVER, tocContent(TWO_ENTRIES), BODY_DISTRACTION], ambiguous);
   assert.throws(
     () =>

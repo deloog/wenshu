@@ -33,7 +33,9 @@ const templatePath = resolve(fixtureRoot, "formal-business.template.json");
 const fontDir = resolve(repoRoot, "assets/fonts/source-han-sans-cn/2.005R");
 
 const imported = await importMarkdownDocument(fixture, fixtureRoot);
-const manifest = JSON.parse(await readFile(resolve(fontDir, "font-manifest.json"), "utf8"));
+const manifest = JSON.parse(
+  await readFile(resolve(fontDir, "font-manifest.json"), "utf8"),
+);
 const plan = parseFontPlan(manifest);
 await verifyFontFiles(fontDir, plan);
 const fontSet = parseApprovedFontSet(manifest);

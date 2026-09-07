@@ -45,16 +45,21 @@ async function renderPlaceholderPdf(): Promise<Rendered> {
     resolve(fixtureRoot, "golden-report.md"),
     fixtureRoot,
   );
-  const manifest = JSON.parse(await readFile(resolve(fontDir, "font-manifest.json"), "utf8"));
+  const manifest = JSON.parse(
+    await readFile(resolve(fontDir, "font-manifest.json"), "utf8"),
+  );
   const plan = parseFontPlan(manifest);
   await verifyFontFiles(fontDir, plan);
   const fontSet = parseApprovedFontSet(manifest);
   if (!fontSet.ok) throw new Error("font manifest must parse");
   const mapped = mapTemplate(
-    JSON.parse(await readFile(resolve(fixtureRoot, "formal-business.template.json"), "utf8")),
+    JSON.parse(
+      await readFile(resolve(fixtureRoot, "formal-business.template.json"), "utf8"),
+    ),
     fontSet.value,
   );
-  if (!mapped.ok) throw new Error(`template must map: ${JSON.stringify(mapped.issues)}`);
+  if (!mapped.ok)
+    throw new Error(`template must map: ${JSON.stringify(mapped.issues)}`);
   const css = renderTemplateCss(
     mapped.value,
     plan.map((face) => ({ weight: face.weight, src: `fonts/${face.fileName}` })),
@@ -130,7 +135,10 @@ function tocPageIndex(pdf: Uint8Array): number {
 test("backfill: measured page numbers replace all 888 placeholders end-to-end", () => {
   const { pdf, entries, measured } = rendered;
   const tocIndex = tocPageIndex(pdf);
-  assert.ok(pageText(pdf, tocIndex).includes("888"), "placeholder render must carry 888");
+  assert.ok(
+    pageText(pdf, tocIndex).includes("888"),
+    "placeholder render must carry 888",
+  );
   const result = backfillTocPageNumbers(pdf, entries, measured);
   // 增量更新前缀不变。
   assert.ok(
@@ -153,7 +161,9 @@ test("backfill: hand-written 1/2/3-digit pages shrink surplus slots to empty she
   const { pdf, entries } = rendered;
   const tocIndex = tocPageIndex(pdf);
   const digits = [5, 23, 123, 8, 13, 21, 7, 11, 4, 9];
-  const fake = new Map(entries.map((entry, index) => [entry.id, digits[index % 10] ?? 5]));
+  const fake = new Map(
+    entries.map((entry, index) => [entry.id, digits[index % 10] ?? 5]),
+  );
   const result = backfillTocPageNumbers(pdf, entries, fake);
   const tocText = pageText(result, tocIndex);
   for (const [index, entry] of entries.entries()) {
