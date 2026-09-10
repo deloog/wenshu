@@ -14,7 +14,7 @@
 | 测量形态（勿误测） | 驱动 `a04e2a-persistent-session-batch.ts` 一次 `launchBrowser` 经 `createBrowser` 注入连跑；**第一批 10 次独立 CLI 形态的 BUDGET_NOT_MET（p95=18409.5）如实登记为结构性 not_met**（§5.1 预告的形态，非产品回归） | 两批 `persistent-batch.log` / `summary.txt` |
 | 标定门（决策 #22） | 双检出、main 锚定逐位核验；run-2a-8：批前 22035.1 ✓ / 批后 22584.6 ✓；run-2a-9：批前 23059.6 ✓ / 批后 18889.0 **破下限** → 决策 #23 书面豁免翻正 | 两批 `calibration.txt`、`anchors.txt`；§4 时间线 |
 | 输出不变（签署基线等价门） | **两批均零差异**：`equivalent: true`，21 页 11876 run 全序列逐一项相等；VM 侧重跑（Edge 150 恢复后） | 两批 `golden-equivalence.log` |
-| 回填正确性双门 | ① 回填前后几何全等自比门（终验，除数字 run 外全钉定含 bbox.x）＝`backfill-toc.ts` 终验断言，变异自证变红；② 跨产物等价门见上行 | `packages/pdf-export/src/backfill-toc.ts`、`test/backfill-toc.*.test.ts` |
+| 回填正确性双门 | ① 回填前后几何全等自比门（终验，除数字 run 外全钉定含 bbox.x）＝`backfill-toc.ts` 终验断言；② 跨产物等价门见上行。门的「真实在线」由 `test/backfill-toc-mutation.unit.test.ts` 决定性变异证明（A2A-F1 修复，见 §7） | `packages/pdf-export/src/backfill-toc.ts`、`test/backfill-toc.*.test.ts` |
 | 占位替换守卫 | 占位 `888` 替换为 1/2/3 位真实页码三情形过双几何门；真非占位数字串（正文 `123`）被拒不改写 | `test/backfill-toc.unit.test.ts` 决定性用例 |
 | 收敛性 | `resolveStableTocPages` 退役，单遍构造上无收敛轮；决定性测试证大纲测量值即终值 | `pipeline.ts`、`test/backfill-toc.render.test.ts` |
 | 持久会话 | R5 接缝：管线 finally 绝不 close 外部会话（spy 计数测试）；取消以 `PDF_EXPORT_CANCELLED` 至终态且同会话立即可再导出 | `test/persistent-session.render.test.ts`（2/2 绿） |
@@ -31,7 +31,7 @@
   - `single-pass-v1\`（run-2a-8，CLI 形态全门批次，zip sha256 `EBBC9E26…FEBE` 双向核验）；
   - `persistent-session-v1\`（run-2a-9，持久会话形态全门批次，zip sha256 `804B1750…9EBF` 双向核验）；
   - 五轮失败证据原件保留在 VM `C:\wenshu-out\a-04e\single-pass-v1-FAILED-*` / `-run-2a-7-*`（§4/§5）。
-- **测试**：85/85 绿（`node --test --test-concurrency=1`），5+1 变异自证（占位守卫/几何门/终验门各因正确原因变红）。
+- **测试**：90/90 绿（`node --test --test-concurrency=1`；85 既有 + 5 新增 `backfill-toc-mutation.unit.test.ts` 决定性变异，见 §7 A2A-F1 修复）。
 
 ## 3. 正式批次数据
 
@@ -49,8 +49,31 @@
 - 确定性（persistent 口径）：10/10 全等（`50769857…1F82`）。
 - verify-caliber（VM 侧）：六组全 PASS——会话对判等、阴性对照判等、M1 换指（node00001876→node00002266）判不等、M2 删节点判不等、M3 增节点判不等、冷启对新旧口径一致（均判等）。
 - golden 等价门零差异（golden sha `4010C7FD…E03A` 与 run-2a-8 逐位一致——跨批次、跨测量形态互证）。
-- 双标定：批前 23059.5598 ✓ / **批后 18889.0319 破下限** → CALIBRATION_DIVERGED_POST 如实拦停 → **决策 #23 书面豁免翻正**（身份零漂移、方向=机器偏快读数偏乐观、+13% 修正后 ~6050ms 仍达标；豁免仅限本批、不构成先例）。
+- 双标定：批前 23059.5598 ✓ / **批后 18889.0319 破下限** → CALIBRATION_DIVERGED_POST 如实拦停 → **决策 #23 书面豁免翻正**（身份零漂移、方向=机器偏快读数偏乐观；豁免仅限本批、不构成先例）。修正幅度登记经审计 A2A-F3 复核更正：**原登记的「按最大观测幅度 +13%」不可复现**（对带下限实为 +8.51%~+9.96%，对其余任一参考点 ≥+18.40%）；更正为可复现的最苛刻口径——最快稳定态观测 18692.4968（recal-x2）对签署带上限 24300.2 = **+30.00%**，修正后 p95 = 5352.8046×1.3000 ≈ **6958.6ms ≤ 8000（余量 13%）**；使结论翻转需 +49.5%。全部标定观测值表见 §3.3；决策 #23 D2 措辞由决策 #24 追加更正（原文不动）。
 - 结论：**8s 全量重排预算在持久会话稳态形态下达成，余量 33%**。
+
+### 3.3 全部标定观测值表（决策 #23 承接①，A2A-F3(a) 补全）
+
+签署带 [20553.4, 24300.2]（PA-13 final-v6，main `f64f348` 两遍管线 renderMs，一个数字未动）。逐值可核：宿主留档 `tmp/a04e-2a-calibration-evidence/`（2026-09-10 从 VM 原件经 PS Direct 拷出）+ 两批 zip 内 `calibration.txt`。
+
+| 观测 | renderMs (ms) | 判定 | 证据（VM 原件路径，均在 `C:\wenshu-out\a-04e\`） |
+|---|---|---|---|
+| run-2a-6 批前（开机 ~5min，无沉降窗口） | **31736.166** | 超上限 → CALIBRATION_DIVERGED，未发跑（STATUS 原文「machine not in signed envelope, no runs issued」） | `single-pass-v1-FAILED-calibration-diverged-boot-phase\calibration.txt` / `STATUS.txt` |
+| 9/6 手动复测 recal-x1（稳定态，旧管线 @main） | **18941.984** | 破下限（timings.renderMs，Edg/150.0.4078.83） | `recal-x1\evidence.json`（timestamp 2026-09-07T04:16:07Z VM 时） |
+| 9/6 手动复测 recal-x2（同上） | **18692.4968** | 破下限 | `recal-x2\evidence.json`（2026-09-07T04:16:28Z） |
+| run-2a-7 批前（900s 沉降生效） | 23465.2759 | 带内 ✓（批后未跑——预算门中途截断，即 af8ae12 修复动因） | `single-pass-v1-run-2a-7-BUDGET_NOT_MET-gates-incomplete\calibration.txt` / `summary.txt` |
+| run-2a-8 批前 / 批后 | 22035.1127 / 22584.5965 | 双带内 ✓ | `single-pass-v1\calibration.txt` |
+| run-2a-9 批前 / 批后 | 23059.5598 / **18889.0319** | 批前带内 ✓ / 批后破下限 → 决策 #23 豁免 | `persistent-session-v1\calibration.txt` |
+
+稳定态同向观测共三个（18889.0319 / 18941.984 / 18692.4968，~18.7–18.9s），即「机器稳定态快于 7/29 签署包络」这一可复现结构事实的全部观测基础。修正幅度全组合（审计 A2A-F3(b) 复核表，基准 p95=5352.8046ms）：
+
+| 稳定态观测 | vs 带下限 20553.4 | vs 带中值 22426.8 | vs 带上限 24300.2 | vs 本批批前 23059.5598 |
+|---|---|---|---|---|
+| 18889.0319（run-2a-9 批后） | +8.81% → 5824.5 | +18.73% → 6355.3 | +28.65% → 6886.2 | +22.08% → 6534.7 |
+| 18941.984（recal-x1） | +8.51% → 5808.2 | +18.40% → 6337.6 | +28.29% → 6867.0 | +21.74% → 6516.4 |
+| 18692.4968（recal-x2） | +9.96% → 5885.7 | +19.98% → 6422.2 | **+30.00% → 6958.6** | +23.36% → 6603.4 |
+
+（「→」后为修正后 p95，ms。）原登记的 +13% 不等于任何一对组合，名不副实且低估最坏幅度；按最苛刻可辩护口径 +30.00% 修正后 p95 ≈ 6958.6ms 仍 ≤ 8000（余量 13%），翻转需 +49.5%——达标结论方向不受影响独立成立。
 
 ## 4. 环境事件时间线（2026-09-05 ~ 09-07，全部留证）
 
@@ -97,11 +120,13 @@
 - **副作用自答（「会红」是否变「不会红」）**：串行化消除的是调度噪声对计时断言的误伤；**检出能力未降**——断言的语义（取消终态码/零残留/进程清理/会话存活）全部保留且仍由真实 Chromium 驱动，无任何断言被删除或放宽。②的 2s 边界在重负载机器上仍可能误红：那是预算语义问题（业主审计时核），不是串行化引入的。
 - **M1 冗余证成**（决策 #22 承接预告）：配对层只弱化「回填配对」而保留终验几何全等门拿对照——与 PA-09 表格归属三重防线同一形态（主判定可失效、终验必拿到独立对照），审计者可自构「只弱化配对层且让终验拿不到对照」路径重放，预期被终验门拦截。
 - **锚定 sha 自纠案例**：main 锚 `f64f348…614c3` 在 run-2a-3 实证拦下 worktree 元数据腐化（挂载期 F:/ 路径残留）——锚定门不是仪式，本棒被它救过一次。
+- **A2A-F1/F2 修复登记（审计 CONDITIONAL PASS 后）**：首轮实施记录宣称「5+1 变异自证各因正确原因变红」但仓内无 backfill 变异 harness、记录未给变异定义与输出——声明不可复现（A2A-F2）；审计者按自然形态重放 M-A~M-E 五中仅 M-D 变红（M-A/M-B/M-C/M-E 存活），门的安全性质经更深路径独立证真未失守，但「门真实在线」无决定性证据（A2A-F1）。**修复**：新增 `test/backfill-toc-mutation.unit.test.ts`（照抄同目录 8 个既有 `*-mutation.unit.test.ts` harness：真实 src 副本+单点锚定变异+动态导入+控制/变异翻转断言），五例决定性用例——① mediaBox 元素级漂移被 `assertSameGeometry` 以精确消息拦截且该条款承重（拆条款即放行）；② figure paintBBox 漂移同理；③ M-B 致命化：注入「增量更新多一页」故障（pdf-patch 出口），控制被页数门拦截、摘掉 `assertSameGeometry` 调用的变异副本放行产出；④ M-C 致命化：注入「未触碰 run bbox.x 漂移」故障（重写流首部 Tm 后追加 Td），控制被终验 run 循环拦截、拆 bbox.x 比较的变异副本放行；⑤ M-E 致命化：「A8」/「8」重名含 8 标题夹具下配对游标弱化（cursor 不回跳 3 槽）把条目 b 错配进条目 a 占位组，终验①（独立 verifyCursor）fail-closed 拦截。M-A（配对层 `scanChar.char !== "8"` 单拆）保持存活但良性：与同点 `token.text` 校验在归一化语义下不可分，且更深层 run 映射校验独立拦截（审计 M-A′ 打点实证）——冗余守卫已在测试头注释书面化。两点 harness 差异亦书面化于文件头：临时副本放包内（backfill-toc.ts 运行时导入 @wenshu/document-model，os.tmpdir() 裸说明符不可解析）；M-B/M-C 故障源注入被拷贝的 pdf-patch.ts（回填自身不产几何漂移，门是防御性的，控制/变异带同一故障）。
 
 ## 8. 承接与遗留
 
 - **A-04E-2b 未开工**：D4（验证宿主）待裁定；语料 30 页/30000 字（阶段一已钉）；ADR-0014 四项。2a 结论改变缓存设计基线（整份重排稳态 ~5.1–5.4s 已达成）。
 - **VM 状态**：批次收官后已关机；五轮 FAILED-* 证据目录与两批正式目录在 VM `C:\wenshu-out\a-04e\` 原样保留；链门 PASS 态（单差分盘、单快照、NIC 断开）。
 - **锚定纪律登记**：两批 VM 证据锚定的分支头是 `af8ae12`（run-2a-8）/ `d2b6787`（run-2a-9，见两批 `anchors.txt`）；回填模块拆分提交在其后，属**批后纯搬迁**（行级搬运零语义改动，85/85 复测+tsc/eslint/prettier 全绿为证）。审计者可先逐位比对锚定提交内容与批次证据的一致性，再单独核拆分提交的纯搬迁性质；签署基线与 VM 批次证据零改动。
+- **审计修复轮范围登记（A2A-F1/F2/F3）**：修复提交只含——新增 `test/backfill-toc-mutation.unit.test.ts`（纯新增测试文件）、本记录改写（§1/§2/§3.2/§3.3/§7）、决策 #24 追加；**生产代码零改动**（拆分后五模块与批次锚定时逐字节一致），批次证据有效性不受本轮影响。
 - ** flake 观察项**：取消断言②的 2s 边界余量 ~93ms，审计者核检出能力边界。
 - **CI 提示**：分支 18 提交首次过全量 `eslint .`/`format:check`/`tsc`（本地已绿）；`--offline` 旗标、沉降窗口、预算收尾判定三处批次脚本变更均有对应失败实证（run-2a-4/2a-6/2a-7）。
