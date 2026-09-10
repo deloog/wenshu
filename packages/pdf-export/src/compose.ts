@@ -48,6 +48,25 @@ export function composePrintDocument(
 }
 
 /**
+ * 目录页码占位数字（决策 #21 单源）：compose 期填进占位 span，只渲染一遍；
+ * 大纲测量后由 backfillTocPageNumbers 在原内容流内改写为实测页码。
+ * 形态约束（backfill-toc.ts 配对守卫钉死）：恰三个数字 8。
+ */
+export const TOC_PAGE_PLACEHOLDER = "888";
+
+/** 单遍占位填充：把占位数字写进每个目录条目的占位 span（每条目恰好一次）。 */
+export function fillTocPlaceholders(
+  printHtml: string,
+  entries: readonly TocEntry[],
+): string {
+  return fillTocPageNumbers(
+    printHtml,
+    entries,
+    new Map(entries.map((entry) => [entry.id, Number(TOC_PAGE_PLACEHOLDER)])),
+  );
+}
+
+/**
  * 第二遍填充：把实测物理页码写进目录条目的占位 span。
  * 占位串由 report-render 固定生成；每条目必须恰好出现一次（防静默错位）。
  */

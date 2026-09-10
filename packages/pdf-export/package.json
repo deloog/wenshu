@@ -8,7 +8,7 @@
   },
   "scripts": {
     "export:baseline": "node scripts/export-baseline.ts",
-    "test": "node --test test/*.unit.test.ts test/*.render.test.ts",
+    "test": "node --test --test-concurrency=1 test/*.unit.test.ts test/*.render.test.ts",
     "check": "pnpm test",
     "typecheck": "tsc -p tsconfig.json"
   },
