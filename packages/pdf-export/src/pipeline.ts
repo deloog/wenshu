@@ -1,32 +1,27 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { TOC_HEADING, collectTocEntries } from "@wenshu/document-model";
-import { importMarkdownDocument } from "@wenshu/markdown-import";
+import { TOC_HEADING } from "@wenshu/document-model";
 import {
   launchBrowser,
   type BrowserSession,
-  parseFontPlan,
-  renderDocumentHtml,
   startStaticServer,
-  verifyFontFiles,
 } from "@wenshu/report-render";
-import { renderTemplateCss } from "@wenshu/template-css";
-import { mapTemplate, parseApprovedFontSet } from "@wenshu/template-map";
 
 import { backfillTocPageNumbers } from "./backfill-toc.ts";
-import { composePrintDocument, fillTocPlaceholders } from "./compose.ts";
+import { fillTocPlaceholders } from "./compose.ts";
 import { assertNotCancelled, type PipelineCancellation } from "./cancellation.ts";
 import { repairPdfTextLayer } from "./cmap-repair.ts";
 import { PdfExportError } from "./errors.ts";
 import { inspectPdf, type PdfInspection } from "./inspect.ts";
 import { measureTocPageNumbers } from "./pagination.ts";
+import { prepareExportContext } from "./prepare-context.ts";
 import {
   buildExpectedPdfText,
   extractSvgText,
   assertPdfReconciled,
 } from "./reconcile.ts";
-import { buildPrintParams, type PrintParams } from "./print-params.ts";
+import type { PrintParams } from "./print-params.ts";
 import {
   stampRunningHeaders,
   stripStampsForReconcile,
@@ -88,6 +83,10 @@ export interface BaselineOutput {
   readonly tocPages: ReadonlyMap<string, number>;
   /** 文本层修复统计（洞/错标修补在管线内完成；签署基线预期 0 触发）。 */
   readonly repair: { readonly repairedHoles: number; readonly patchedObjects: number };
+  /** 压印前内容字节（目录回填+文本层修复之后、页眉页脚压印之前的内容真源，A-04E-2b additive）。 */
+  readonly contentBytes: Uint8Array;
+  /** 管线实际使用的压印参数（模板派生，A-04E-2b additive）。 */
+  readonly stampSpec: StampSpec;
 }
 
 const MM_TO_PT = 72 / 25.4;
@@ -104,53 +103,8 @@ export async function produceBaselinePdf(
   const totalStart = performance.now();
   assertNotCancelled(cancellation, "import");
   const importStart = performance.now();
-  const imported = await importMarkdownDocument(input.fixture, input.fixtureRoot);
-  const manifest = JSON.parse(
-    await readFile(resolve(input.fontDir, "font-manifest.json"), "utf8"),
-  );
-  const plan = parseFontPlan(manifest);
-  await verifyFontFiles(input.fontDir, plan);
-
-  const fontSet = parseApprovedFontSet(manifest);
-  if (!fontSet.ok) {
-    throw new Error("font manifest must parse");
-  }
-  const mapped = mapTemplate(
-    JSON.parse(await readFile(input.templatePath, "utf8")),
-    fontSet.value,
-  );
-  if (!mapped.ok) {
-    throw new Error(`template must map: ${JSON.stringify(mapped.issues)}`);
-  }
-  const model = mapped.value;
-  const css = renderTemplateCss(
-    model,
-    plan.map((face) => ({ weight: face.weight, src: `fonts/${face.fileName}` })),
-  );
-  const svgCache = new Map<string, string>();
-  for (const original of Object.keys(imported.renames)) {
-    if (original.toLowerCase().endsWith(".svg")) {
-      svgCache.set(
-        original,
-        new TextDecoder().decode(await readFile(resolve(input.fixtureRoot, original))),
-      );
-    }
-  }
-  const basePrintHtml = composePrintDocument(
-    renderDocumentHtml(imported.document),
-    css,
-    (assetPath) => {
-      const original = Object.entries(imported.renames).find(
-        ([, normalized]) => normalized === assetPath,
-      )?.[0];
-      if (original === undefined) {
-        return undefined;
-      }
-      return svgCache.get(original);
-    },
-  );
-  const printParams = buildPrintParams(model);
-  const tocEntries = collectTocEntries(imported.document);
+  const context = await prepareExportContext(input);
+  const { imported, model, printParams, tocEntries, basePrintHtml } = context;
   const importMs = performance.now() - importStart;
 
   assertNotCancelled(cancellation, "compose");
@@ -297,5 +251,7 @@ export async function produceBaselinePdf(
       repairedHoles: repair.repairedHoles,
       patchedObjects: repair.patchedObjects,
     }),
+    contentBytes: repair.pdfBytes,
+    stampSpec,
   });
 }
