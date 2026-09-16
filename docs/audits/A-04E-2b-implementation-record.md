@@ -36,7 +36,9 @@
 
 ## 3. VM 批次（预算判定与正式结论的唯一来源）
 
-> **待跑**。跑批规程：宿主 `vm-chain-depth-check.ps1`（签署层配置+NIC 断开硬检查）→ 注入 payload → 引导 attest（同次引导 CHAIN-DEPTH-1.txt）→ `vm-a04e2b-pass.ps1` 全门批次 → 证据 zip 双向核验回本机 `artifacts/perf/2026-09-12-A-04E-2b/`（gitignored 惯例同 PA-13/2a）。
+> **已跑：run-2b-5 全链批次完成**（§3.1），证据 zip 双向核验落
+> `artifacts/perf/2026-09-12-A-04E-2b/`（gitignored 惯例同 PA-13/2a）。
+> 跑批规程（备查）：宿主 `vm-chain-depth-check.ps1`（签署层配置+NIC 断开硬检查）→ 注入 payload → 引导 attest（同次引导 CHAIN-DEPTH-1.txt）→ `vm-a04e2b-pass.ps1` 全门批次 → 证据 zip 双向核验回本机。
 >
 > 批次内门序：塌链 attest → main 锚定逐位（`f64f348`）→ node v24.17.0 → 900s 沉降 → 离线 install → env:record 四步 → 输入 sha → **批前标定**（签署带 [20553.4, 24300.2]）→ 工装 10 轮 → 判定器 G1–G6 → 签署基线等价门（本棒重构 pipeline.ts 装配段，签署路径零回归实证）→ **批后标定** → 预算判定收尾（p95(增量编辑 totalMs，30 样本) ≤ 1000ms；不达标即 BUDGET_NOT_MET 如实登记，决策 #18 D3 不 DEGRADE）。
 
@@ -47,7 +49,7 @@
 - **门序全绿至收尾**：attest/锚定（main=`f64f348` 逐位）/node v24.17.0/900s 沉降/离线 install/env:record 四步/输入 sha 逐位/**批前标定 23148.06 ∈ 带 ✓** → 工装 10 轮 → 判定器 G1–G6 **PASS** → 签署基线等价门 exit 0（normalized sha `4010C7FD…E03A`，与 2a 两批逐位一致；vs 签署基线 `816B8EE9…B6C8` 不等属已登记增量更新结构，等价门为视觉不变性硬证）→ **批后标定 20308.97 破下限 -1.2%**（带 [20553.4, 24300.2]）→ STATUS=`CALIBRATION_DIVERGED_POST`，批次脚本如实登记、证据链未截断（决策 #18 D3 形态）。
 - **ADR-0014 四项实测结论**：
   - ① 真增量：**达成**——G3–G5 绿，30/30 编辑 kind=incremental，pageRangesPrinted 证实只打窗页（早 7-8 / 中 13-14→13-15 级联扩窗 / 晚 21-22），无一轮印满全文。
-  - ② ≤1s 局部编辑：**未达成**——p95(30 样本)=**4370.7ms**（min 1691.9；分区 p95：早 2034.8 / 中 4430.8 / 晚 2411.4）。分解（run-01 代表）：compose ~6ms + navigate ~550ms + ranged print ~1400–2060ms/轮 + post ~55ms——打印与导航是主项，结构性超限 ~4.4×，任何环境修正因子不改变结论。
+  - ② ≤1s 局部编辑：**未达成**——p95(30 样本)=**4370.7ms**（min 1691.9；分区 p95：早 2034.8 / 中 4430.8 / 晚 2411.4）。分解（run-01 代表）：compose ~6ms + navigate ~550ms + ranged print ~1400–2060ms/轮 + post ~55ms；归因权威口径=VM 两点线性分解（固定 ≈509ms+边际 ≈501ms/页，见[分析文档](../research/A-04E-2b-1s预算超限归因与加速路径.md) §2.2 与 §0 更正记录）。结构性超限 ~4.4×，任何环境修正因子不改变结论。**业主裁定（[决策 #27](../../决策记录.md) D1）：永久登记未达成，台账不得被任何后续裁定追认。**
   - ③ 后台整份期间 UI 不冻结+可取消：**部分达成**——UI 探针 3 击延迟 ≤3.1ms、事件循环 maxGap ≤37.2ms（不冻结达成）；取消真实生效（10/10 `PDF_EXPORT_CANCELLED` + 同会话复跑成功 + 旧槽位零替换），但 **settleAfterClick 稳态 3.7–4.1s > 2s 预算**（abort 阶段边界生效+在途整份打印剩余，已登记口径的 VM 量化）；run-01 冷启离群 266.7s（机理未完全解释，登记跟进）。
   - ④ 增量与整份重排等价：**达成**——每编辑 oracle 对账（窗页逐 run tag-free 全等、tocPages/pageCount 相等、编辑文本可见）+ 10 轮跨轮证据键全等（G5）。
 - **批次史**：run-2b-1（标定导出 profile 清理竞态 exit 1，环境性）、run-2b-2（标定 27829.7 破上限 +14.5%，宿主争抢）、run-2b-3（25001.7，+2.9%）、run-2b-4（24341.3，+0.17%）→ 业主批准宿主 Defender 排除（D:\VMs + vmwp/vmms，微软 Hyper-V 官方实践）后 run-2b-5 批前入带。失败证据原件留 VM `C:\wenshu-out\a-04e\a04e-2b-incremental-v1-FAILED-run-2b-{1..4}`。
