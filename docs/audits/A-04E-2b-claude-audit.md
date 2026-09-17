@@ -8,7 +8,7 @@
 >
 > **⚠ 利益冲突声明（见 §3.1，先读）**：本报告作者在本轮之前应业主要求对 Q1/Q2 出具过技术复核与建议，决策 #27 D1–D6、分析文档 §0 更正记录 / §2.2 归因分解 / §3 P7 的**内容源出于审计者本人**。这些部分**不构成独立审计**，本报告对其只做「转录是否忠实、原始数据是否支持」的核对，不作独立背书。
 >
-> **结论：CONDITIONAL PASS**——任务书 §9 八个猎杀方向全部核到；**②「≤1s 局部编辑」未达成经独立坐实**（p95=4370.7ms，n=30，超限 4.37×），①③④ 达成度与实施记录一致；三项 MINOR（A2B-F1/F2/F3）须修复后由原审计角色复审关闭。无 BLOCKER/MAJOR。
+> **结论：PASS**（2026-09-17 复审：三项 MINOR 全部关闭，见 §5）——首审 CONDITIONAL PASS：任务书 §9 八个猎杀方向全部核到；**②「≤1s 局部编辑」未达成经独立坐实**（p95=4370.7ms，n=30，超限 4.37×），①③④ 达成度与实施记录一致；三项 MINOR（A2B-F1/F2/F3）须修复后由原审计角色复审关闭。无 BLOCKER/MAJOR。
 
 ## 1. 猎杀方向逐项结果（任务书 §9）
 
@@ -216,3 +216,49 @@
 **放行口径**：在三项 MINOR 修复并经原审计角色复审关闭前，A-04E-2b 不得标 ✅（DoD §9）。**②「未达成」的登记不因任何修复而改变**——决策 #27 D1 的「永久登记、不得追认」在本报告独立坐实的事实基础上成立。P6 棒任务书的起草（决策 #27 承接）与本轮 MINOR 修复可并行，互不阻塞。
 
 > 审计者声明：本报告由 Claude 以独立只读审计角色作出，未参与 A-04E-2b 的任何实施；全部结论基于本机可复现的证据重放。**唯一例外是 §3.1 声明的利益冲突面，该部分不构成独立审计。** VM 内动作与业主审批事实按 A2A-N3 同款口径归属背书面。
+
+---
+
+## 5. 复审（2026-09-17）：A2B-F1/F2/F3 修复逐项核验——全部关闭，结论升 PASS
+
+> 复审对象：PR #65 修复提交 `1c0ce551331c55fb63f37be2ffdd705e3fd71b51`（工作树 HEAD 逐位一致、`git status` 干净）。
+> 锚定纪律：CI run `35166780440` `headSha` 逐位等于复审对象、`conclusion=success`、10/10 job 全绿（提交版=审过版）。`pnpm verify` 未由审计者独立重跑（全量构建成本），按 A2B-N5 同款口径以该远程 run 覆盖，如实登记。
+> 复审方式：变异探针在仓外 `git worktree --detach 1c0ce551`（node_modules junction）执行，逐条 `git checkout --` 还原，事后 `git status` 干净、worktree 已移除；本机第一手重跑包全量与 quality:check。
+
+### 5.1 A2B-F1（tag-free 口径过宽）——**关闭**
+
+- **收紧属实**：`runKeyTagFree` 键现为 `[归一化 text, baselineY, bbox.x, bbox.y, bbox.width, fontSize, blockOrder, viaActualText, figureMcid, font.family/weight/subset/embedded]`——只剔 `font.objectId`/`font.tag`/`bbox.height` 三个打印变异字段，`pageIndex` 为比较轴不入键，与 ADR-0033 §4.1 逐字段表逐项一致。
+- **ADR-0033 §4.1 逐字段依据成立**：剔除项各附实测漂移数（tag 697/705、height 20/705），保留项附 705/705 实测与「子集前缀解析期剥除」构造性论证——不再是统称 F2。
+- **决定性变异（审计者亲手重放）**：仓外探针把键退回旧宽口径（只留 4 字段）→ 包内 30 例 **29/1**，唯一变红即新增 `runKeyTagFree pins every semantic field (A2B-F1 decisive mutations)`——因正确原因变红。
+- **「收紧零误报」独立重验**（不止采信首审证据②）：复审探针取签署语料真实 Chromium 打印，整份 vs 单页 ranged 三页（5-5/8-8/14-14，共 1806 run）逐 run 比收紧键——**keyMismatch=0**；被剔字段漂移实测 tag 868/703/233、height 44/20/49，保留语义字段全部零漂移。其中 8-8 页 705 run、height 漂移恰 20/705，与首审证据②逐值吻合（tag 数 703 vs 697 系本机 Chrome 152 vs VM Edge 150 环境差，方向一致）。
+- 新增两例单测（三剔除字段判等 + 13 类语义变异判不等）形态照抄 2a 先例，覆盖首审 M8–M13 全部六类。
+
+### 5.2 A2B-F2（目录页槽重打零执行证据）——**关闭**（按首审建议①构造夹具）
+
+- **路径真实执行**：`incremental-toc-slot.render.test.ts`（真实 Chromium，无 mock）合成自校准夹具，编辑后断言链完整——`kind=incremental`、`pageCount` 不变（delta=0）、`tocPages.get("ch1s1")` 漂移（≠ 旧页）、**`tocSlotPdfBytes !== null`**、**`pageRangesPrinted` 末轮恰为目录页单页区间**；槽位与整份重渲独立 oracle（`renderDocumentFull` 全路径，非增量自报）目录页**逐 run 收紧键全等** + `tocPages` 与 oracle 大纲测量 `deepEqual`。
+- **校准声明独立坐实**：复审各次跑测的 `[calib]` 日志显示 **3 轮收敛**（attempt 0→2：`linesBelow=2`、`slack=12=addLines+8`），与用户声明逐值一致；排版参数（行距 17.25/容量底线/每行 43 字）均自基线渲染几何实测，无环境硬编码。
+- **y 轴根因经变异证真**（M-F2d）：把 `pageCapacity` 退回 y 向下误读（`Math.max` 当页底）→ capacity=772.17（页顶）、`linesBelow=-17`/`slack=-17`、校准当场发散、测试变红——「y 向上取 min」是承重逻辑，根因分析成立。
+- **五条变异全部因正确原因变红**（审计者亲手重放）：
+  - M-F2a `locateTocPageIndex` 退回单 run 匹配 → 6 例中拆字命中/空白容忍/行内嵌套拒绝 **3 例红**；
+  - M-F2b 删「独立成行」判据 → 行内嵌套拒绝 + 仅存行内出现返 null **2 例红**；
+  - M-F2c 控制器禁用目录页槽重打分支 → render 测试红（`tocSlotPdfBytes` 为 null）；
+  - M-F2d y 轴误读（上条）→ 红；
+  - M-F2e 跳过 `backfillTocPageNumbers` 直接交原始 tocBytes → 红于 oracle 对账 `toc slot run count drifted vs full re-render`——「槽位↔整份逐 run 全等」断言真实承重，2a 签署回填作用于窗格 PDF 这一新输入类**已有端到端证据**（首审核心关切消解）。
+- **顺带真缺陷（locateTocPageIndex 字距拆字盲区）修复形态正确**：连续 run 窗拼接 + 空白 run 容忍 + 独立成行判据 + 多页/零页 fail-closed；`incremental-state.unit.test.ts` 6 例覆盖命中/容忍/两类拒绝/双 fail-closed。该盲区属「批次未触发只因 30 条编辑零漂移」的潜伏缺陷，修复方向与签署语料实测形态（封面说明行内嵌「目录」）一致。
+
+### 5.3 A2B-F3 + N4（豁免边界缺第④条 / 文档残渣）——**关闭**
+
+- 决策记录 #26 D3 原文四条边界逐字核对：①仅限 run-2b-5 本次批次；②仅限破下限方向；③签署带一个数字不改；④**后续任何批次标定出带（任一方向）仍须停下请示，本豁免不构成先例**（决策记录.md:674-675）。
+- 实施记录 §3.1 现完整复述四条（含④），§8 验证清单末条同步改记「已获决策 #26 书面豁免（四条边界见 §3.1）」；§3 模板占位行「（跑批后在此回填…）」已删除。N4 两处残渣均清理。
+
+### 5.4 修复提交范围与验证独立重跑
+
+- 修复提交 `1c0ce551` 触及 8 文件：ADR-0033 §4.1、审计报告原件落盘、实施记录、`incremental.ts`/`incremental-state.ts`、三个测试文件——**全部在三项 MINOR 范围内，无夹带**；签署冻结物、lockfile、路线图、契约零触碰。
+- 审计者本机第一手重跑：`pnpm --filter @wenshu/pdf-export test` **124/124 pass**（exit 0，含新增 9 例逐条 ✔ 核名）；`pnpm quality:check` 绿（504 文件，仅存量 WARN）；新测试文件 435/97 行低于 500 行门。
+- 体量护栏（`wc -l` 实测）：`incremental-state.ts` 180、`incremental.ts` 386（生产上限 400）；`incremental-toc-slot.render.test.ts` 435、`incremental-state.unit.test.ts` 97、`incremental.unit.test.ts` 458（测试上限 500）——全部合规、无一贴线 ✓。
+
+### 5.5 复审结论
+
+**A2B-F1、A2B-F2、A2B-F3 三项 MINOR 全部关闭；A2B-N4 残渣随清。A-04E-2b 独立审计结论由 CONDITIONAL PASS 升为 `PASS`。**
+
+不变事项：②「≤1s 局部编辑」**未达成**（p95=4370.7ms）的永久登记不因本修复改变（决策 #27 D1）；A2B-N1/N2/N3/N5 观察项按原口径登记（N2 建议并入 P6 棒验收设计）。
