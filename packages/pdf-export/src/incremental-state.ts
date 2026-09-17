@@ -1,7 +1,7 @@
 import { TOC_HEADING, type WenshuDocument } from "@wenshu/document-model";
 
 import { extractGeometry, type GeometryTextRun, type PdfGeometry } from "./geometry.ts";
-import { buildPageTextIndex, runKeyTagFree } from "./incremental.ts";
+import { buildPageTextIndex, pageRuns, runKeyTagFree } from "./incremental.ts";
 import { normalizePdfText } from "./reconcile.ts";
 
 /**
@@ -27,7 +27,7 @@ export interface PreviewState {
   readonly tocPageIndex: number | null;
 }
 
-/** 页级证据等价（F2 口径：不含 font.tag——资源名每打印调用独立分配）。 */
+/** 页级证据等价（tag-free 键口径见 incremental.ts runKeyTagFree / ADR-0033 §4）。 */
 export function pagesEquivalentTagFree(
   a: readonly GeometryTextRun[],
   b: readonly GeometryTextRun[],
@@ -46,12 +46,51 @@ export function pagesEquivalentTagFree(
   return true;
 }
 
-/** 目录页定位（0 基）：某页存在归一化后恰等于栏目标题的 run，且全文档唯一。 */
+/**
+ * 目录页定位（0 基）：某页存在归一化拼接后恰等于栏目标题的**连续 run 窗**，且
+ * 全文档唯一。字距排版下标题会拆成单字 run 序列（如 “目”+“录”，实测于签署
+ * 语料），故按连续窗拼接匹配而非单 run 相等；为排除封面/正文中同以拆字形态
+ * 出现的「目录」二字（实测：封面说明行内嵌「目录」），要求窗口**独立成行**：
+ * 窗内非空 run 同基线，且前后最近非空邻 run 均不在该基线上。多页命中/零命中
+ * 均返回 null（页码变化时调用方 fail-closed）。
+ */
 export function locateTocPageIndex(geometry: PdfGeometry): number | null {
   const hits = new Set<number>();
-  for (const run of geometry.textRuns) {
-    if (normalizePdfText(run.text) === TOC_HEADING) {
-      hits.add(run.pageIndex);
+  for (const page of geometry.pages) {
+    const runs = pageRuns(geometry, page.index);
+    const normalized = runs.map((run) => normalizePdfText(run.text));
+    for (let from = 0; from < runs.length; from += 1) {
+      let joined = "";
+      let to = from;
+      while (to < runs.length && joined.length < TOC_HEADING.length) {
+        joined += normalized[to] as string;
+        to += 1;
+      }
+      if (joined !== TOC_HEADING) {
+        continue;
+      }
+      const baseline = (runs[from] as GeometryTextRun).baselineY;
+      const inWindowSameLine = runs
+        .slice(from, to)
+        .every(
+          (run, offset) =>
+            (normalized[from + offset] as string).length === 0 ||
+            run.baselineY === baseline,
+        );
+      const before = runs
+        .slice(0, from)
+        .findLast((run, offset) => (normalized[offset] as string).length > 0);
+      const afterIndex = runs.findIndex(
+        (run, offset) => offset >= to && (normalized[offset] as string).length > 0,
+      );
+      const isolated =
+        inWindowSameLine &&
+        (before === undefined || before.baselineY !== baseline) &&
+        (afterIndex === -1 ||
+          (runs[afterIndex] as GeometryTextRun).baselineY !== baseline);
+      if (isolated) {
+        hits.add(page.index);
+      }
     }
   }
   return hits.size === 1 ? ([...hits][0] as number) : null;

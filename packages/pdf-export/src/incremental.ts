@@ -9,8 +9,9 @@ import { normalizePdfText } from "./reconcile.ts";
  *
  * 本模块只有纯函数：不碰浏览器、不碰文件、不碰字节。所有 IO 在
  * incremental-controller.ts。设计纪律：
- * - 级联只认证据不认假设——窗口延伸/收束由逐页 run 比对决定（F2 口径：不含
- *   字体资源 tag，tag 为每打印调用独立分配，不可跨打印比对）；
+ * - 级联只认证据不认假设——窗口延伸/收束由逐页 run 比对决定（tag-free 键
+ *   逐字段口径见 ADR-0033 §4：仅剔除每打印调用重分配/可漂移的 objectId、
+ *   font.tag、bbox.height，字体身份/图成员/文本来源等语义字段全部参与比对）；
  * - 一切歧义 fail-closed 退整份重排（PDF_EXPORT_INCREMENTAL_FALLBACK），不猜；
  * - 页数变化（delta≠0）本棒不发明旧尾页改号压印，由控制器诚实退整份重排
  *   （后台可取消路径，ADR-0014 ①③ 由此 exercised）。
@@ -25,13 +26,28 @@ export function failIncremental(reason: string): never {
 // 页文本索引与锚定定位
 // ---------------------------------------------------------------------------
 
-/** run 的跨打印可比键（F2：排除 font.tag；归一化 text 与签署等价门同口径）。 */
+/**
+ * run 的跨打印可比键（逐字段口径依据 ADR-0033 §4，A2B-F1 收紧）。
+ * 剔除仅三个打印相关字段：font.objectId/font.tag（每打印调用独立分配的资源
+ * 标识，F2）、bbox.height（实测 ranged vs 整份同页 20/705 漂移）；其余语义
+ * 字段全部参与比对（实测同页 ranged vs 整份 705/705 相同，收紧零误报）；
+ * pageIndex 是比较轴而非内容事实（槽位 PDF 页码为窗相对），不入键。
+ */
 export function runKeyTagFree(run: GeometryTextRun): string {
   return JSON.stringify([
     normalizePdfText(run.text),
     run.baselineY,
     run.bbox.x,
+    run.bbox.y,
+    run.bbox.width,
     run.fontSize,
+    run.blockOrder,
+    run.viaActualText,
+    run.figureMcid,
+    run.font.family,
+    run.font.weight,
+    run.font.subset,
+    run.font.embedded,
   ]);
 }
 

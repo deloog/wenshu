@@ -66,7 +66,7 @@ function doc(blocks: WenshuDocument["blocks"]): WenshuDocument {
 }
 
 // ---------------------------------------------------------------------------
-// runKeyTagFree / 页证据比对口径（F2：tag 不参与跨打印比对）
+// runKeyTagFree / 页证据比对口径（tag-free 键逐字段口径：ADR-0033 §4，A2B-F1）
 // ---------------------------------------------------------------------------
 
 test("runKeyTagFree ignores font tag but pins text/geometry", () => {
@@ -77,6 +77,49 @@ test("runKeyTagFree ignores font tag but pins text/geometry", () => {
   assert.notEqual(runKeyTagFree(a), runKeyTagFree(moved));
   const resized = { ...run(0, "同文", 42, 700), fontSize: 10 };
   assert.notEqual(runKeyTagFree(a), runKeyTagFree(resized));
+});
+
+test("runKeyTagFree ignores only the three print-variant fields", () => {
+  const a = run(0, "同文", 42, 700);
+  // 打印相关字段（每 print 调用重分配/可漂移）：变更必须判等，否则跨打印比对全异
+  assert.equal(
+    runKeyTagFree(a),
+    runKeyTagFree({ ...a, font: { ...a.font, objectId: 99 } }),
+  );
+  assert.equal(
+    runKeyTagFree(a),
+    runKeyTagFree({ ...a, font: { ...a.font, tag: "F99" } }),
+  );
+  assert.equal(
+    runKeyTagFree(a),
+    runKeyTagFree({ ...a, bbox: { ...a.bbox, height: 99 } }),
+  );
+});
+
+test("runKeyTagFree pins every semantic field (A2B-F1 decisive mutations)", () => {
+  const a = run(0, "同文", 42, 700);
+  const mutants: readonly [string, GeometryTextRun][] = [
+    ["text", { ...a, text: "异文" }],
+    ["baselineY", { ...a, baselineY: 701 }],
+    ["bbox.x", { ...a, bbox: { ...a.bbox, x: 43 } }],
+    ["bbox.y", { ...a, bbox: { ...a.bbox, y: a.bbox.y + 1 } }],
+    ["bbox.width", { ...a, bbox: { ...a.bbox, width: a.bbox.width * 2 } }],
+    ["fontSize", { ...a, fontSize: 10 }],
+    ["blockOrder", { ...a, blockOrder: 7 }],
+    ["viaActualText", { ...a, viaActualText: true }],
+    ["figureMcid", { ...a, figureMcid: 3 }],
+    ["font.family", { ...a, font: { ...a.font, family: "Other" } }],
+    ["font.weight", { ...a, font: { ...a.font, weight: 700 } }],
+    ["font.subset", { ...a, font: { ...a.font, subset: false } }],
+    ["font.embedded", { ...a, font: { ...a.font, embedded: false } }],
+  ];
+  for (const [field, mutant] of mutants) {
+    assert.notEqual(
+      runKeyTagFree(a),
+      runKeyTagFree(mutant),
+      `mutating ${field} must change the key`,
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------
