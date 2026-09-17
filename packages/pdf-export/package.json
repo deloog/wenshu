@@ -20,7 +20,9 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@wenshu/editor-transactions": "workspace:*",
     "@wenshu/markdown-import": "workspace:*",
+    "@wenshu/semantic-editor": "workspace:*",
     "typescript": "catalog:"
   }
 }

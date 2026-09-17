@@ -349,9 +349,15 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
+      '@wenshu/editor-transactions':
+        specifier: workspace:*
+        version: link:../editor-transactions
       '@wenshu/markdown-import':
         specifier: workspace:*
         version: link:../markdown-import
+      '@wenshu/semantic-editor':
+        specifier: workspace:*
+        version: link:../semantic-editor
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
