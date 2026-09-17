@@ -147,8 +147,9 @@ const report: Record<string, unknown> = {
     "出现在目录页与该节页，控制器锚定多页命中会 fail-closed 退 full-required；" +
     "用法形态与 test/incremental.render.test.ts 一致。",
   cancellationSemantics:
-    "printSession 未挂 session 级 signal（保留 5c 同会话复跑能力），abort 在" +
-    "管线阶段边界（assertNotCancelled）生效；结案耗时含在途打印剩余时间。",
+    "printSession 未挂 session 级 signal（保留 5c 同会话复跑能力）；A-04E-2-P6 起" +
+    "后台整份在同会话独立 target 上执行，取消主路径 = Target.closeTarget（在途" +
+    "打印随 target 销毁立即拒绝），abort 仅作管线阶段门兜底与 finally 防泄漏。",
 };
 
 const runRecords: unknown[] = [];
