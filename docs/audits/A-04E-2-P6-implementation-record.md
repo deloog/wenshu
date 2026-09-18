@@ -49,13 +49,41 @@
 
 ## 3. VM 批次（预算判定与正式结论的唯一来源）
 
-> **待跑**：批次规程与纪律同 run-2b-5 全表（塌链 attest/锚定逐位/900s 沉降/离线 install/
-> 输入 sha 钉死/批前批后双标定/签署基线等价门/证据 zip 双向核验），批次脚本
-> `tools/a-04e/vm-a04e2-p6-pass.ps1`（预算判定收尾 = 判定器 G7 逐轮 settleAfterClickMs ≤ 2000；
-> 增量 p95 仅留证不作判定——决策 #27 D1 已永久登记未达成）。跑批后本节登记批次号、
-> 逐轮 settleAfterClickMs 全表、双标定值、golden 等价结果、zip sha256 双向核验。
+> **已跑：run-p6-3 正式批次全链完成**（§3.1），证据 zip 双向核验落
+> `artifacts/perf/2026-09-18-A-04E-2-P6/`（gitignored 惯例同前批）。
+> 跑批规程：宿主 `vm-chain-depth-check.ps1` PASS（签署层配置+NIC 断开）→ 停机可写挂载
+> VHDX 注入 payload（robocopy `/MIR /XJ`，排除 node_modules/tmp/test-results/.hvigor）→
+> Startup 入口换 `startup-bootstrap-2-p6.cmd`（2b 入口备份留存）→ 引导 autologon 同次引导
+> attest → `vm-a04e2-p6-pass.ps1` 全门批次 → 证据 zip 经 PS Direct 回收，sha256 双向核验。
+>
+> 批次内门序（与 run-2b-5 全表一致）：塌链 attest → main 锚定逐位（`f64f348`）→ node
+> v24.17.0 → 900s 沉降 → 离线 install → env:record 四步 → 输入 sha 钉死 → 批前标定 →
+> 工装 10 轮 → 判定器 G1–G7 → 签署基线等价门 → 批后标定 → G7 预算判定收尾（增量 p95
+> 仅留证——决策 #27 D1 永久登记未达成）。
 
-（VM 批次结果待补）
+### 3.1 run-p6-3（正式批次，分支锚 `93f4ba4`，zip sha256 `c46c47c7…02c34` 双向核验一致，13,583,676 字节）
+
+- **门序全绿至收尾**：attest（同次引导）/锚定（main=`f64f348`、branch=`93f4ba4` 逐位）/node
+  v24.17.0/Edge 150.0.4078.83（签署身份）/900s 沉降/离线 install/env:record 四步/输入 sha
+  逐位/**批前标定 21658.6 ∈ 带 ✓** → 工装 10 轮 → 判定器 G1–G7 **PASS** → golden 等价门
+  exit 0（21 页 11876 run 逐 run 全等，normalized sha `4010C7FD…E03A` 与 2b 两批逐位一致
+  ——本棒对签署管线产物零变化的实证）→ **批后标定 19340.7 破下限 −5.9%** → STATUS=
+  `CALIBRATION_DIVERGED_POST` 如实登记、证据链未截断 → **业主书面豁免翻正（[决策 #28](../../决策记录.md)，
+  同 #26 形态，四条边界逐字沿用，仅此一批）**。
+- **P6 验收（决策 #27 D3 唯一条款，判定器 G7 逐轮 settleAfterClickMs ≤ 2000）：达成**
+
+  | run | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+  |---|---|---|---|---|---|---|---|---|---|---|
+  | settleAfterClickMs | 15.7 | 44.7 | 20.0 | 520.4 | 5.4 | 868.6 | 4.9 | 4.9 | 5.8 | 26.6 |
+
+  对照旧路径（abort 阶段门等打印）：run-2b-5 稳态 3.7–4.1s。10/10 `PDF_EXPORT_CANCELLED`
+  + 同会话复跑 30 页成功 + 旧槽位零替换 + `cancelPath=target.closeTarget+abort-fallback`。
+  run-01 maxGapMs=359.3（本棒继续采集，A2B-N3 跟进项保留；冷启离群 266.7s 同类未再现）。
+- **增量 p95=3679.3ms**（30 样本）：仅留证不作判定（决策 #27 D1 永久登记未达成）。
+- **批次史**：run-p6-1（批前标定 38947.2 破上限 +60.2%，VM 内 Defender 扫描新注入 payload
+  疑似诱因）→ 改名留存重跑 → run-p6-2（33054.1，+36.1%，逐轮收敛）→ 改名留存再跑 →
+  run-p6-3 批前入带。失败证据原件留 VM `C:\wenshu-out\a-04e\a04e-2-p6-cancel-v1-FAILED-run-p6-{1,2}`
+  （批次「证据目录已存在即拒跑」守卫逐轮生效，未混证）；两轮出带均经业主请示后处置。
 
 ## 4. 本机机制核验数值（仅机制证据，不作预算结论）
 
@@ -112,5 +140,13 @@ pdf-export 127/127）+ `pnpm verify` exit=0 确认。变异定义在表中精确
 - 工装本机 `--runs 2` 实跑：2/2 取消演示绿、settle 3.9/3.4ms、判定器 G1–G7 PASS（§4）。
 - 判定器变异：超 2s 注入变红、缺字段变红、删条款放行致死证明（§5 M-P6-3）。
 - 变异自证 M-P6-1～M-P6-4：全红回退（§5）。
-- `pnpm verify`：exit=0（见 §8 末尾登记时点）。
-- VM 批次：**待跑**（§3）。
+- `pnpm verify`：exit=0（2026-09-17 本机，含全部新工具脚本；首轮被 prettier 拦 6 文件，
+  `--write` 修复后复跑全绿）。
+- VM 批次：**run-p6-3 全链跑通**（G1–G7 PASS、golden 等价门零差异、批前标定入带；批后标定
+  破下限已获[决策 #28](../../决策记录.md) 书面豁免，四条边界见 §3.1）；**验收达成：10/10 轮
+  settleAfterClickMs ≤ 868.6ms ≤ 2000ms**。证据 zip sha256 `c46c47c7…02c34` 双向核验一致。
+
+## 9. 状态
+
+**已实现，待独立审计**（实施者未自行关闭任何审计发现；台账行与 AGENTS.md 承接条目按
+任务书 §1/§7.4 在审计 PASS 后当轮与审计报告同一提交补登，未签署前台账不出现「已完成」）。
