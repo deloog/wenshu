@@ -10,6 +10,7 @@ import {
   renderDocumentHtml,
   startStaticServer,
   type BrowserSession,
+  type RenderTarget,
 } from "@wenshu/report-render";
 
 import { backfillTocPageNumbers } from "./backfill-toc.ts";
@@ -56,12 +57,24 @@ export interface FullRenderOutput {
   };
 }
 
+export interface FullRenderOptions {
+  /**
+   * 独立渲染 target（A-04E-2-P6，决策 #27 D3）：提供时 navigate/printToPdf
+   * 在该 target 上执行，取消主路径 = 调用方关闭该 target（在途命令以
+   * RENDER_TARGET_CLOSED 拒绝，本函数在 signal 已中止时归一译为
+   * PDF_EXPORT_CANCELLED；signal 未中止时原样抛出，绝不误译真实失败）。
+   * 不提供时与既有行为逐字等价（会话本体执行）。
+   */
+  readonly renderTarget?: RenderTarget;
+}
+
 export async function renderDocumentFull(
   context: ExportContext,
   session: BrowserSession,
   document: WenshuDocument,
   stampSpec: StampSpec,
   cancellation?: PipelineCancellation,
+  options?: FullRenderOptions,
 ): Promise<FullRenderOutput> {
   const totalStart = performance.now();
   assertNotCancelled(cancellation, "compose");
@@ -94,18 +107,25 @@ export async function renderDocumentFull(
   let pdfBytes: Uint8Array;
   let navigateMs: number;
   let printMs: number;
+  // 执行面：独立 target（提供时）或会话本体（缺省，既有行为）。
+  const executor: Pick<BrowserSession, "navigate" | "printToPdf"> =
+    options?.renderTarget ?? session;
   try {
     assertNotCancelled(cancellation, "render");
     const navStart = performance.now();
-    await session.navigate(`${server.origin}/print.html`);
+    await executor.navigate(`${server.origin}/print.html`);
     navigateMs = performance.now() - navStart;
     const printStart = performance.now();
-    pdfBytes = await session.printToPdf({ ...context.printParams });
+    pdfBytes = await executor.printToPdf({ ...context.printParams });
     printMs = performance.now() - printStart;
   } catch (error) {
+    const code = (error as { readonly code?: unknown } | null)?.code;
     if (
       error instanceof Error &&
-      (error as { readonly code?: unknown }).code === "RENDER_CANCELLED"
+      (code === "RENDER_CANCELLED" ||
+        // target 关闭杀在途命令：仅当取消信号已中止才译为取消终态码
+        // （非取消原因的 target 失败原样抛出，不得冒充取消）。
+        (code === "RENDER_TARGET_CLOSED" && cancellation?.signal?.aborted === true))
     ) {
       throw new PdfExportError(
         "PDF_EXPORT_CANCELLED",

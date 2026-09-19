@@ -77,7 +77,7 @@ test("#14 消费者列现状的 26 处传递下游 → 通过", () => {
   noRule("roadmap-consumer-unfounded");
 });
 
-test("#16 封闭例外表 11 条现状报告 → 通过", () => {
+test("#16 封闭例外表 12 条现状报告 → 通过", () => {
   noRule("roadmap-audit-report-without-ledger");
 });
 

@@ -1,9 +1,10 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { findChromium } from "./browser-find.ts";
+import { createRenderTargetOpener, type RenderTarget } from "./browser-target.ts";
 import {
   cleanupFailedLaunch,
   killProcessTree,
@@ -11,51 +12,9 @@ import {
 } from "./browser-process.ts";
 import { RenderCheckError } from "./errors.ts";
 
-const CHROMIUM_CANDIDATES: readonly string[] = (() => {
-  switch (process.platform) {
-    case "win32":
-      return [
-        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-      ];
-    case "darwin":
-      return [
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-      ];
-    default:
-      return [
-        "/usr/bin/google-chrome",
-        "/usr/bin/google-chrome-stable",
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-      ];
-  }
-})();
-
-export function findChromium(executableOverride?: string): string {
-  if (executableOverride !== undefined) {
-    if (!existsSync(executableOverride)) {
-      throw new RenderCheckError(
-        "RENDER_BROWSER_UNAVAILABLE",
-        "the explicitly provided browser executable does not exist",
-      );
-    }
-    return executableOverride;
-  }
-  for (const candidate of CHROMIUM_CANDIDATES) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-  throw new RenderCheckError(
-    "RENDER_BROWSER_UNAVAILABLE",
-    `no Chromium-based browser found among ${CHROMIUM_CANDIDATES.length} candidates`,
-  );
-}
+// findChromium 纯搬迁至 browser-find.ts（file-size 门），此处转出口保持
+// 既有 import 路径（probes 等直引 browser.ts）零改动。
+export { findChromium } from "./browser-find.ts";
 
 export interface BrowserSession {
   /** 浏览器子进程 PID（资源清理核验用；spawn 失败场景为 undefined）。 */
@@ -68,6 +27,11 @@ export interface BrowserSession {
   printToPdf(params: Record<string, unknown>): Promise<Uint8Array>;
   /** 浏览器产品版本（CDP Browser.getVersion），锁定留证用。 */
   productVersion(): Promise<string>;
+  /**
+   * 打开会话内独立渲染 target（A-04E-2-P6）：取消 = 关闭该 target，
+   * 会话本体不污染、可立即复用（决策 #27 D3 授权形态）。
+   */
+  openTarget(): Promise<RenderTarget>;
   close(): Promise<void>;
 }
 
@@ -80,6 +44,7 @@ interface CdpFrame {
   id?: number;
   method?: string;
   sessionId?: string;
+  params?: Record<string, unknown>;
   result?: Record<string, unknown>;
   error?: { message?: string };
 }
@@ -193,10 +158,15 @@ export async function launchBrowser(
   let nextId = 0;
   const pending = new Map<
     number,
-    { resolve: (frame: CdpFrame) => void; reject: (error: Error) => void }
+    {
+      resolve: (frame: CdpFrame) => void;
+      reject: (error: Error) => void;
+      sessionId: string | undefined;
+    }
   >();
   const eventWaiters: Array<{
     method: string;
+    sessionId: string | undefined;
     resolve: () => void;
     reject: (error: Error) => void;
   }> = [];
@@ -220,9 +190,34 @@ export async function launchBrowser(
       pending.delete(frame.id);
       return;
     }
+    if (frame.method === "Target.detachedFromTarget") {
+      // target 关闭/崩溃即 detach：该 session 的在途命令与事件等待必须以
+      // RENDER_TARGET_CLOSED 立即拒绝（Chrome 不回答已销毁 session 的在途
+      // 命令；不拒绝则 30s 超时才结案，2s 取消预算失守）。
+      const detached = frame.params?.["sessionId"];
+      const targetClosedError = () =>
+        new RenderCheckError(
+          "RENDER_TARGET_CLOSED",
+          "render target closed or detached",
+        );
+      for (const [id, waiter] of pending.entries()) {
+        if (waiter.sessionId === detached) {
+          pending.delete(id);
+          waiter.reject(targetClosedError());
+        }
+      }
+      for (let index = eventWaiters.length - 1; index >= 0; index -= 1) {
+        const waiter = eventWaiters[index];
+        if (waiter !== undefined && waiter.sessionId === detached) {
+          eventWaiters.splice(index, 1);
+          waiter.reject(targetClosedError());
+        }
+      }
+      return;
+    }
     if (frame.method !== undefined) {
       for (const [index, waiter] of eventWaiters.entries()) {
-        if (waiter.method === frame.method) {
+        if (waiter.method === frame.method && waiter.sessionId === frame.sessionId) {
           eventWaiters.splice(index, 1);
           waiter.resolve();
           break;
@@ -263,6 +258,7 @@ export async function launchBrowser(
         );
       }, COMMAND_TIMEOUT_MS);
       pending.set(id, {
+        sessionId,
         resolve: (frame) => {
           clearTimeout(timer);
           resolveSend(frame);
@@ -284,12 +280,17 @@ export async function launchBrowser(
     });
   }
 
-  function waitEvent(method: string): Promise<void> {
+  function waitEvent(method: string, sessionId?: string): Promise<void> {
     if (aborted) {
       return Promise.reject(cancelledError());
     }
     return new Promise<void>((resolveEvent, rejectEvent) => {
-      eventWaiters.push({ method, resolve: resolveEvent, reject: rejectEvent });
+      eventWaiters.push({
+        method,
+        sessionId,
+        resolve: resolveEvent,
+        reject: rejectEvent,
+      });
     });
   }
 
@@ -311,7 +312,7 @@ export async function launchBrowser(
   return Object.freeze({
     pid: child.pid ?? undefined,
     navigate: async (url: string) => {
-      const loaded = waitEvent("Page.loadEventFired");
+      const loaded = waitEvent("Page.loadEventFired", sessionId);
       try {
         await send("Page.navigate", { url }, sessionId);
       } catch (error) {
@@ -352,6 +353,7 @@ export async function launchBrowser(
       const result = await send("Browser.getVersion", {});
       return String(result["product"] ?? "unknown");
     },
+    openTarget: createRenderTargetOpener(send, waitEvent),
     close: async () => {
       // Windows 上 kill 后主进程仍短暂持有 profile 锁：先 CDP 优雅关闭、等退出、重试清理。
       try {
