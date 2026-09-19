@@ -1,19 +1,23 @@
 /**
  * A-04E-2b 工装（决策 #25 D1，非产品）：ADR-0014 ③演示（每轮一次）——
  * 标题编辑（真实事务链）触发 full-required → 后台整份 renderDocumentFull
- * （同 printSession）→ 任务进行中 UI 探针 3 次点击 + 0.8s 后经工装页真实
- * 取消按钮 handler 置位 → 驱动轮询发现后 abort AbortController →
- * PDF_EXPORT_CANCELLED 结案 → 取消后同 printSession 立即再跑
+ * （同 printSession 的独立 target，A-04E-2-P6）→ 任务进行中 UI 探针 3 次
+ * 点击 + 0.8s 后经工装页真实取消按钮 handler 置位 → 驱动轮询发现后
+ * abort AbortController（阶段门兜底）+ Target.closeTarget（取消主路径）
+ * → PDF_EXPORT_CANCELLED 结案 → 取消后同 printSession 立即再跑
  * produceBaselinePdf 证明资源清理完备；全程旧预览槽位未替换。
  *
  * 选型说明：
  * - UI 探针点击：evaluate 对真实按钮元素执行 .click()（走页面真实 DOM
  *   事件 handler，非直接改数组）；点击处理延迟 = evaluate 往返耗时（含
  *   handler 同步执行）；maxGapMs 由页面 25ms 事件循环采样器给出。
- * - 取消语义（如实记录不修饰）：printSession 启动时未挂 session 级
- *   signal（挂了则 abort 后整会话不可复用，与 5c 同会话复跑冲突），故
- *   abort 在管线阶段边界（assertNotCancelled）生效，结案耗时含在途打印
- *   的剩余时间。
+ * - 取消语义（A-04E-2-P6，决策 #27 D3 授权形态）：后台整份在同会话独立
+ *   target 上执行，取消主路径 = Target.closeTarget（在途 printToPdf 随
+ *   target 销毁以 RENDER_TARGET_CLOSED 立即拒绝，renderDocumentFull 在
+ *   signal 已中止时归一译为 PDF_EXPORT_CANCELLED）；会话级 abort 永久
+ *   锁存语义不变，bgAbort 仅作管线阶段门（assertNotCancelled）兜底与
+ *   finally 防泄漏。settleAfterClickMs 口径不变：点击取消按钮 → 后台
+ *   renderDocumentFull promise settle。
  *
  * 本模块只测量与记录，不做任何判定。
  */
@@ -21,7 +25,7 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type { TransactionManager } from "@wenshu/editor-transactions";
-import type { BrowserSession } from "@wenshu/report-render";
+import type { BrowserSession, RenderTarget } from "@wenshu/report-render";
 import type { WenshuDocument } from "@wenshu/document-model";
 
 import { PdfExportError } from "../src/errors.ts";
@@ -67,12 +71,15 @@ export async function runCancelDemo(deps: CancelDemoDeps): Promise<unknown> {
   const heading = applyHeadingRewrite(deps.manager, deps.runDoc, deps.firstTocEntryId);
   const fallback = await controller.update(heading.document, heading.affectedNodeIds);
 
-  // 后台整份 renderDocumentFull（同 printSession；驱动持有 AbortController）
+  // 后台整份 renderDocumentFull（同 printSession 的独立 target；驱动持有
+  // AbortController 作阶段门兜底，取消主路径 = 关闭该 target）
   let bgAbort: AbortController | undefined;
   let bgPromise: Promise<BackgroundResult> | undefined;
+  let bgTarget: RenderTarget | undefined;
   try {
     bgAbort = new AbortController();
     const bgSignal = bgAbort.signal;
+    bgTarget = await printSession.openTarget();
     const bgStart = performance.now();
     bgPromise = renderDocumentFull(
       context,
@@ -80,6 +87,7 @@ export async function runCancelDemo(deps: CancelDemoDeps): Promise<unknown> {
       heading.document,
       deps.stampSpec,
       { signal: bgSignal },
+      { renderTarget: bgTarget },
     ).then(
       (completed): BackgroundResult => ({ outcome: "completed", completed }),
       (error: unknown): BackgroundResult => ({ outcome: "rejected", error }),
@@ -128,7 +136,10 @@ export async function runCancelDemo(deps: CancelDemoDeps): Promise<unknown> {
       await sleep(25);
     }
     const abortedAt = performance.now();
+    // 阶段门兜底 + 取消主路径同步发出：abort 覆盖阶段边界，closeTarget
+    // 销毁在途打印（二者不矛盾——终态码归一在 renderDocumentFull 内完成）。
     (bgAbort as AbortController).abort();
+    await (bgTarget as RenderTarget).close();
     const bgResult = await bgPromise;
     const settledAt = performance.now();
     if (stalePage0 >= 0) {
@@ -161,6 +172,8 @@ export async function runCancelDemo(deps: CancelDemoDeps): Promise<unknown> {
       },
       background: {
         outcome: bgResult.outcome,
+        // A-04E-2-P6：取消主路径标记（独立 target 关闭 + 阶段门 abort 兜底）。
+        cancelPath: "target.closeTarget+abort-fallback",
         errorCode:
           bgResult.outcome === "rejected" && bgResult.error instanceof PdfExportError
             ? bgResult.error.code
@@ -195,7 +208,9 @@ export async function runCancelDemo(deps: CancelDemoDeps): Promise<unknown> {
     });
   } finally {
     // 异常路径兜底：不让在途后台整份泄漏到下一轮（同 printSession）。
+    // close 幂等：主路径已关闭时此处为 no-op。
     bgAbort?.abort();
+    await bgTarget?.close();
     if (bgPromise !== undefined) {
       await bgPromise;
     }

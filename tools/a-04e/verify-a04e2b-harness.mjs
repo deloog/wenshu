@@ -18,6 +18,9 @@
  *      且 errorCode==="PDF_EXPORT_CANCELLED"；后台期间旧槽位零替换
  *      （oldSlotsUntouchedDuringBackground）；复跑 recovery.pageCount===基线页数；
  *      UI 探针 3 击延迟/maxGapMs/settleAfterClickMs 均为有限数。
+ *   G7 取消结案 2s 预算（A-04E-2-P6，决策 #27 D3，冻结预算 performance-budgets.md
+ *      「取消后 2 秒内停止继续消耗主要计算资源」）：逐轮 settleAfterClickMs ≤ 2000，
+ *      缺字段/非有限数/超限均 fail；逐轮判定（单次操作语义），非 p95/均值。
  * 指标输出（判定归 VM 批次脚本）：增量编辑 totalMs 全样本排序、p95（nearest-rank）、
  * 分区 p95、UI 探针最大点击延迟与最大事件循环间隙。
  *
@@ -43,6 +46,9 @@ const slotKeysScript = resolve(
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+/** G7：取消结案预算（冻结预算原文口径，决策 #27 D3 唯一验收条款）。 */
+const CANCEL_SETTLE_BUDGET_MS = 2000;
 
 /** @returns {{a: number, b: number}} */
 const parseRange = (range, context) => {
@@ -182,6 +188,16 @@ for (const record of records) {
     ["settleAfterClickMs", tl.settleAfterClickMs],
   ]) {
     if (!Number.isFinite(value)) fail(`${tag}: ${name} not finite (${value})`);
+  }
+  // ---- G7 取消结案 2s 预算（逐轮；缺字段/非有限数/超限均 fail） ----
+  if (!Number.isFinite(tl.settleAfterClickMs)) {
+    fail(
+      `${tag}: G7 settleAfterClickMs missing or not finite (${tl.settleAfterClickMs})`,
+    );
+  } else if (tl.settleAfterClickMs > CANCEL_SETTLE_BUDGET_MS) {
+    fail(
+      `${tag}: G7 settleAfterClickMs ${tl.settleAfterClickMs} > ${CANCEL_SETTLE_BUDGET_MS} (cancel-settle budget, decision #27 D3)`,
+    );
   }
   probeLatencies.push(...(tl.probeClickLatencies ?? []));
   maxGaps.push(tl.maxGapMsDuringBackground);
