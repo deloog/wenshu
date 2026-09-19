@@ -55,7 +55,7 @@ const APPROVED_DEVIATIONS = Object.freeze<ApprovedDeviation[]>([
 
 /**
  * Check 8a: audit reports without a 1:1 ledger entry (task book §5.4,
- * closed table of 11, exhaustive). `G2-03` is deliberately NOT here —
+ * closed table of 12, exhaustive). `G2-03` is deliberately NOT here —
  * it is the genuine gap fixed by adding its ledger entry.
  */
 const AUDIT_REPORT_EXCEPTIONS = Object.freeze<AuditReportException[]>([
@@ -98,6 +98,11 @@ const AUDIT_REPORT_EXCEPTIONS = Object.freeze<AuditReportException[]>([
     report: "PA-11B",
     category: "实施期拆分，并入父任务记载",
     countsAsTaskReportFor: Object.freeze(["PA-11"]),
+  },
+  {
+    report: "A-04E-2-P6",
+    category: "实施期拆分，并入父任务记载",
+    countsAsTaskReportFor: Object.freeze(["A-04E"]),
   },
   {
     report: "engine-reassessment",
