@@ -41,8 +41,9 @@
   两路覆盖归一：① 连接层 `Target.detachedFromTarget` → 该 session 在途命令/事件等待立即
   以 `RENDER_TARGET_CLOSED` 拒绝并清除（不等 30s 超时）；② `RenderTarget` 本地记录已发起
   close，其后该 target 上的通用协议错误归一译为 `RENDER_TARGET_CLOSED`。
-- **file-size 门**：browser.ts 378→381/400（纯搬迁拆出 browser-find.ts 53 行 + additive
-  连接层改动）；render-full.ts 165→187/400；browser-target.ts 74 行。
+- **file-size 门**（行数引用门禁口径实测，G2-04 承接③）：browser.ts 378→380/400（纯搬迁拆出
+  browser-find.ts 53 行 + additive 连接层改动）；render-full.ts 165→185/400；
+  browser-target.ts 96 行。
 - **既有公开面零改动实证**：`persistent-session.render.test.ts`（close 计数 0、取消后同会话
   复用）、`incremental.render.test.ts`（取消后状态引用相等）、`cancellation.render.test.ts`
   四例（含未触发 signal 完全 no-op 红线）**零改动通过**（127/127 全绿）。
