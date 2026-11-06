@@ -21,8 +21,17 @@
  *   G7 取消结案 2s 预算（A-04E-2-P6，决策 #27 D3，冻结预算 performance-budgets.md
  *      「取消后 2 秒内停止继续消耗主要计算资源」）：逐轮 settleAfterClickMs ≤ 2000，
  *      缺字段/非有限数/超限均 fail；逐轮判定（单次操作语义），非 p95/均值。
- * 指标输出（判定归 VM 批次脚本）：增量编辑 totalMs 全样本排序、p95（nearest-rank）、
- * 分区 p95、UI 探针最大点击延迟与最大事件循环间隙。
+ *   G8 层 1 交互反馈预算（A-04E-2c，决策 #29 D1「局部编辑交互反馈（HTML 预览层）
+ *      p95 ≤ 1 秒」，ADR-0035 §2 唯一口径源）：逐编辑 layer1UpdateMs 缺字段/非有限数
+ *      均 fail；layer1PrintCalls !== 0 即 fail（层 1 窗口内出现 printToPdf = HTML 层
+ *      含 print，造假）；样本 n<30 fail（剔除退化轮洗账不可行）；p95（nearest-rank）
+ *      ≤ 1000，超限 fail。另核验 layer1UpdateMs ≤ layer2UpdateMs（层序包含性）。
+ *   G9 层 2 页槽精确更新预算（同「局部编辑页槽精确更新（PDF 预览层）p95 ≤ 5 秒」）：
+ *      逐编辑 layer2UpdateMs 缺字段/非有限数均 fail；layer2UpdateMs ≥ timings.totalMs
+ *      （终点包含性——终点提前到页槽注入之前即变红）；n<30 fail；p95 ≤ 5000，超限 fail。
+ *      首个 VM 批次超标如实登记 not_met，不得修订预算行（决策 #29 D3）。
+ * 指标输出：增量编辑 totalMs / layer1UpdateMs / layer2UpdateMs 全样本排序、p95
+ * （nearest-rank）、分区 p95、UI 探针最大点击延迟与最大事件循环间隙。
  *
  * 用法：node tools/a-04e/verify-a04e2b-harness.mjs <harness-out-dir>
  */
@@ -49,6 +58,18 @@ const fail = (message) => failures.push(message);
 
 /** G7：取消结案预算（冻结预算原文口径，决策 #27 D3 唯一验收条款）。 */
 const CANCEL_SETTLE_BUDGET_MS = 2000;
+/** G8：层 1 交互反馈预算（决策 #29 D1，ADR-0035 §2 唯一口径源；架构承诺型预算，超标如实登记 not_met）。 */
+const LAYER1_FEEDBACK_BUDGET_MS = 1000;
+/** G9：层 2 页槽精确更新预算（决策 #29 D1，X=5s 按 ADR-0035 §3 选项 A 立账）。 */
+const LAYER2_SLOT_UPDATE_BUDGET_MS = 5000;
+/** G8/G9 样本数下限（p95 nearest-rank，n≥30；不足即 fail——样本不可剔除）。 */
+const BUDGET_MIN_SAMPLES = 30;
+
+/** p95 nearest-rank（G8/G9 判定与指标输出共用唯一实现）。 */
+const p95 = (values) => {
+  const sorted = [...values].sort((x, y) => x - y);
+  return sorted[Math.ceil(0.95 * sorted.length) - 1];
+};
 
 /** @returns {{a: number, b: number}} */
 const parseRange = (range, context) => {
@@ -84,6 +105,8 @@ if (records.length !== report.runs) {
 
 const editTotals = [];
 const zoneTotals = [[], [], []];
+const layer1Samples = [];
+const layer2Samples = [];
 const probeLatencies = [];
 const maxGaps = [];
 const perZone = [[], [], []]; // 跨轮确定性比对容器
@@ -143,6 +166,37 @@ for (const record of records) {
     // 指标采样
     editTotals.push(edit.timings.totalMs);
     zoneTotals[zone].push(edit.timings.totalMs);
+    // ---- G8/G9 逐编辑字段完整性与机制断言（p95 判定在循环外） ----
+    if (!Number.isFinite(edit.layer1UpdateMs)) {
+      fail(`${ctx}: G8 layer1UpdateMs missing or not finite (${edit.layer1UpdateMs})`);
+    } else {
+      layer1Samples.push(edit.layer1UpdateMs);
+    }
+    if (edit.layer1PrintCalls !== 0) {
+      fail(
+        `${ctx}: G8 layer1PrintCalls=${edit.layer1PrintCalls} — printToPdf fired inside the layer-1 window (HTML layer must not print)`,
+      );
+    }
+    if (!Number.isFinite(edit.layer2UpdateMs)) {
+      fail(`${ctx}: G9 layer2UpdateMs missing or not finite (${edit.layer2UpdateMs})`);
+    } else {
+      layer2Samples.push(edit.layer2UpdateMs);
+      // 终点包含性：层 2 终点在页槽注入之后，必 ≥ 控制器 totalMs（提前即蒙混）
+      if (edit.layer2UpdateMs < edit.timings.totalMs) {
+        fail(
+          `${ctx}: G9 layer2UpdateMs ${edit.layer2UpdateMs} < timings.totalMs ${edit.timings.totalMs} — endpoint moved before slot injection`,
+        );
+      }
+      // 层序包含性：层 1 先于层 2 完成
+      if (
+        Number.isFinite(edit.layer1UpdateMs) &&
+        edit.layer1UpdateMs > edit.layer2UpdateMs
+      ) {
+        fail(
+          `${ctx}: G8 layer1UpdateMs ${edit.layer1UpdateMs} > layer2UpdateMs ${edit.layer2UpdateMs} — layer order violated`,
+        );
+      }
+    }
     // ---- G5 跨轮确定性容器 ----
     perZone[zone].push({
       tag,
@@ -222,17 +276,42 @@ for (const [zone, samples] of perZone.entries()) {
   }
 }
 
-// ---- 指标输出（p95 nearest-rank；预算判定归 VM 批次脚本） ----
-const p95 = (values) => {
-  const sorted = [...values].sort((x, y) => x - y);
-  return sorted[Math.ceil(0.95 * sorted.length) - 1];
-};
+// ---- G8/G9 预算判定（p95 nearest-rank，n≥30；缺样本/超限均 fail） ----
+for (const [name, samples, budget] of [
+  ["G8 layer1UpdateMs", layer1Samples, LAYER1_FEEDBACK_BUDGET_MS],
+  ["G9 layer2UpdateMs", layer2Samples, LAYER2_SLOT_UPDATE_BUDGET_MS],
+]) {
+  if (samples.length < BUDGET_MIN_SAMPLES) {
+    fail(
+      `${name}: samples ${samples.length} < ${BUDGET_MIN_SAMPLES} (budget evidence requires n≥30; dropped samples = wash)`,
+    );
+    continue;
+  }
+  const value = p95(samples);
+  if (value > budget) {
+    fail(`${name}: p95 ${value.toFixed(1)} > ${budget} (decision #29 D1 budget)`);
+  }
+}
+
+// ---- 指标输出（p95 nearest-rank；G8/G9 判定见上，其余判定归 VM 批次脚本） ----
 if (editTotals.length > 0) {
   const sorted = [...editTotals].sort((x, y) => x - y);
   console.log(
     `incremental-totalMs sorted: ${sorted.map((v) => v.toFixed(1)).join(", ")}`,
   );
   console.log(`p95-incremental-totalMs=${p95(editTotals).toFixed(1)}`);
+  for (const [name, samples] of [
+    ["layer1-updateMs", layer1Samples],
+    ["layer2-updateMs", layer2Samples],
+  ]) {
+    if (samples.length > 0) {
+      const sortedSamples = [...samples].sort((x, y) => x - y);
+      console.log(
+        `${name} sorted: ${sortedSamples.map((v) => v.toFixed(1)).join(", ")}`,
+      );
+      console.log(`p95-${name}=${p95(samples).toFixed(1)} (n=${samples.length})`);
+    }
+  }
   for (const [zone, values] of zoneTotals.entries()) {
     if (values.length > 0) {
       console.log(

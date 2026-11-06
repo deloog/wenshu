@@ -19,6 +19,7 @@ import { PdfExportError } from "./errors.ts";
 import { extractGeometry, type PdfGeometry } from "./geometry.ts";
 import {
   evaluateCascade,
+  initialWindowEnd,
   locateAnchorPage,
   pageRuns,
   recomputeTocPagesAfterWindow,
@@ -187,7 +188,8 @@ export function createIncrementalPreviewController(
         ),
       );
       const windowStart = Math.min(...anchorPages);
-      let windowEnd = Math.max(...anchorPages);
+      // P7（A-04E-2c，业主裁定采纳）：首窗放宽一页；哨兵比对/级联延伸不变
+      let windowEnd = initialWindowEnd(Math.max(...anchorPages));
       if (current.tocPageIndex !== null && windowStart <= current.tocPageIndex) {
         // 编辑触及目录页或之前：目录页自身位置可能移位，v1 诚实退整份
         return fullRequired(

@@ -39,6 +39,14 @@ export class HarnessUi {
     return this.evaluate(`window.__setSlotPdf(${page}, ${JSON.stringify(url)})`);
   }
 
+  /**
+   * 层 1 HTML 预览更新（A-04E-2c）：返回页面侧完成时间戳（iframe load）。
+   * evaluate await 页面 Promise——返回即「DOM 更新+回流完成」之后。
+   */
+  public setLayer1Html(html: string): Promise<number> {
+    return this.evaluate<number>(`window.__setLayer1Html(${JSON.stringify(html)})`);
+  }
+
   public setStale(page: number, stale: boolean): Promise<unknown> {
     return this.evaluate(`window.__setStale(${page}, ${stale})`);
   }

@@ -13,6 +13,10 @@
  *   缓存破坏 query 与 "#page=" 锚 fragment）。
  * - __setStale(page, stale)：标注/撤下「stale（后台更新中）」徽标。
  * - __setStatus(text)：更新状态行并记入 __probe.events。
+ * - __setLayer1Html(html)：层 1 HTML 预览更新（A-04E-2c）——把组合好的整份
+ *   HTML 装入预览 iframe（srcdoc），以其 load 事件为「DOM 更新+回流完成」
+ *   的确定性完成标记，返回页面侧 performance.now()。iframe 隔离模板 CSS
+ *   与工装页样式；页面侧不做任何判定。
  * - __resetProbe()：清空 clicks/maxGapMs/events（每轮测量前由驱动复位）。
  *
  * 插桩（页面侧事实采集，判定归 VM 批次脚本）：
@@ -40,7 +44,10 @@ export const HARNESS_PAGE_HTML: string = `<!doctype html>
     display: flex; gap: 12px; align-items: center;
   }
   #status { flex: 1; font-family: monospace; white-space: pre-wrap; }
-  #slots { margin-top: 92px; padding: 12px; display: flex; flex-direction: column; gap: 16px; }
+  #layer1 { margin-top: 92px; padding: 12px 12px 0; }
+  .layer1-label { font-size: 12px; color: #44403c; padding: 2px 6px; }
+  #layer1-frame { width: 100%; height: 420px; border: 1px solid #a8a29e; background: #fff; }
+  #slots { padding: 12px; display: flex; flex-direction: column; gap: 16px; }
   .slot { border: 1px solid #a8a29e; background: #fff; }
   .slot-label { font-size: 12px; color: #44403c; padding: 2px 6px; }
   .slot-frame { position: relative; height: 420px; }
@@ -65,6 +72,10 @@ export const HARNESS_PAGE_HTML: string = `<!doctype html>
   <div id="status">(未初始化)</div>
   <button id="cancel-btn" type="button">取消后台任务</button>
   <button id="probe-btn" type="button">探针</button>
+</div>
+<div id="layer1">
+  <div class="layer1-label">层 1 HTML 预览（编辑提交即时回流，无分页/print）</div>
+  <iframe id="layer1-frame" title="layer1-html-preview"></iframe>
 </div>
 <div id="slots"></div>
 <script>
@@ -155,6 +166,19 @@ window.__setSlotPdf = function (page, url) {
   var embed = slotOf(page).querySelector(".slot-pdf");
   embed.src = url;
   pushEvent("slot-pdf:" + page);
+};
+
+// 层 1 HTML 预览更新（A-04E-2c）：srcdoc 装载 + load 事件 = 确定性完成标记。
+window.__setLayer1Html = function (html) {
+  var frame = document.getElementById("layer1-frame");
+  return new Promise(function (resolveNow) {
+    frame.onload = function () {
+      var doneAt = performance.now();
+      pushEvent("layer1:updated");
+      resolveNow(doneAt);
+    };
+    frame.srcdoc = html;
+  });
 };
 
 window.__setStale = function (page, stale) {

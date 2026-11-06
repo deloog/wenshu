@@ -26,6 +26,29 @@ export const SUBSTITUTION = "2b工装替换验证甲乙丙丁";
 
 export type HarnessBlock = WenshuDocument["blocks"][number];
 
+/** 逐编辑报告记录（harness 主件 file-size 纯搬迁，A-04E-2c；字段口径见报告头）。 */
+export interface EditRecord {
+  readonly edit: number;
+  readonly zone: string;
+  readonly nodeId: string;
+  readonly anchorPage0: number;
+  readonly chainAffectedNodeIds: readonly string[];
+  readonly updateAffectedNodeIds: readonly string[];
+  readonly kind: string;
+  /** 编辑提交→层 1 HTML 预览 load（ms）；窗口内 printToPdf 数（===0 断言）。 */
+  readonly layer1UpdateMs: number;
+  readonly layer1PrintCalls: number;
+  /** 编辑提交→页槽 embed 注入完成（ms；仅增量编辑；判定器 G9）。 */
+  readonly layer2UpdateMs?: number | undefined;
+  readonly reason?: string;
+  readonly pageRangesPrinted: readonly string[];
+  readonly updatedRange?: readonly [number, number];
+  readonly timings: unknown;
+  readonly slotsUpdated: readonly number[];
+  readonly tocSlotUpdated: boolean;
+  readonly reconcile?: unknown;
+}
+
 export function flattenBlocks(blocks: readonly HarnessBlock[]): HarnessBlock[] {
   const out: HarnessBlock[] = [];
   for (const block of blocks) {

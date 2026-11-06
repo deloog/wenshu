@@ -195,6 +195,19 @@ export function resolveEditAnchor(
 // 级联步进（纯状态机；IO 在控制器）
 // ---------------------------------------------------------------------------
 
+/**
+ * P7 首窗自适应放宽一页（A-04E-2c，业主裁定采纳，ADR-0036）：首窗内容末页 =
+ * 锚定末页 + FIRST_WINDOW_EXTRA_PAGES。zone-2 级联率实测 10/10（run-2b-5），
+ * 首窗多打一页把两轮级联吸收为一轮；哨兵宽恒 1（末页仍哨兵）、级联延伸与
+ * 终止性不变，等价性论证不变（与 ADR-0033 D2 哨兵同源）。
+ */
+export const FIRST_WINDOW_EXTRA_PAGES = 1;
+
+/** 首窗内容末页（0 基）= 锚定末页 + P7 放宽宽数。 */
+export function initialWindowEnd(anchorEndPage: number): number {
+  return anchorEndPage + FIRST_WINDOW_EXTRA_PAGES;
+}
+
 export interface CascadeInput {
   /** 当前窗口 [start, end]，0 基闭区间（被认为受影响的旧页）。 */
   readonly windowStart: number;

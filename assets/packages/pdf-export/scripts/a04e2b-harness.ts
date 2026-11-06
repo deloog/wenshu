@@ -10,6 +10,8 @@
  *      整份 + UI 探针 + 真实按钮取消 + PDF_EXPORT_CANCELLED + 同会话复跑；
  *   3. 对账（每轮每编辑，实现在 a04e2b-harness-reconcile.ts）：整份重渲
  *      独立参照，窗页逐页 tag-free run + tocPages 逐项比对。
+ *   4. A-04E-2c 双层测量：layer1UpdateMs（编辑提交→HTML 预览 load，零 print）
+ *      与 layer2UpdateMs（编辑提交→页槽注入完成）；口径 ADR-0036，判定 G8/G9。
  *
  * 纪律：本驱动只做测量与记录，不做任何预算/质量判定（判定归 VM 批次脚本）；
  * 管线内部既有 fail-closed 断言照常生效，错误如实记录进报告。
@@ -54,8 +56,10 @@ import { runCancelDemo } from "./a04e2b-harness-cancel.ts";
 import {
   applyParagraphRewrite,
   pickEditableParagraph,
+  type EditRecord,
 } from "./a04e2b-harness-edits.ts";
 import { HARNESS_PAGE_HTML } from "./a04e2b-harness-page.ts";
+import { runLayer1Preview, withPrintCallCount } from "./a04e2b-harness-layer1.ts";
 import { reconcileWindowAgainstFull } from "./a04e2b-harness-reconcile.ts";
 import { HarnessUi } from "./a04e2b-harness-ui.ts";
 
@@ -82,23 +86,6 @@ const slotsDir = resolve(outDir, "slots");
 const sha256 = (bytes: Uint8Array): string =>
   createHash("sha256").update(bytes).digest("hex");
 
-interface EditRecord {
-  readonly edit: number;
-  readonly zone: string;
-  readonly nodeId: string;
-  readonly anchorPage0: number;
-  readonly chainAffectedNodeIds: readonly string[];
-  readonly updateAffectedNodeIds: readonly string[];
-  readonly kind: string;
-  readonly reason?: string;
-  readonly pageRangesPrinted: readonly string[];
-  readonly updatedRange?: readonly [number, number];
-  readonly timings: unknown;
-  readonly slotsUpdated: readonly number[];
-  readonly tocSlotUpdated: boolean;
-  readonly reconcile?: unknown;
-}
-
 await mkdir(slotsDir, { recursive: true });
 
 // ---- 1. 装配上下文 + 持久打印会话 + 工装静态服务器 + 独立 UI 浏览器实例 ----
@@ -109,7 +96,9 @@ const context: ExportContext = await prepareExportContext({
   templatePath,
 });
 const printLaunchStart = performance.now();
-const printSession = await launchBrowser(browserPath, {});
+const rawPrintSession = await launchBrowser(browserPath, {});
+// 层 1 零 print 断言的计数包装（A-04E-2c）：委托全部方法，仅计数 printToPdf。
+const { session: printSession, printCalls } = withPrintCallCount(rawPrintSession);
 const printBrowserLaunchMs = performance.now() - printLaunchStart;
 const harnessServer = await startStaticServer(
   [{ mount: "/slots/", directory: slotsDir }],
@@ -150,6 +139,10 @@ const report: Record<string, unknown> = {
     "printSession 未挂 session 级 signal（保留 5c 同会话复跑能力）；A-04E-2-P6 起" +
     "后台整份在同会话独立 target 上执行，取消主路径 = Target.closeTarget（在途" +
     "打印随 target 销毁立即拒绝），abort 仅作管线阶段门兜底与 finally 防泄漏。",
+  layeredPreviewMeasurement:
+    "A-04E-2c（决策 #29/ADR-0036）：layer1UpdateMs=编辑提交→层 1 HTML 预览 load（零 print，" +
+    "layer1PrintCalls 恒 0）；layer2UpdateMs=编辑提交→页槽 embed 注入完成（含层 1 与 " +
+    "totalMs，不含对账 referenceTotalMs）；timings.totalMs 保持 run-2b-5 归因口径不变。",
 };
 
 const runRecords: unknown[] = [];
@@ -239,9 +232,19 @@ try {
         const edited = applyParagraphRewrite(manager, runDoc, target.id);
         runDoc = edited.document;
 
+        // 层 1（A-04E-2c）：编辑提交 → HTML 预览更新（零 print 断言窗口）
+        const submittedAt = performance.now();
+        const layer1 = await runLayer1Preview({
+          ui,
+          document: runDoc,
+          context,
+          printCalls,
+          submittedAt,
+        });
         const result = await controller.update(runDoc, [target.id]);
         const slotsUpdated: number[] = [];
         let tocSlotUpdated = false;
+        let layer2UpdateMs: number | undefined;
         let reconcile: unknown;
 
         if (result.kind === "incremental") {
@@ -261,6 +264,8 @@ try {
               tocSlotUpdated = true;
             }
           }
+          // 层 2 终点（ADR-0036）：页槽 embed 注入完成；对账不计入（§2.2）
+          layer2UpdateMs = performance.now() - submittedAt;
           await ui.setStatus(
             `${runTag} 编辑${zone + 1}（${zoneName}段 p${target.page + 1}）：增量` +
               ` 窗页 ${result.updatedRange[0]}-${result.updatedRange[1]}` +
@@ -293,10 +298,12 @@ try {
             chainAffectedNodeIds: edited.affectedNodeIds,
             updateAffectedNodeIds: [target.id],
             kind: result.kind,
+            layer1UpdateMs: layer1.layer1UpdateMs,
+            layer1PrintCalls: layer1.layer1PrintCalls,
             ...(result.kind === "full-required" ? { reason: result.reason } : {}),
             pageRangesPrinted: result.pageRangesPrinted,
             ...(result.kind === "incremental"
-              ? { updatedRange: result.updatedRange }
+              ? { updatedRange: result.updatedRange, layer2UpdateMs }
               : {}),
             timings: result.timings,
             slotsUpdated: Object.freeze(slotsUpdated),
@@ -307,6 +314,7 @@ try {
         console.log(
           `${runTag} edit ${zone + 1} (${zoneName}): kind=${result.kind}` +
             ` totalMs=${result.timings.totalMs.toFixed(1)}` +
+            ` layer1Ms=${layer1.layer1UpdateMs.toFixed(1)}` +
             ` ranges=${result.pageRangesPrinted.join(",")}`,
         );
       } catch (error) {
